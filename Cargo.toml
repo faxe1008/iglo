@@ -1,0 +1,20 @@
+[package]
+name = "chessica"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+
+[dev-dependencies.sdl2]
+sdl2 = "0.36.0"
+default-features = false
+features = ["image", "ttf"]
+
+[lib]
+name = "chessica"
+path = "src/lib.rs"
+
+[[example]]        
+name = "chessica_ui"
+path = "src/ui/main.rs"
