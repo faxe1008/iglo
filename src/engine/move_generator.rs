@@ -1,5 +1,3 @@
-use crate::c_move;
-
 use super::{
     bitboard::BitBoard,
     board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor},
@@ -19,10 +17,12 @@ impl ChessBoard {
     #[inline(always)]
     fn pawns_able_to_double_push(&self, color: PieceColor) -> BitBoard {
         if color == PieceColor::White {
-            let empty_rank_3 = (self.empty_squares() & BitBoard::RANK_4).sSo() & self.empty_squares();
+            let empty_rank_3 =
+                (self.empty_squares() & BitBoard::RANK_4).sSo() & self.empty_squares();
             empty_rank_3.sSo() & self.white_pieces[ChessPiece::Pawn as usize]
         } else {
-            let empty_rank_6 = (self.empty_squares() & BitBoard::RANK_5).sNo() & self.empty_squares();
+            let empty_rank_6 =
+                (self.empty_squares() & BitBoard::RANK_5).sNo() & self.empty_squares();
             empty_rank_6.sNo() & self.black_pieces[ChessPiece::Pawn as usize]
         }
     }
@@ -49,7 +49,7 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
             if single_push_pawns.get_bit(i) {
                 let target = i as i32 + 8 * push_dir;
                 if target >= 0 && target <= 63 {
-                    moves.push(c_move!(i, target, MoveType::Silent));
+                    moves.push(Move::new(i as u16, target as u16, MoveType::Silent));
                 }
             }
         }
@@ -61,7 +61,7 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
             if double_push_pawns.get_bit(i) {
                 let target = i as i32 + 16 * push_dir;
                 if target >= 0 && target <= 63 {
-                    moves.push(c_move!(i, target, MoveType::Silent));
+                    moves.push(Move::new(i as u16, target as u16, MoveType::Silent));
                 }
             }
         }
@@ -74,16 +74,63 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
 mod move_gen_tests {
     use crate::engine::{
         board::{ChessBoardState, PieceColor},
+        chess_move::{Move, MoveType},
         move_generator::generate_pawn_moves,
     };
 
+    fn compare_moves(generated: &[Move], expected: &[Move]) {
+        assert_eq!(generated.len(), expected.len());
+        for expected_move in expected {
+            assert!(generated.contains(&expected_move));
+        }
+    }
+
     #[test]
     fn pawns_moves_from_fen_simple() {
-        let board_state =
-            ChessBoardState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0");
-        assert!(board_state.is_ok());
-        let board_state = board_state.unwrap();
+        let board_state = ChessBoardState::starting_state();
 
-        println!("ASD {:?}", generate_pawn_moves(&board_state, PieceColor::White));
+        let expected_moves_white = [
+            Move::new(55, 47, MoveType::Silent),
+            Move::new(54, 46, MoveType::Silent),
+            Move::new(53, 45, MoveType::Silent),
+            Move::new(52, 44, MoveType::Silent),
+            Move::new(51, 43, MoveType::Silent),
+            Move::new(50, 42, MoveType::Silent),
+            Move::new(49, 41, MoveType::Silent),
+            Move::new(48, 40, MoveType::Silent),
+            Move::new(55, 39, MoveType::Silent),
+            Move::new(54, 38, MoveType::Silent),
+            Move::new(53, 37, MoveType::Silent),
+            Move::new(52, 36, MoveType::Silent),
+            Move::new(51, 35, MoveType::Silent),
+            Move::new(50, 34, MoveType::Silent),
+            Move::new(49, 33, MoveType::Silent),
+            Move::new(48, 32, MoveType::Silent),
+        ];
+
+        let white_pawn_moves = generate_pawn_moves(&board_state, PieceColor::White);
+        compare_moves(&white_pawn_moves, &expected_moves_white);
+
+        let expected_moves_black = [
+            Move::new(15, 23, MoveType::Silent),
+            Move::new(14, 22, MoveType::Silent),
+            Move::new(13, 21, MoveType::Silent),
+            Move::new(12, 20, MoveType::Silent),
+            Move::new(11, 19, MoveType::Silent),
+            Move::new(10, 18, MoveType::Silent),
+            Move::new(9, 17, MoveType::Silent),
+            Move::new(8, 16, MoveType::Silent),
+            Move::new(15, 31, MoveType::Silent),
+            Move::new(14, 30, MoveType::Silent),
+            Move::new(13, 29, MoveType::Silent),
+            Move::new(12, 28, MoveType::Silent),
+            Move::new(11, 27, MoveType::Silent),
+            Move::new(10, 26, MoveType::Silent),
+            Move::new(9, 25, MoveType::Silent),
+            Move::new(8, 24, MoveType::Silent),
+        ];
+        let black_pawn_moves = generate_pawn_moves(&board_state, PieceColor::Black);
+        compare_moves(&black_pawn_moves, &expected_moves_black);
+
     }
 }

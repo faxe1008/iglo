@@ -175,6 +175,12 @@ impl ChessBoard {
 }
 
 impl ChessBoardState {
+
+
+    pub fn starting_state() -> Self {
+        Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0").unwrap()
+    }
+
     pub fn pos_code_to_index(code: &str) -> Result<Option<u8>, ()> {
         if code == "-" {
             return Ok(None);
