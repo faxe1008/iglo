@@ -74,6 +74,42 @@ impl BitBoard {
     }
 }
 
+pub struct BitBoardIterator {
+    value: BitBoard,
+}
+
+impl BitBoardIterator {
+    fn new(bitboard: BitBoard) -> Self {
+        Self {
+            value: bitboard,
+        }
+    }
+}
+
+impl Iterator for BitBoardIterator {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.value.0 == 0 {
+            return None;
+        }
+        let lsb = self.value.0.trailing_zeros() as usize;
+        self.value = self.value.clear_bit(lsb);
+        Some(lsb)
+    }
+}
+
+impl IntoIterator for BitBoard {
+    type Item = usize;
+
+    type IntoIter = BitBoardIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BitBoardIterator::new(self)
+    }
+}
+
+
 impl std::ops::BitAnd<BitBoard> for BitBoard {
     type Output = BitBoard;
 
@@ -94,5 +130,32 @@ impl std::ops::BitOr<BitBoard> for BitBoard {
 
     fn bitor(self, rhs: BitBoard) -> Self::Output {
         BitBoard(self.0 | rhs.0)
+    }
+}
+
+
+#[cfg(test)]
+mod bitboard_tests {
+    use super::{BitBoard, BitBoardIterator};
+
+    #[test]
+    fn test_iterator() {
+        let bitboard = BitBoard(0b0001);
+
+        let mut iter = BitBoardIterator::new(bitboard);
+        assert_eq!(iter.next(), Some(0));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_iterator_complex() {
+        let bitboard = BitBoard(0b11001 | (1 << 63));
+
+        let mut iter = BitBoardIterator::new(bitboard);
+        assert_eq!(iter.next(), Some(0));
+        assert_eq!(iter.next(), Some(3));
+        assert_eq!(iter.next(), Some(4));
+        assert_eq!(iter.next(), Some(63));
+        assert_eq!(iter.next(), None);
     }
 }

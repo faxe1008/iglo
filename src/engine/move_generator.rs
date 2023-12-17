@@ -61,53 +61,61 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
 
     let push_dir: i32 = if color == PieceColor::White { -1 } else { 1 };
 
-    let single_push_pawns = board_state.board.pawns_able_to_push(color);
-    if single_push_pawns != BitBoard::EMPTY {
-        for i in 0..64 {
-            if single_push_pawns.get_bit(i) {
-                let target = i as i32 + 8 * push_dir;
-                if target >= 0 && target <= 63 {
-                    moves.push(Move::new(i as u16, target as u16, MoveType::Silent));
-                }
-            }
+    for pushable_pawn in board_state.board.pawns_able_to_push(color).into_iter() {
+        let target = pushable_pawn as i32 + 8 * push_dir;
+        if target >= 0 && target <= 63 {
+            moves.push(Move::new(
+                pushable_pawn as u16,
+                target as u16,
+                MoveType::Silent,
+            ));
         }
     }
 
-    let double_push_pawns = board_state.board.pawns_able_to_double_push(color);
-    if double_push_pawns != BitBoard::EMPTY {
-        for i in 0..64 {
-            if double_push_pawns.get_bit(i) {
-                let target = i as i32 + 16 * push_dir;
-                if target >= 0 && target <= 63 {
-                    moves.push(Move::new(i as u16, target as u16, MoveType::DoublePush));
-                }
-            }
+    for double_pushable_pawn in board_state
+        .board
+        .pawns_able_to_double_push(color)
+        .into_iter()
+    {
+        let target = double_pushable_pawn as i32 + 16 * push_dir;
+        if target >= 0 && target <= 63 {
+            moves.push(Move::new(
+                double_pushable_pawn as u16,
+                target as u16,
+                MoveType::DoublePush,
+            ));
         }
     }
 
     let east_attack_dir = if color == PieceColor::White { -7 } else { 9 };
-    let east_captures = board_state.board.pawns_able_to_attack_east(color);
-    if dbg!(east_captures) != BitBoard::EMPTY {
-        for i in 0..64 {
-            if east_captures.get_bit(i) {
-                let target = i as i32 + east_attack_dir;
-                if target >= 0 && target <= 63 {
-                    moves.push(Move::new(i as u16, target as u16, MoveType::Capture));
-                }
-            }
+    for east_attacking_pawn in board_state
+        .board
+        .pawns_able_to_attack_east(color)
+        .into_iter()
+    {
+        let target = east_attacking_pawn as i32 + east_attack_dir;
+        if target >= 0 && target <= 63 {
+            moves.push(Move::new(
+                east_attacking_pawn as u16,
+                target as u16,
+                MoveType::Capture,
+            ));
         }
     }
 
     let west_attack_dir = if color == PieceColor::White { -9 } else { 7 };
-    let west_captures = board_state.board.pawns_able_to_attack_west(color);
-    if dbg!(west_captures) != BitBoard::EMPTY {
-        for i in 0..64 {
-            if west_captures.get_bit(i) {
-                let target = i as i32 + west_attack_dir;
-                if target >= 0 && target <= 63 {
-                    moves.push(Move::new(i as u16, target as u16, MoveType::Capture));
-                }
-            }
+    for west_atacking_pawn in board_state
+        .board
+        .pawns_able_to_attack_west(color)
+        .into_iter()
+    {
+        let target = west_atacking_pawn as i32 + west_attack_dir;
+        if target >= 0 && target <= 63 {
+            moves.push(Move::new(
+                west_atacking_pawn as u16,
+                target as u16,
+                MoveType::Capture,
+            ));
         }
     }
 
@@ -178,13 +186,12 @@ mod move_gen_tests {
     }
 
     #[test]
-    fn pawns_attacks(){
+    fn pawns_attacks() {
         let board_state = ChessBoardState::from_fen("8/2r5/3P4/4p3/2nP1P2/1P3P2/8/8 w - - 0 1");
         assert!(board_state.is_ok());
         let board_state = board_state.unwrap();
 
-
         let white_pawn_moves = generate_pawn_moves(&board_state, PieceColor::White);
-        //println!("{:?}", white_pawn_moves);
+        println!("{:?}", white_pawn_moves);
     }
 }
