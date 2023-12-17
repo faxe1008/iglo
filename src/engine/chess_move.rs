@@ -8,6 +8,12 @@ const MOVE_DST_SHIFT: u16 = 6;
 const MOVE_TYPE_MASK: u16 = 0x7000;
 const MOVE_TYPE_SHIFT: u16 = 12;
 
+#[macro_export] macro_rules! c_move {
+    ($src: expr, $dst: expr, $ty: expr) => {
+        Move(($src as u16) | (($dst as u16) << 6) | (($ty as u16) << 12))
+    };
+}
+
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug, Hash)]
 pub enum MoveType {

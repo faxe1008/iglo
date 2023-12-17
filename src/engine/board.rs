@@ -1,12 +1,6 @@
-#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Default, Hash)]
-pub struct BitBoard(pub u64);
-const PIECE_TYPE_COUNT: usize = 6;
+use super::bitboard::BitBoard;
 
-macro_rules! bb {
-    ($expr: expr) => {
-        BitBoard($expr)
-    };
-}
+const PIECE_TYPE_COUNT: usize = 6;
 
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash)]
 pub enum ChessPiece {
@@ -36,6 +30,9 @@ pub struct CastlingRights {
 pub struct ChessBoard {
     pub white_pieces: [BitBoard; PIECE_TYPE_COUNT],
     pub black_pieces: [BitBoard; PIECE_TYPE_COUNT],
+
+    pub all_white_pieces: BitBoard,
+    pub all_black_pieces: BitBoard,
 }
 
 pub struct ChessBoardState {
@@ -112,53 +109,35 @@ impl TryFrom<&str> for CastlingRights {
     }
 }
 
-
 impl ChessPiece {
-   pub fn eval_value(&self) -> u32 {
+    pub fn eval_value(&self) -> u32 {
         match self {
             ChessPiece::Pawn => 100,
             ChessPiece::Knight => 300,
             ChessPiece::Bishop => 315,
             ChessPiece::Rook => 500,
             ChessPiece::Queen => 900,
-            ChessPiece::King => 1200
+            ChessPiece::King => 1200,
         }
     }
 }
 
-impl BitBoard {
-    pub const EMPTY: Self = Self(0);
-
-    pub fn get_bit(&self, pos: usize) -> bool {
-        (self.0 & (1u64 << pos)) != 0
-    }
-
-    pub fn set_bit(&self, pos: usize) -> Self {
-        Self(self.0 | (1u64 << pos))
-    }
-
-    pub fn clear_bit(&self, pos: usize) -> Self {
-        Self(self.0 & !(1u64 << pos))
-    }
-
-    pub fn bit_count(&self) -> u32 {
-        self.0.count_ones()
-    }
-}
-
 impl ChessBoard {
+
+    fn place_piece_of_color(&mut self, piece: ChessPiece, col: PieceColor, index_to_set: usize) {
+        let piece_bitboard = if col == PieceColor::White {
+            self.all_white_pieces.0 |= 1 << index_to_set;
+            &mut self.white_pieces[piece as usize].0
+        } else {
+            self.all_black_pieces.0 |= 1 << index_to_set;
+            &mut self.black_pieces[piece as usize].0
+        };
+        *piece_bitboard = *piece_bitboard + (1 << index_to_set);
+    }
+
     pub fn from_fen_notation(fen: &str) -> Result<Self, ()> {
         let mut board = Self::default();
         let mut cur_index: usize = 0;
-
-        let mut place_piece_of_color = |piece: ChessPiece, col: PieceColor, index_to_set: usize| {
-            let piece_bitboard = if col == PieceColor::White {
-                &mut board.white_pieces[piece as usize].0
-            } else {
-                &mut board.black_pieces[piece as usize].0
-            };
-            *piece_bitboard = *piece_bitboard + (1 << index_to_set);
-        };
 
         for chr in fen.chars() {
             if chr.is_digit(10) {
@@ -177,12 +156,12 @@ impl ChessBoard {
             };
 
             match &chr.to_lowercase().to_string() as &str {
-                "p" => place_piece_of_color(ChessPiece::Pawn, piece_col, cur_index),
-                "n" => place_piece_of_color(ChessPiece::Knight, piece_col, cur_index),
-                "b" => place_piece_of_color(ChessPiece::Bishop, piece_col, cur_index),
-                "r" => place_piece_of_color(ChessPiece::Rook, piece_col, cur_index),
-                "q" => place_piece_of_color(ChessPiece::Queen, piece_col, cur_index),
-                "k" => place_piece_of_color(ChessPiece::King, piece_col, cur_index),
+                "p" => board.place_piece_of_color(ChessPiece::Pawn, piece_col, cur_index),
+                "n" => board.place_piece_of_color(ChessPiece::Knight, piece_col, cur_index),
+                "b" => board.place_piece_of_color(ChessPiece::Bishop, piece_col, cur_index),
+                "r" => board.place_piece_of_color(ChessPiece::Rook, piece_col, cur_index),
+                "q" => board.place_piece_of_color(ChessPiece::Queen, piece_col, cur_index),
+                "k" => board.place_piece_of_color(ChessPiece::King, piece_col, cur_index),
                 _ => return Err(()),
             }
             cur_index += 1;
@@ -190,18 +169,8 @@ impl ChessBoard {
         Ok(board)
     }
 
-    pub fn piece_at(&self, pos: usize) -> Option<(ChessPiece, PieceColor)> {
-        for (piece, bb) in self.white_pieces.iter().enumerate() {
-            if bb.0 & (1 << pos) == 1 {
-                return Some((piece.into(), PieceColor::White));
-            }
-        }
-        for (piece, bb) in self.black_pieces.iter().enumerate() {
-            if bb.0 & (1 << pos) == 1 {
-                return Some((piece.into(), PieceColor::Black));
-            }
-        }
-        None
+    pub fn empty_squares(&self) -> BitBoard {
+        BitBoard(self.all_white_pieces.0 | self.all_black_pieces.0)
     }
 }
 
@@ -247,16 +216,14 @@ impl ChessBoardState {
             full_moves: fen_parts[5].parse::<u8>().map_err(|_| ())?,
         })
     }
-
 }
 
 #[cfg(test)]
 mod board_tests {
 
+    use crate::bb;
     use crate::engine::board::BitBoard;
-    use crate::{
-        engine::board::{CastlingRights, ChessBoard, PieceColor, ChessBoardState},
-    };
+    use crate::engine::board::{CastlingRights, ChessBoard, ChessBoardState, PieceColor};
 
     fn check_board_equality(state: &ChessBoardState, state_expected: &ChessBoardState) {
         for piece_type in 0..=5 {
@@ -283,6 +250,14 @@ mod board_tests {
         assert_eq!(state.en_passant_target, state_expected.en_passant_target);
         assert_eq!(state.half_moves, state_expected.half_moves);
         assert_eq!(state.full_moves, state_expected.full_moves);
+        assert_eq!(
+            state.board.all_black_pieces,
+            state_expected.board.all_black_pieces
+        );
+        assert_eq!(
+            state.board.all_white_pieces,
+            state_expected.board.all_white_pieces
+        );
     }
 
     #[test]
@@ -302,6 +277,8 @@ mod board_tests {
                     bb!(1152921504606846976),
                 ],
                 black_pieces: [bb!(65280), bb!(66), bb!(36), bb!(129), bb!(8), bb!(16)],
+                all_white_pieces: bb!(18446462598732840960),
+                all_black_pieces: bb!(65535),
             },
             side: PieceColor::White,
             castling_rights: CastlingRights {
@@ -342,6 +319,8 @@ mod board_tests {
                     bb!(1024),
                     bb!(32),
                 ],
+                all_white_pieces: bb!(2037460020536279040),
+                all_black_pieces: bb!(10770984612),
             },
             side: PieceColor::Black,
             castling_rights: CastlingRights {

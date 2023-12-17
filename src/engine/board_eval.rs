@@ -1,4 +1,4 @@
-use super::board::{BitBoard, ChessBoardState, ChessPiece, PieceColor};
+use super::{board::{ChessBoardState, ChessPiece, PieceColor}, bitboard::BitBoard};
 
 pub trait EvaluationFunction {
     fn eval(board_state: &ChessBoardState) -> i32;
