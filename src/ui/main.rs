@@ -1,4 +1,7 @@
-use chessica::engine::{board::{ChessBoardState, ChessPiece, PieceColor}, board_eval::{EvaluationEngine, EvaluationFunction}};
+use chessica::engine::{
+    board::{ChessBoardState, ChessPiece, PieceColor},
+    board_eval::{EvaluationEngine, EvaluationFunction},
+};
 use core::time::Duration;
 use sdl2::{
     event::Event,
@@ -24,6 +27,7 @@ const COLOR_WHITE_FIELD: Color = Color::RGBA(91, 92, 80, 255);
 const COLOR_BACKGROUND: Color = Color::RGBA(18, 18, 18, 255);
 
 const PIECE_SPRITE_SIZE: u32 = 320;
+const DESIGNATOR_MARGIN: i32 = 5;
 
 pub struct AssetPack<'a> {
     pub sprite_texture: Texture<'a>,
@@ -53,17 +57,68 @@ fn get_square_by_index(index: usize, flipped: bool) -> Rect {
     get_square_by_pos(x, y, flipped)
 }
 
+fn get_designator_rect(
+    x: i32,
+    mut y: i32,
+    flipped: bool,
+    is_vertical: bool,
+    designator_size: (u32, u32),
+) -> Rect {
+    let mut rect = get_square_by_pos(x, y, flipped);
+
+    if is_vertical {
+        rect.set_x(rect.x() + DESIGNATOR_MARGIN);
+        rect.set_y(rect.y() + DESIGNATOR_MARGIN);
+    } else {
+        rect.set_x(
+            (rect.x() + rect.width() as i32) - (designator_size.0 as i32 + DESIGNATOR_MARGIN),
+        );
+        rect.set_y(
+            (rect.y() + rect.height() as i32) - (designator_size.1 as i32 + DESIGNATOR_MARGIN),
+        );
+    }
+
+    rect.set_width(designator_size.0);
+    rect.set_height(designator_size.1);
+
+    rect
+}
+
 fn draw_grid(
     canvas: &mut Canvas<Window>,
-    _asset_pack: &AssetPack,
-    _texture_creator: &TextureCreator<WindowContext>,
+    asset_pack: &AssetPack,
+    texture_creator: &TextureCreator<WindowContext>,
     flipped: bool,
 ) {
     canvas.set_draw_color(COLOR_BACKGROUND);
     canvas.clear();
+
+    let draw_designator = |canvas: &mut Canvas<Window>,
+                           x: i32,
+                           y: i32,
+                           text: &str,
+                           is_vertical,
+                           designator_color: Color| {
+        let surface = asset_pack
+            .font
+            .render(text)
+            .blended(designator_color)
+            .unwrap();
+        let texture = texture_creator
+            .create_texture_from_surface(&surface)
+            .unwrap();
+        canvas
+            .copy(
+                &texture,
+                surface.rect(),
+                get_designator_rect(x, y, flipped, is_vertical, surface.size()),
+            )
+            .unwrap();
+    };
+
     for x in 0..8 {
         for y in 0..8 {
-            let (field_color, _designator_color) = if (x + y) % 2 == 0 {
+            let (field_color, designator_color) = if (x + y) % 2 == 0 {
                 (COLOR_WHITE_FIELD, COLOR_BLACK_FIELD)
             } else {
                 (COLOR_BLACK_FIELD, COLOR_WHITE_FIELD)
@@ -71,6 +126,22 @@ fn draw_grid(
 
             canvas.set_draw_color(field_color);
             canvas.fill_rect(get_square_by_pos(x, y, flipped)).unwrap();
+
+            if x == 0 {
+                draw_designator(
+                    canvas,
+                    x,
+                    y,
+                    &(7 - y + 1).to_string(),
+                    true,
+                    designator_color,
+                );
+            }
+
+            if y == 7 {
+                let char_designator = char::from_u32(x as u32 + 'a' as u32).unwrap().to_string();
+                draw_designator(canvas, x, y, &char_designator, false, designator_color);
+            }
         }
     }
 }
@@ -128,9 +199,9 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     let board_state = if args.len() < 2 {
-        ChessBoardState::from_FEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0")
+        ChessBoardState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0")
     } else {
-        ChessBoardState::from_FEN(&args[1])
+        ChessBoardState::from_fen(&args[1])
     }
     .expect("Error parsing FEN");
 
@@ -164,7 +235,7 @@ fn main() {
         .expect("Error loading texture");
 
     let mut font = ttf_context
-        .load_font("font.ttf", 12)
+        .load_font("font.ttf", 18)
         .expect("Error loading ttf");
     font.set_style(sdl2::ttf::FontStyle::BOLD);
     let asset_pack = AssetPack {
@@ -178,7 +249,10 @@ fn main() {
     draw_chess_board(&mut canvas, &board_state, &asset_pack, flipped);
     canvas.present();
 
-    println!("Evaluation function: {}", EvaluationEngine::eval(&board_state));
+    println!(
+        "Evaluation function: {}",
+        EvaluationEngine::eval(&board_state)
+    );
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 

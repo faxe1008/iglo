@@ -128,7 +128,7 @@ mod eval_tests {
     #[test]
     fn eval_start_pos() {
         let start_board =
-            ChessBoardState::from_FEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0");
+            ChessBoardState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0");
         assert!(start_board.is_ok());
         let start_board = start_board.unwrap();
         assert_eq!(EvaluationEngine::eval(&start_board), 0);

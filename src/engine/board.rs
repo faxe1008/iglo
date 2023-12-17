@@ -1,5 +1,3 @@
-use super::chess_move::Move;
-
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Default, Hash)]
 pub struct BitBoard(pub u64);
 const PIECE_TYPE_COUNT: usize = 6;
@@ -10,7 +8,7 @@ macro_rules! bb {
     };
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash)]
 pub enum ChessPiece {
     Pawn = 0,
     Knight = 1,
@@ -149,7 +147,7 @@ impl BitBoard {
 }
 
 impl ChessBoard {
-    pub fn from_FEN_notation(fen: &str) -> Result<Self, ()> {
+    pub fn from_fen_notation(fen: &str) -> Result<Self, ()> {
         let mut board = Self::default();
         let mut cur_index: usize = 0;
 
@@ -234,14 +232,14 @@ impl ChessBoardState {
         Ok(Some(col + row * 8))
     }
 
-    pub fn from_FEN(text: &str) -> Result<Self, ()> {
+    pub fn from_fen(text: &str) -> Result<Self, ()> {
         let fen_parts: Vec<&str> = text.trim().split(" ").collect();
         if fen_parts.len() != 6 {
             return Err(());
         }
 
         Ok(ChessBoardState {
-            board: ChessBoard::from_FEN_notation(fen_parts[0])?,
+            board: ChessBoard::from_fen_notation(fen_parts[0])?,
             side: PieceColor::try_from(fen_parts[1])?,
             castling_rights: CastlingRights::try_from(fen_parts[2])?,
             en_passant_target: Self::pos_code_to_index(fen_parts[3])?,
@@ -290,7 +288,7 @@ mod board_tests {
     #[test]
     fn board_from_fen_simple() {
         let board =
-            ChessBoardState::from_FEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0");
+            ChessBoardState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0");
         assert!(board.is_ok());
 
         let expected = ChessBoardState {
@@ -322,7 +320,7 @@ mod board_tests {
 
     #[test]
     fn board_from_fen_complex() {
-        let board = ChessBoardState::from_FEN(
+        let board = ChessBoardState::from_fen(
             "2r2k1r/1pqn1p2/5P2/1p5p/1b1PQ3/PP5P/1BP3P1/2KRR3 b - - 0 21",
         );
 
