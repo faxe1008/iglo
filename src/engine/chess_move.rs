@@ -1,5 +1,7 @@
+use core::fmt::Debug;
 use super::board::ChessPiece;
 
+#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Default, Hash)]
 pub struct Move(pub u16);
 
 const MOVE_SRC_MASK: u16 = 0x003F;
@@ -73,5 +75,12 @@ impl Move {
 
     pub fn get_type(&self) -> MoveType {
         (((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) as u8).into()
+    }
+}
+
+
+impl Debug for Move {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("(src: {:?}, dst: {:?}, ty: {:?})\n", self.get_src(), self.get_dst(), self.get_type()))
     }
 }

@@ -12,7 +12,7 @@ pub enum ChessPiece {
     King = 5,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash)]
 pub enum PieceColor {
     White = 0,
     Black = 1,
@@ -170,7 +170,7 @@ impl ChessBoard {
     }
 
     pub fn empty_squares(&self) -> BitBoard {
-        BitBoard(self.all_white_pieces.0 | self.all_black_pieces.0)
+        BitBoard(!(self.all_white_pieces.0 | self.all_black_pieces.0))
     }
 }
 
@@ -335,5 +335,14 @@ mod board_tests {
         };
 
         check_board_equality(&board.unwrap(), &expected);
+    }
+
+    #[test]
+    fn test_empty_squares(){
+        let board_state =
+            ChessBoardState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0");
+        assert!(board_state.is_ok());
+        let board_state = board_state.unwrap();
+        assert_eq!(board_state.board.empty_squares(), BitBoard(281474976645120));
     }
 }
