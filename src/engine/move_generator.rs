@@ -26,6 +26,24 @@ impl ChessBoard {
             empty_rank_6.sNo() & self.black_pieces[ChessPiece::Pawn as usize]
         }
     }
+
+    #[inline(always)]
+    fn pawns_able_to_attack_east(&self, color: PieceColor) -> BitBoard {
+        if color == PieceColor::White {
+            self.all_black_pieces.sSoWe() & self.white_pieces[ChessPiece::Pawn as usize]
+        } else {
+            self.all_white_pieces.sNoWe() & self.black_pieces[ChessPiece::Pawn as usize]
+        }
+    }
+
+    #[inline(always)]
+    fn pawns_able_to_attack_west(&self, color: PieceColor) -> BitBoard {
+        if color == PieceColor::White {
+            self.all_black_pieces.sSoEa() & self.white_pieces[ChessPiece::Pawn as usize]
+        } else {
+            self.all_white_pieces.sNoEa() & self.black_pieces[ChessPiece::Pawn as usize]
+        }
+    }
 }
 
 fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
@@ -61,7 +79,33 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
             if double_push_pawns.get_bit(i) {
                 let target = i as i32 + 16 * push_dir;
                 if target >= 0 && target <= 63 {
-                    moves.push(Move::new(i as u16, target as u16, MoveType::Silent));
+                    moves.push(Move::new(i as u16, target as u16, MoveType::DoublePush));
+                }
+            }
+        }
+    }
+
+    let east_attack_dir = if color == PieceColor::White { -7 } else { 9 };
+    let east_captures = board_state.board.pawns_able_to_attack_east(color);
+    if dbg!(east_captures) != BitBoard::EMPTY {
+        for i in 0..64 {
+            if east_captures.get_bit(i) {
+                let target = i as i32 + east_attack_dir;
+                if target >= 0 && target <= 63 {
+                    moves.push(Move::new(i as u16, target as u16, MoveType::Capture));
+                }
+            }
+        }
+    }
+
+    let west_attack_dir = if color == PieceColor::White { -9 } else { 7 };
+    let west_captures = board_state.board.pawns_able_to_attack_west(color);
+    if dbg!(west_captures) != BitBoard::EMPTY {
+        for i in 0..64 {
+            if west_captures.get_bit(i) {
+                let target = i as i32 + west_attack_dir;
+                if target >= 0 && target <= 63 {
+                    moves.push(Move::new(i as u16, target as u16, MoveType::Capture));
                 }
             }
         }
@@ -98,14 +142,14 @@ mod move_gen_tests {
             Move::new(50, 42, MoveType::Silent),
             Move::new(49, 41, MoveType::Silent),
             Move::new(48, 40, MoveType::Silent),
-            Move::new(55, 39, MoveType::Silent),
-            Move::new(54, 38, MoveType::Silent),
-            Move::new(53, 37, MoveType::Silent),
-            Move::new(52, 36, MoveType::Silent),
-            Move::new(51, 35, MoveType::Silent),
-            Move::new(50, 34, MoveType::Silent),
-            Move::new(49, 33, MoveType::Silent),
-            Move::new(48, 32, MoveType::Silent),
+            Move::new(55, 39, MoveType::DoublePush),
+            Move::new(54, 38, MoveType::DoublePush),
+            Move::new(53, 37, MoveType::DoublePush),
+            Move::new(52, 36, MoveType::DoublePush),
+            Move::new(51, 35, MoveType::DoublePush),
+            Move::new(50, 34, MoveType::DoublePush),
+            Move::new(49, 33, MoveType::DoublePush),
+            Move::new(48, 32, MoveType::DoublePush),
         ];
 
         let white_pawn_moves = generate_pawn_moves(&board_state, PieceColor::White);
@@ -120,17 +164,27 @@ mod move_gen_tests {
             Move::new(10, 18, MoveType::Silent),
             Move::new(9, 17, MoveType::Silent),
             Move::new(8, 16, MoveType::Silent),
-            Move::new(15, 31, MoveType::Silent),
-            Move::new(14, 30, MoveType::Silent),
-            Move::new(13, 29, MoveType::Silent),
-            Move::new(12, 28, MoveType::Silent),
-            Move::new(11, 27, MoveType::Silent),
-            Move::new(10, 26, MoveType::Silent),
-            Move::new(9, 25, MoveType::Silent),
-            Move::new(8, 24, MoveType::Silent),
+            Move::new(15, 31, MoveType::DoublePush),
+            Move::new(14, 30, MoveType::DoublePush),
+            Move::new(13, 29, MoveType::DoublePush),
+            Move::new(12, 28, MoveType::DoublePush),
+            Move::new(11, 27, MoveType::DoublePush),
+            Move::new(10, 26, MoveType::DoublePush),
+            Move::new(9, 25, MoveType::DoublePush),
+            Move::new(8, 24, MoveType::DoublePush),
         ];
         let black_pawn_moves = generate_pawn_moves(&board_state, PieceColor::Black);
         compare_moves(&black_pawn_moves, &expected_moves_black);
+    }
 
+    #[test]
+    fn pawns_attacks(){
+        let board_state = ChessBoardState::from_fen("8/2r5/3P4/4p3/2nP1P2/1P3P2/8/8 w - - 0 1");
+        assert!(board_state.is_ok());
+        let board_state = board_state.unwrap();
+
+
+        let white_pawn_moves = generate_pawn_moves(&board_state, PieceColor::White);
+        //println!("{:?}", white_pawn_moves);
     }
 }

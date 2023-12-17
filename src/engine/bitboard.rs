@@ -88,3 +88,11 @@ impl std::ops::BitAnd<u64> for BitBoard {
         BitBoard(self.0 & rhs)
     }
 }
+
+impl std::ops::BitOr<BitBoard> for BitBoard {
+    type Output = BitBoard;
+
+    fn bitor(self, rhs: BitBoard) -> Self::Output {
+        BitBoard(self.0 | rhs.0)
+    }
+}
