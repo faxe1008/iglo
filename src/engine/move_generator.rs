@@ -127,7 +127,7 @@ mod move_gen_tests {
     use crate::engine::{
         board::{ChessBoardState, PieceColor},
         chess_move::{Move, MoveType},
-        move_generator::generate_pawn_moves,
+        move_generator::generate_pawn_moves, square::Square,
     };
 
     fn compare_moves(generated: &[Move], expected: &[Move]) {
@@ -142,44 +142,44 @@ mod move_gen_tests {
         let board_state = ChessBoardState::starting_state();
 
         let expected_moves_white = [
-            Move::new(55, 47, MoveType::Silent),
-            Move::new(54, 46, MoveType::Silent),
-            Move::new(53, 45, MoveType::Silent),
-            Move::new(52, 44, MoveType::Silent),
-            Move::new(51, 43, MoveType::Silent),
-            Move::new(50, 42, MoveType::Silent),
-            Move::new(49, 41, MoveType::Silent),
-            Move::new(48, 40, MoveType::Silent),
-            Move::new(55, 39, MoveType::DoublePush),
-            Move::new(54, 38, MoveType::DoublePush),
-            Move::new(53, 37, MoveType::DoublePush),
-            Move::new(52, 36, MoveType::DoublePush),
-            Move::new(51, 35, MoveType::DoublePush),
-            Move::new(50, 34, MoveType::DoublePush),
-            Move::new(49, 33, MoveType::DoublePush),
-            Move::new(48, 32, MoveType::DoublePush),
+            Move::new(Square::H2, Square::H3, MoveType::Silent),
+            Move::new(Square::G2, Square::G3, MoveType::Silent),
+            Move::new(Square::F2, Square::F3, MoveType::Silent),
+            Move::new(Square::E2, Square::E3, MoveType::Silent),
+            Move::new(Square::D2, Square::D3, MoveType::Silent),
+            Move::new(Square::C2, Square::C3, MoveType::Silent),
+            Move::new(Square::B2, Square::B3, MoveType::Silent),
+            Move::new(Square::A2, Square::A3, MoveType::Silent),
+            Move::new(Square::H2, Square::H4, MoveType::DoublePush),
+            Move::new(Square::G2, Square::G4, MoveType::DoublePush),
+            Move::new(Square::F2, Square::F4, MoveType::DoublePush),
+            Move::new(Square::E2, Square::E4, MoveType::DoublePush),
+            Move::new(Square::D2, Square::D4, MoveType::DoublePush),
+            Move::new(Square::C2, Square::C4, MoveType::DoublePush),
+            Move::new(Square::B2, Square::B4, MoveType::DoublePush),
+            Move::new(Square::A2, Square::A4, MoveType::DoublePush),
         ];
 
         let white_pawn_moves = generate_pawn_moves(&board_state, PieceColor::White);
         compare_moves(&white_pawn_moves, &expected_moves_white);
 
         let expected_moves_black = [
-            Move::new(15, 23, MoveType::Silent),
-            Move::new(14, 22, MoveType::Silent),
-            Move::new(13, 21, MoveType::Silent),
-            Move::new(12, 20, MoveType::Silent),
-            Move::new(11, 19, MoveType::Silent),
-            Move::new(10, 18, MoveType::Silent),
-            Move::new(9, 17, MoveType::Silent),
-            Move::new(8, 16, MoveType::Silent),
-            Move::new(15, 31, MoveType::DoublePush),
-            Move::new(14, 30, MoveType::DoublePush),
-            Move::new(13, 29, MoveType::DoublePush),
-            Move::new(12, 28, MoveType::DoublePush),
-            Move::new(11, 27, MoveType::DoublePush),
-            Move::new(10, 26, MoveType::DoublePush),
-            Move::new(9, 25, MoveType::DoublePush),
-            Move::new(8, 24, MoveType::DoublePush),
+            Move::new(Square::H7, Square::H6 , MoveType::Silent),
+            Move::new(Square::G7, Square::G6, MoveType::Silent),
+            Move::new(Square::F7, Square::F6, MoveType::Silent),
+            Move::new(Square::E7, Square::E6, MoveType::Silent),
+            Move::new(Square::D7, Square::D6, MoveType::Silent),
+            Move::new(Square::C7, Square::C6, MoveType::Silent),
+            Move::new(Square::B7, Square::B6, MoveType::Silent),
+            Move::new(Square::A7, Square::A6, MoveType::Silent),
+            Move::new(Square::H7, Square::H5, MoveType::DoublePush),
+            Move::new(Square::G7, Square::G5, MoveType::DoublePush),
+            Move::new(Square::F7, Square::F5, MoveType::DoublePush),
+            Move::new(Square::E7, Square::E5, MoveType::DoublePush),
+            Move::new(Square::D7, Square::D5, MoveType::DoublePush),
+            Move::new(Square::C7, Square::C5, MoveType::DoublePush),
+            Move::new(Square::B7, Square::B5, MoveType::DoublePush),
+            Move::new(Square::A7, Square::A5, MoveType::DoublePush),
         ];
         let black_pawn_moves = generate_pawn_moves(&board_state, PieceColor::Black);
         compare_moves(&black_pawn_moves, &expected_moves_black);
