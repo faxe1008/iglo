@@ -190,6 +190,15 @@ fn generate_knight_moves(board_state: &ChessBoardState, color: PieceColor) -> Ve
 }
 
 
+pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
+    let mut vec = Vec::with_capacity(32);
+
+    vec.append(&mut generate_knight_moves(board_state, color));
+    vec.append(&mut generate_pawn_moves(board_state, color));
+
+    vec
+}
+
 
 #[cfg(test)]
 mod move_gen_tests {

@@ -1,6 +1,9 @@
 use chessica::engine::{
     board::{ChessBoardState, ChessPiece, PieceColor},
     board_eval::{EvaluationEngine, EvaluationFunction},
+    chess_move::Move,
+    move_generator::generate_pseudo_legal_moves,
+    square::Square,
 };
 use core::time::Duration;
 use sdl2::{
@@ -9,7 +12,7 @@ use sdl2::{
     keyboard::Keycode,
     pixels::Color,
     rect::Rect,
-    render::{Canvas, Texture, TextureCreator},
+    render::{Canvas, Texture, TextureCreator, BlendMode},
     ttf::Font,
     video::{Window, WindowContext},
 };
@@ -25,6 +28,7 @@ const WINDOW_HEIGHT: u32 = SQUARE_SIZE as u32 * 8 + MIN_MARGIN as u32 * 2;
 const COLOR_BLACK_FIELD: Color = Color::RGBA(46, 60, 32, 255);
 const COLOR_WHITE_FIELD: Color = Color::RGBA(91, 92, 80, 255);
 const COLOR_BACKGROUND: Color = Color::RGBA(18, 18, 18, 255);
+const COLOR_MOVEMENT_INDICATOR: Color = Color::RGBA(17, 102, 0, 153);
 
 const PIECE_SPRITE_SIZE: u32 = 320;
 const DESIGNATOR_MARGIN: i32 = 5;
@@ -81,6 +85,15 @@ fn get_designator_rect(
     rect.set_width(designator_size.0);
     rect.set_height(designator_size.1);
 
+    rect
+}
+
+fn get_move_indicator_rect(pos: usize, flipped: bool) -> Rect {
+    let mut rect = get_square_by_index(pos, flipped);
+    rect.set_x(rect.x() + (SQUARE_SIZE / 3));
+    rect.set_y(rect.y() + (SQUARE_SIZE / 3));
+    rect.set_width(rect.width() - (2 * SQUARE_SIZE / 3) as u32);
+    rect.set_height(rect.height() - (2 * SQUARE_SIZE / 3) as u32);
     rect
 }
 
@@ -195,6 +208,43 @@ fn draw_chess_board(
     }
 }
 
+fn draw_moves_indicator(
+    canvas: &mut Canvas<Window>,
+    board_state: &ChessBoardState,
+    pos: u16,
+    flipped: bool,
+) {
+    let moves_of_piece: Vec<Move> = generate_pseudo_legal_moves(board_state, board_state.side)
+        .iter()
+        .filter(|mv| mv.get_src() == pos)
+        .map(|&x| x)
+        .collect();
+
+    for piece_move in moves_of_piece {
+        canvas.set_draw_color(COLOR_MOVEMENT_INDICATOR);
+        canvas.set_blend_mode(BlendMode::Blend);
+        canvas
+            .fill_rect(get_move_indicator_rect(
+                piece_move.get_dst() as usize,
+                flipped,
+            ))
+            .unwrap();
+    }
+}
+
+fn get_square_from_cursor_pos(x: i32, y: i32) -> Option<u16> {
+    let x = (x - MIN_MARGIN) / SQUARE_SIZE;
+    if x < 0 || x > 7 {
+        return None;
+    }
+
+    let y = (y - MIN_MARGIN) / SQUARE_SIZE;
+    if y < 0 || y > 7 {
+        return None;
+    }
+    Some(x as u16 + y as u16 * 8)
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -209,7 +259,7 @@ fn main() {
     let video_subsystem = sdl_context.video().expect("Error creating video subsystem");
 
     let window = video_subsystem
-        .window("rust-sdl2 demo: Video", WINDOW_WIDTH, WINDOW_HEIGHT)
+        .window("Chessica UI", WINDOW_WIDTH, WINDOW_HEIGHT)
         .position_centered()
         .opengl()
         .build()
@@ -245,15 +295,16 @@ fn main() {
 
     let mut flipped = false;
 
-    draw_grid(&mut canvas, &asset_pack, &texture_creator, flipped);
-    draw_chess_board(&mut canvas, &board_state, &asset_pack, flipped);
-    canvas.present();
+    let mut redraw_board = |clicked_pos: Option<u16>, flipped: bool| {
+        draw_grid(&mut canvas, &asset_pack, &texture_creator, flipped);
+        draw_chess_board(&mut canvas, &board_state, &asset_pack, flipped);
+        if let Some(pos) = clicked_pos {
+            draw_moves_indicator(&mut canvas, &board_state, pos, flipped);
+        }
+        canvas.present();
+    };
 
-    println!(
-        "Evaluation function: {}",
-        EvaluationEngine::eval(&board_state)
-    );
-
+    redraw_board(None, flipped);
     let mut event_pump = sdl_context.event_pump().unwrap();
 
     'running: loop {
@@ -270,9 +321,10 @@ fn main() {
                     ..
                 } => {
                     flipped = !flipped;
-                    draw_grid(&mut canvas, &asset_pack, &texture_creator, flipped);
-                    draw_chess_board(&mut canvas, &board_state, &asset_pack, flipped);
-                    canvas.present();
+                    redraw_board(None, flipped);
+                }
+                Event::MouseButtonDown { x, y, .. } => {
+                    redraw_board(get_square_from_cursor_pos(x, y), flipped);
                 }
 
                 _ => {}
