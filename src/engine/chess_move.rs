@@ -1,5 +1,5 @@
-use core::fmt::Debug;
 use super::board::ChessPiece;
+use core::fmt::Debug;
 
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Default, Hash)]
 pub struct Move(pub u16);
@@ -10,6 +10,18 @@ const MOVE_DST_SHIFT: u16 = 6;
 const MOVE_TYPE_MASK: u16 = 0x7000;
 const MOVE_TYPE_SHIFT: u16 = 12;
 
+pub const PROMOTION_TARGETS: [MoveType; 4] = [
+    MoveType::KnightPromotion,
+    MoveType::BishopPromotion,
+    MoveType::RookPromotion,
+    MoveType::QueenPromotion,
+];
+pub const PROMOTION_CAPTURE_TARGETS: [MoveType; 4] = [
+    MoveType::KnightCapPromotion,
+    MoveType::BishopCapPromotion,
+    MoveType::RookCapPromotion,
+    MoveType::QueenCapPromotion,
+];
 
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug, Hash)]
@@ -77,9 +89,12 @@ impl Move {
     }
 }
 
-
 impl Debug for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("(src: {:?}, dst: {:?}, ty: {:?})\n", self.get_src(), self.get_dst(), self.get_type()))
+        f.write_fmt(format_args!(
+            "(src: {:?}, dst: {:?})\n",
+            self.get_src(),
+            self.get_dst()
+        ))
     }
 }
