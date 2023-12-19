@@ -302,7 +302,7 @@ impl ChessBoardState {
         );
 
         // Move is a capture
-        if mv.is_capture() {
+        if mv.is_capture() && !mv.is_en_passant() {
             let (dst_piece, dst_color) = match self.board.get_piece_at_pos(mv.get_dst() as usize) {
                 None => panic!("No piece to capture"),
                 Some(e) => e,
@@ -312,8 +312,22 @@ impl ChessBoardState {
                 .remove_piece_at_pos(dst_piece, dst_color, mv.get_dst() as usize);
             new.board
                 .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
+            
+            let new_piece = if mv.is_promotion() {
+                mv.promotion_target()
+            } else {
+                src_piece
+            };
+            
             new.board
-                .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
+                .place_piece_of_color(dbg!(new_piece), src_color, mv.get_dst() as usize);
+        }
+
+        if mv.is_promotion() && !mv.is_capture() {
+            new.board
+            .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
+        new.board
+            .place_piece_of_color(mv.promotion_target(), src_color, mv.get_dst() as usize);
         }
 
         // Move is silent

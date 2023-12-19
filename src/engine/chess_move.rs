@@ -7,7 +7,7 @@ pub struct Move(pub u16);
 const MOVE_SRC_MASK: u16 = 0x003F;
 const MOVE_DST_MASK: u16 = 0x0FC0;
 const MOVE_DST_SHIFT: u16 = 6;
-const MOVE_TYPE_MASK: u16 = 0x7000;
+const MOVE_TYPE_MASK: u16 = 0xF000;
 const MOVE_TYPE_SHIFT: u16 = 12;
 
 pub const PROMOTION_TARGETS: [MoveType; 4] = [
@@ -89,7 +89,7 @@ impl Move {
     }
 
     pub fn is_capture(&self) -> bool {
-        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) == MoveType::Capture as u16
+        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) & 0b0100 != 0
     }
 
     pub fn is_silent(&self) -> bool {
@@ -101,17 +101,31 @@ impl Move {
     }
 
     pub fn is_en_passant(&self) -> bool {
-        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) == MoveType::EnPassant as u16 
+        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) == MoveType::EnPassant as u16
     }
 
+    pub fn is_promotion(&self) -> bool {
+        (self.0 >> MOVE_TYPE_SHIFT) & 0b1000 != 0
+    }
+
+    pub fn promotion_target(&self) -> ChessPiece {
+        match (self.0 >> MOVE_TYPE_SHIFT) & 0b11 {
+            0 => ChessPiece::Knight,
+            1 => ChessPiece::Bishop,
+            2 => ChessPiece::Rook,
+            3 => ChessPiece::Queen,
+            _ => panic!(""),
+        }
+    }
 }
 
 impl Debug for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "(src: {:?}, dst: {:?})\n",
+            "(src: {:?}, dst: {:?}, ty: {:?})\n",
             self.get_src(),
-            self.get_dst()
+            self.get_dst(),
+            self.get_type()
         ))
     }
 }

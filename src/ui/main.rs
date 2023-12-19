@@ -17,7 +17,7 @@ use sdl2::{
     ttf::Font,
     video::{Window, WindowContext},
 };
-use std::{env, fmt::format};
+use std::env;
 
 const SQUARE_SIZE: i32 = 100;
 const MIN_MARGIN: i32 = 20;
@@ -30,9 +30,13 @@ const COLOR_BLACK_FIELD: Color = Color::RGBA(119, 149, 86, 255);
 const COLOR_WHITE_FIELD: Color = Color::RGBA(235, 236, 208, 255);
 const COLOR_BACKGROUND: Color = Color::RGBA(18, 18, 18, 255);
 const COLOR_MOVEMENT_INDICATOR: Color = Color::RGBA(17, 102, 0, 153);
+const COLOR_PROMOTION_PROMPT_COLOR: Color = Color::RGBA(230, 230, 230, 200);
 
 const PIECE_SPRITE_SIZE: u32 = 320;
 const DESIGNATOR_MARGIN: i32 = 5;
+
+const PROMOTION_PROMPT_HEIGHT: i32 = 250;
+const PROMOTION_PIECE_SIZE: u32 = 120;
 
 const CAPTURE_INDICATOR_THICKNESS: u32 = 5;
 const CAPTURE_INDICATOR_MARGIN: i32 = 3;
@@ -49,6 +53,7 @@ struct GameUIState {
     moves_for_selected_piece: Vec<Move>,
     last_clicked_square: Option<u16>,
     dragging_piece_pos: Option<(i32, i32)>,
+    promotion_prompt: Option<(PieceColor, Vec<Move>)>,
 }
 
 fn get_square_by_pos(x: i32, mut y: i32, ui_state: &GameUIState) -> Rect {
@@ -119,7 +124,7 @@ fn draw_stats_bar(
         format!("Turn: {}", board_state.side.as_display_str()),
         format!("Evaluation: {}", evaluation),
         format!("Castling: {}", board_state.castling_rights.to_string()),
-        format!("En Passant: {}", enpassant_text)
+        format!("En Passant: {}", enpassant_text),
     ];
 
     let mut y_offset = 0;
@@ -240,7 +245,7 @@ fn draw_piece_at_location(
     canvas.copy(
         &asset_pack.sprite_texture,
         get_sprite_rect(&piece, &color),
-        rct
+        rct,
     )
 }
 
@@ -262,7 +267,9 @@ fn draw_chess_board(
                 if bitboard.get_bit(i) {
                     let dst_rct = get_square_by_index(i, ui_state);
                     // Do not draw dragged piece
-                    if ui_state.dragging_piece_pos.is_some() && ui_state.last_clicked_square == Some(i as u16) {
+                    if ui_state.dragging_piece_pos.is_some()
+                        && ui_state.last_clicked_square == Some(i as u16)
+                    {
                         continue;
                     }
                     draw_piece_at_location(canvas, asset_pack, piece, *piece_color, dst_rct);
@@ -356,6 +363,60 @@ fn draw_dragged_piece(
     Ok(())
 }
 
+fn promotion_prompt_rects(board_state: &ChessBoardState) -> [(Rect, ChessPiece); 4] {
+    let x = MIN_MARGIN + 4 * SQUARE_SIZE - 2 * (PROMOTION_PIECE_SIZE as i32 + MIN_MARGIN);
+    let y = MIN_MARGIN + (SQUARE_SIZE * 4) - (PROMOTION_PIECE_SIZE as i32 / 2);
+    [
+        ChessPiece::Knight,
+        ChessPiece::Bishop,
+        ChessPiece::Rook,
+        ChessPiece::Queen,
+    ]
+    .iter()
+    .enumerate()
+    .map(|(i, &piece)| {
+        (
+            Rect::new(
+                x + i as i32 * (PROMOTION_PIECE_SIZE as i32 + MIN_MARGIN),
+                y,
+                PROMOTION_PIECE_SIZE,
+                PROMOTION_PIECE_SIZE,
+            ),
+            piece,
+        )
+    })
+    .collect::<Vec<(Rect, ChessPiece)>>()
+    .try_into()
+    .unwrap()
+}
+
+fn draw_promotion_prompt(
+    canvas: &mut Canvas<Window>,
+    asset_pack: &AssetPack,
+    board_state: &ChessBoardState,
+    ui_state: &GameUIState,
+) -> Result<(), String> {
+    if ui_state.promotion_prompt.is_none() {
+        return Ok(());
+    }
+
+    canvas.set_draw_color(COLOR_PROMOTION_PROMPT_COLOR);
+    canvas.set_blend_mode(BlendMode::Blend);
+    let rct = Rect::new(
+        MIN_MARGIN,
+        MIN_MARGIN + (SQUARE_SIZE * 4) - (PROMOTION_PROMPT_HEIGHT / 2),
+        8 * SQUARE_SIZE as u32,
+        PROMOTION_PROMPT_HEIGHT as u32,
+    );
+    canvas.fill_rect(rct)?;
+
+    for (rct, piece) in promotion_prompt_rects(board_state) {
+        draw_piece_at_location(canvas, asset_pack, piece, board_state.side, rct)?;
+    }
+
+    Ok(())
+}
+
 fn get_square_from_cursor_pos(x: i32, y: i32) -> Option<u16> {
     let x = (x - MIN_MARGIN) / SQUARE_SIZE;
     if x < 0 || x > 7 {
@@ -375,13 +436,18 @@ fn execute_move_with_src_and_dst(
     src: u16,
     dst: u16,
 ) {
-    if let Some(mv) = ui_state
+    let moves: Vec<Move> = ui_state
         .moves_for_selected_piece
         .iter()
         .filter(|mv| mv.get_src() == src && mv.get_dst() == dst)
-        .nth(0)
-    {
-        *board_state = board_state.exec_move(*mv);
+        .map(|&x| x)
+        .collect();
+
+    if moves.is_empty() {
+    } else if moves.len() == 1 {
+        *board_state = board_state.exec_move(moves[0]);
+    } else {
+        ui_state.promotion_prompt = Some((board_state.side, moves))
     }
 
     ui_state.last_clicked_square = None;
@@ -452,6 +518,7 @@ fn main() {
             draw_chess_board(&mut canvas, &board_state, &asset_pack, game_ui_state)?;
             draw_moves_indicator(&mut canvas, game_ui_state)?;
             draw_dragged_piece(&mut canvas, &asset_pack, board_state, game_ui_state)?;
+            draw_promotion_prompt(&mut canvas, &asset_pack, board_state, game_ui_state)?;
             draw_stats_bar(&mut canvas, &board_state, &asset_pack, &texture_creator)?;
             canvas.present();
             Ok(())
@@ -477,34 +544,57 @@ fn main() {
                     redraw_board(&board_state, &game_ui_state);
                 }
                 Event::MouseButtonDown { x, y, .. } => {
-                    let clicked_square = get_square_from_cursor_pos(x, y);
+                    if game_ui_state.promotion_prompt.is_none() {
+                        let clicked_square = get_square_from_cursor_pos(x, y);
+                        match (game_ui_state.last_clicked_square, clicked_square) {
+                            (Some(src), Some(dst)) => execute_move_with_src_and_dst(
+                                &mut board_state,
+                                &mut game_ui_state,
+                                src,
+                                dst,
+                            ),
+                            (Some(_), None) => {
+                                game_ui_state.last_clicked_square = None;
+                                game_ui_state.moves_for_selected_piece.clear();
+                                game_ui_state.dragging_piece_pos = None;
+                            }
+                            (None, Some(dst)) => {
+                                game_ui_state.last_clicked_square = clicked_square;
+                                game_ui_state.moves_for_selected_piece =
+                                    generate_possible_moves_for_piece(&board_state, dst);
+                            }
+                            (None, None) => {}
+                        };
+                    } else {
+                        let promotion_candidates = promotion_prompt_rects(&board_state);
+                        let promotion_target = promotion_candidates
+                            .iter()
+                            .filter(|(r, p)| r.contains_point(Point::new(x, y)))
+                            .map(|(_, p)| p)
+                            .nth(0);
 
-                    match (game_ui_state.last_clicked_square, clicked_square) {
-                        (Some(src), Some(dst)) => execute_move_with_src_and_dst(
-                            &mut board_state,
-                            &mut game_ui_state,
-                            src,
-                            dst,
-                        ),
-                        (Some(_), None) => {
-                            game_ui_state.last_clicked_square = None;
-                            game_ui_state.moves_for_selected_piece.clear();
-                            game_ui_state.dragging_piece_pos = None;
+                        if promotion_target.is_none() {
+                            continue;
                         }
-                        (None, Some(dst)) => {
-                            game_ui_state.last_clicked_square = clicked_square;
-                            game_ui_state.moves_for_selected_piece =
-                                generate_possible_moves_for_piece(&board_state, dst);
-                        }
-                        (None, None) => {}
-                    };
+                        let move_to_exec = game_ui_state
+                            .promotion_prompt
+                            .unwrap()
+                            .1
+                            .iter()
+                            .filter(|mv| mv.promotion_target() == *promotion_target.unwrap())
+                            .map(|y| *y)
+                            .nth(0)
+                            .unwrap();
+                        board_state = board_state.exec_move(move_to_exec);
+                        game_ui_state.promotion_prompt = None;
+                    }
 
                     redraw_board(&board_state, &game_ui_state);
                 }
                 Event::MouseMotion {
                     x, y, mousestate, ..
                 } => {
-                    if mousestate.left() && game_ui_state.last_clicked_square.is_some() {
+                    if mousestate.left() && game_ui_state.last_clicked_square.is_some() && game_ui_state.promotion_prompt.is_none() {
                         game_ui_state.dragging_piece_pos = Some((x, y));
                         redraw_board(&board_state, &game_ui_state);
                     }
@@ -514,7 +604,8 @@ fn main() {
                 } => {
                     if mouse_btn == MouseButton::Left
                         && game_ui_state.dragging_piece_pos.is_some()
-                        && game_ui_state.last_clicked_square.is_some()
+                        && game_ui_state.last_clicked_square.is_some() 
+                        && game_ui_state.promotion_prompt.is_none()
                     {
                         let mv_src = game_ui_state.last_clicked_square.unwrap();
                         if let Some(dst_square) = get_square_from_cursor_pos(x, y) {

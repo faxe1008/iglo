@@ -2,7 +2,7 @@ use std::io::empty;
 
 use super::{
     bitboard::BitBoard,
-    board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor},
+    board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor, self},
     chess_move::{Move, MoveType, PROMOTION_CAPTURE_TARGETS, PROMOTION_TARGETS},
 };
 
