@@ -91,6 +91,15 @@ impl Move {
     pub fn is_capture(&self) -> bool {
         ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) & 0b0100 != 0
     }
+
+    pub fn is_silent(&self) -> bool {
+        (self.0 & MOVE_TYPE_MASK) == 0
+    }
+
+    pub fn is_double_push(&self) -> bool {
+        ((self.0 & MOVE_DST_MASK) >> MOVE_TYPE_SHIFT) == MoveType::DoublePush as u16
+    }
+
 }
 
 impl Debug for Move {

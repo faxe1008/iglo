@@ -1,4 +1,6 @@
-use super::bitboard::BitBoard;
+use std::ops::Not;
+
+use super::{bitboard::BitBoard, chess_move::Move};
 
 const PIECE_TYPE_COUNT: usize = 6;
 
@@ -18,7 +20,7 @@ pub enum PieceColor {
     Black = 1,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash)]
 pub struct CastlingRights {
     pub white_queen_side: bool,
     pub white_king_side: bool,
@@ -26,7 +28,7 @@ pub struct CastlingRights {
     pub black_king_side: bool,
 }
 
-#[derive(Default)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash, Default)]
 pub struct ChessBoard {
     pub white_pieces: [BitBoard; PIECE_TYPE_COUNT],
     pub black_pieces: [BitBoard; PIECE_TYPE_COUNT],
@@ -35,6 +37,7 @@ pub struct ChessBoard {
     pub all_black_pieces: BitBoard,
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash)]
 pub struct ChessBoardState {
     pub board: ChessBoard,
     pub side: PieceColor,
@@ -54,6 +57,17 @@ impl From<usize> for ChessPiece {
             4 => ChessPiece::Queen,
             5 => ChessPiece::King,
             _ => panic!("Non matching value!"),
+        }
+    }
+}
+
+impl Not for PieceColor {
+    type Output = PieceColor;
+
+    fn not(self) -> Self::Output {
+        match self {
+            PieceColor::Black => PieceColor::White,
+            PieceColor::White => PieceColor::Black
         }
     }
 }
@@ -145,13 +159,39 @@ impl ChessBoard {
 
     fn place_piece_of_color(&mut self, piece: ChessPiece, col: PieceColor, index_to_set: usize) {
         let piece_bitboard = if col == PieceColor::White {
-            self.all_white_pieces.0 |= 1 << index_to_set;
-            &mut self.white_pieces[piece as usize].0
+            self.all_white_pieces = self.all_white_pieces.set_bit(index_to_set);
+            &mut self.white_pieces[piece as usize]
         } else {
-            self.all_black_pieces.0 |= 1 << index_to_set;
-            &mut self.black_pieces[piece as usize].0
+            self.all_black_pieces = self.all_black_pieces.set_bit(index_to_set);
+            &mut self.black_pieces[piece as usize]
         };
-        *piece_bitboard = *piece_bitboard + (1 << index_to_set);
+        *piece_bitboard = piece_bitboard.set_bit(index_to_set);
+    }
+
+    fn get_piece_at_pos(&self, index: usize) -> Option<(ChessPiece, PieceColor)>
+    {
+        for (piece_type, bb) in self.white_pieces.iter().enumerate() {
+            if bb.get_bit(index) {
+                return Some((piece_type.into(), PieceColor::White));
+            }
+        }
+        for (piece_type, bb) in self.black_pieces.iter().enumerate() {
+            if bb.get_bit(index) {
+                return Some((piece_type.into(), PieceColor::Black));
+            }
+        }
+        None
+    }
+
+    fn remove_piece_at_pos(&mut self, piece: ChessPiece, col: PieceColor, index: usize) {
+        let piece_bitboard = if col == PieceColor::White {
+            self.all_white_pieces = self.all_white_pieces.clear_bit(index);
+            &mut self.white_pieces[piece as usize]
+        } else {
+            self.all_black_pieces = self.all_black_pieces.set_bit(index);
+            &mut self.black_pieces[piece as usize]
+        };
+        *piece_bitboard = piece_bitboard.clear_bit(index);
     }
 
     pub fn from_fen_notation(fen: &str) -> Result<Self, ()> {
@@ -241,6 +281,40 @@ impl ChessBoardState {
             full_moves: fen_parts[5].parse::<u8>().map_err(|_| ())?,
         })
     }
+
+    pub fn exec_move(&self, mv: Move) -> Self {
+        let mut new = *self;
+
+        let (src_piece, src_color) = match self.board.get_piece_at_pos(mv.get_src() as usize) {
+            None => panic!("No piece at src pos!"),
+            Some(e) => e
+        };
+
+        assert!(src_color == self.side, "Moving piece which does not belong to current player!");
+        
+        // Move is a capture
+        if mv.is_capture() {
+            let (dst_piece, dst_color) = match self.board.get_piece_at_pos(mv.get_dst() as usize) {
+                None => panic!("No piece to capture"),
+                Some(e) => e
+            };
+            assert!(dst_color != src_color, "Can not capture own pieces");
+            new.board.remove_piece_at_pos(dst_piece, dst_color, mv.get_dst() as usize);
+            new.board.remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
+            new.board.place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
+        }
+
+        // Move is silent
+        if mv.is_silent() || mv.is_double_push() {
+            new.board.remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
+            new.board.place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
+        }
+
+        new.full_moves += 1;
+        new.side = !new.side;
+        new
+    }
+
 }
 
 #[cfg(test)]

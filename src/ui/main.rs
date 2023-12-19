@@ -45,7 +45,8 @@ struct AssetPack<'a> {
 #[derive(Default, Debug)]
 struct GameUIState {
     flipped: bool,
-    last_clicked_square: Option<u16>
+    moves_for_selected_piece: Vec<Move>,
+    last_clicked_square: Option<u16>,
 }
 
 fn get_square_by_pos(x: i32, mut y: i32, ui_state: &GameUIState) -> Rect {
@@ -297,17 +298,10 @@ fn draw_single_move_indicator(
 
 fn draw_moves_indicator(
     canvas: &mut Canvas<Window>,
-    board_state: &ChessBoardState,
-    pos: u16,
     ui_state: &GameUIState,
 ) -> Result<(), String> {
-    let moves_of_piece: Vec<Move> = generate_pseudo_legal_moves(board_state, board_state.side)
-        .iter()
-        .filter(|mv| mv.get_src() == pos)
-        .map(|&x| x)
-        .collect();
-    for piece_move in moves_of_piece {
-        draw_single_move_indicator(canvas, piece_move, ui_state)?;
+    for piece_move in &ui_state.moves_for_selected_piece {
+        draw_single_move_indicator(canvas, *piece_move, ui_state)?;
     }
     Ok(())
 }
@@ -325,10 +319,37 @@ fn get_square_from_cursor_pos(x: i32, y: i32) -> Option<u16> {
     Some(x as u16 + y as u16 * 8)
 }
 
+fn execute_move_with_src_and_dst(
+    board_state: &mut ChessBoardState,
+    ui_state: &mut GameUIState,
+    src: u16,
+    dst: u16,
+) {
+    if let Some(mv) = ui_state
+        .moves_for_selected_piece
+        .iter()
+        .filter(|mv| mv.get_src() == src && mv.get_dst() == dst)
+        .nth(0)
+    {
+        *board_state = board_state.exec_move(*mv);
+    }
+
+    ui_state.last_clicked_square = None;
+    ui_state.moves_for_selected_piece.clear();
+}
+
+fn generate_possible_moves_for_piece(board_state: &ChessBoardState, pos: u16) -> Vec<Move> {
+    generate_pseudo_legal_moves(board_state, board_state.side)
+        .iter()
+        .filter(|mv| mv.get_src() == pos)
+        .map(|&x| x)
+        .collect()
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let board_state = if args.len() < 2 {
+    let mut board_state = if args.len() < 2 {
         ChessBoardState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0")
     } else {
         ChessBoardState::from_fen(&args[1])
@@ -375,18 +396,17 @@ fn main() {
 
     let mut game_ui_state = GameUIState::default();
 
-    let mut redraw_board = |game_ui_state: &GameUIState| -> Result<(), String> {
-        draw_grid(&mut canvas, &asset_pack, &texture_creator, game_ui_state)?;
-        draw_chess_board(&mut canvas, &board_state, &asset_pack, game_ui_state)?;
-        if let Some(pos) = game_ui_state.last_clicked_square {
-            draw_moves_indicator(&mut canvas, &board_state, pos, game_ui_state)?;
-        }
-        draw_stats_bar(&mut canvas, &board_state, &asset_pack, &texture_creator);
-        canvas.present();
-        Ok(())
-    };
+    let mut redraw_board =
+        |board_state: &ChessBoardState, game_ui_state: &GameUIState| -> Result<(), String> {
+            draw_grid(&mut canvas, &asset_pack, &texture_creator, game_ui_state)?;
+            draw_chess_board(&mut canvas, &board_state, &asset_pack, game_ui_state)?;
+            draw_moves_indicator(&mut canvas, game_ui_state)?;
+            draw_stats_bar(&mut canvas, &board_state, &asset_pack, &texture_creator)?;
+            canvas.present();
+            Ok(())
+        };
 
-    redraw_board(&game_ui_state);
+    redraw_board(&board_state, &game_ui_state);
     let mut event_pump = sdl_context.event_pump().unwrap();
 
     'running: loop {
@@ -403,11 +423,31 @@ fn main() {
                     ..
                 } => {
                     game_ui_state.flipped = !game_ui_state.flipped;
-                    redraw_board(&game_ui_state);
+                    redraw_board(&board_state, &game_ui_state);
                 }
                 Event::MouseButtonDown { x, y, .. } => {
-                    game_ui_state.last_clicked_square = get_square_from_cursor_pos(x, y);
-                    redraw_board(&game_ui_state);
+                    let clicked_square = get_square_from_cursor_pos(x, y);
+
+                    match (game_ui_state.last_clicked_square, clicked_square) {
+                        (Some(src), Some(dst)) => execute_move_with_src_and_dst(
+                            &mut board_state,
+                            &mut game_ui_state,
+                            src,
+                            dst,
+                        ),
+                        (Some(src), None) => {
+                            game_ui_state.last_clicked_square = None;
+                            game_ui_state.moves_for_selected_piece.clear();
+                        }
+                        (None, Some(dst)) => {
+                            game_ui_state.last_clicked_square = clicked_square;
+                            game_ui_state.moves_for_selected_piece =
+                                generate_possible_moves_for_piece(&board_state, dst);
+                        }
+                        (None, None) => {}
+                    };
+
+                    redraw_board(&board_state, &game_ui_state);
                 }
 
                 _ => {}
