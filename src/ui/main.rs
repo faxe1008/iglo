@@ -11,12 +11,12 @@ use sdl2::{
     image::{self, InitFlag, LoadTexture},
     keyboard::Keycode,
     pixels::Color,
-    rect::Rect,
-    render::{Canvas, Texture, TextureCreator, BlendMode},
+    rect::{Point, Rect},
+    render::{BlendMode, Canvas, Texture, TextureCreator},
     ttf::Font,
     video::{Window, WindowContext},
 };
-use std::env;
+use std::{env, fmt::format};
 
 const SQUARE_SIZE: i32 = 100;
 const MIN_MARGIN: i32 = 20;
@@ -25,13 +25,17 @@ const WIDTH_STATS_RIGHT: u32 = 240;
 const WINDOW_WIDTH: u32 = SQUARE_SIZE as u32 * 8 + MIN_MARGIN as u32 * 2 + WIDTH_STATS_RIGHT;
 const WINDOW_HEIGHT: u32 = SQUARE_SIZE as u32 * 8 + MIN_MARGIN as u32 * 2;
 
-const COLOR_BLACK_FIELD: Color = Color::RGBA(46, 60, 32, 255);
-const COLOR_WHITE_FIELD: Color = Color::RGBA(91, 92, 80, 255);
+const COLOR_BLACK_FIELD: Color = Color::RGBA(119, 149, 86, 255);
+const COLOR_WHITE_FIELD: Color = Color::RGBA(235, 236, 208, 255);
 const COLOR_BACKGROUND: Color = Color::RGBA(18, 18, 18, 255);
 const COLOR_MOVEMENT_INDICATOR: Color = Color::RGBA(17, 102, 0, 153);
 
 const PIECE_SPRITE_SIZE: u32 = 320;
 const DESIGNATOR_MARGIN: i32 = 5;
+
+const CAPTURE_INDICATOR_THICKNESS: u32 = 5;
+const CAPTURE_INDICATOR_MARGIN: i32 = 3;
+const CAPTURE_INDICATOR_SIDE_LEN: u32 = SQUARE_SIZE as u32 / 5;
 
 pub struct AssetPack<'a> {
     pub sprite_texture: Texture<'a>,
@@ -88,13 +92,42 @@ fn get_designator_rect(
     rect
 }
 
-fn get_move_indicator_rect(pos: usize, flipped: bool) -> Rect {
-    let mut rect = get_square_by_index(pos, flipped);
-    rect.set_x(rect.x() + (SQUARE_SIZE / 3));
-    rect.set_y(rect.y() + (SQUARE_SIZE / 3));
-    rect.set_width(rect.width() - (2 * SQUARE_SIZE / 3) as u32);
-    rect.set_height(rect.height() - (2 * SQUARE_SIZE / 3) as u32);
-    rect
+fn draw_stats_bar(
+    canvas: &mut Canvas<Window>,
+    board_state: &ChessBoardState,
+    asset_pack: &AssetPack,
+    texture_creator: &TextureCreator<WindowContext>,
+) -> Result<(), String> {
+    let evaluation = EvaluationEngine::eval(board_state);
+
+    let text_blocks = [
+        format!("Evaluation: {}", evaluation),
+        format!("Castling: {}", board_state.castling_rights.to_string()),
+    ];
+
+    let mut y_offset = 0;
+
+    for text_block in &text_blocks {
+        let surface = asset_pack
+            .font
+            .render(&text_block)
+            .blended(COLOR_WHITE_FIELD)
+            .map_err(|e| e.to_string())?;
+        let texture = texture_creator
+            .create_texture_from_surface(&surface)
+            .map_err(|e| e.to_string())?;
+
+        let stats_rect = Rect::new(
+            MIN_MARGIN * 2 + SQUARE_SIZE * 8,
+            MIN_MARGIN + y_offset,
+            surface.width(),
+            surface.height(),
+        );
+
+        canvas.copy(&texture, surface.rect(), stats_rect)?;
+        y_offset += surface.height() as i32 + 5;
+    }
+    Ok(())
 }
 
 fn draw_grid(
@@ -102,7 +135,7 @@ fn draw_grid(
     asset_pack: &AssetPack,
     texture_creator: &TextureCreator<WindowContext>,
     flipped: bool,
-) {
+) -> Result<(), String> {
     canvas.set_draw_color(COLOR_BACKGROUND);
     canvas.clear();
 
@@ -111,7 +144,8 @@ fn draw_grid(
                            y: i32,
                            text: &str,
                            is_vertical,
-                           designator_color: Color| {
+                           designator_color: Color|
+     -> Result<(), String> {
         let surface = asset_pack
             .font
             .render(text)
@@ -120,13 +154,12 @@ fn draw_grid(
         let texture = texture_creator
             .create_texture_from_surface(&surface)
             .unwrap();
-        canvas
-            .copy(
-                &texture,
-                surface.rect(),
-                get_designator_rect(x, y, flipped, is_vertical, surface.size()),
-            )
-            .unwrap();
+        canvas.copy(
+            &texture,
+            surface.rect(),
+            get_designator_rect(x, y, flipped, is_vertical, surface.size()),
+        )?;
+        Ok(())
     };
 
     for x in 0..8 {
@@ -138,7 +171,7 @@ fn draw_grid(
             };
 
             canvas.set_draw_color(field_color);
-            canvas.fill_rect(get_square_by_pos(x, y, flipped)).unwrap();
+            canvas.fill_rect(get_square_by_pos(x, y, flipped))?;
 
             if x == 0 {
                 draw_designator(
@@ -148,15 +181,16 @@ fn draw_grid(
                     &(7 - y + 1).to_string(),
                     true,
                     designator_color,
-                );
+                )?;
             }
 
             if y == 7 {
                 let char_designator = char::from_u32(x as u32 + 'a' as u32).unwrap().to_string();
-                draw_designator(canvas, x, y, &char_designator, false, designator_color);
+                draw_designator(canvas, x, y, &char_designator, false, designator_color)?;
             }
         }
     }
+    Ok(())
 }
 
 fn get_sprite_rect(piece: &ChessPiece, color: &PieceColor) -> Rect {
@@ -184,7 +218,7 @@ fn draw_chess_board(
     board_state: &ChessBoardState,
     asset_pack: &AssetPack,
     flipped: bool,
-) {
+) -> Result<(), String> {
     let piece_boards = [
         (&board_state.board.white_pieces, PieceColor::White),
         (&board_state.board.black_pieces, PieceColor::Black),
@@ -195,17 +229,64 @@ fn draw_chess_board(
             let piece = ChessPiece::from(piece_index);
             for i in 0..64 {
                 if bitboard.get_bit(i) {
-                    canvas
-                        .copy(
-                            &asset_pack.sprite_texture,
-                            get_sprite_rect(&piece, piece_color),
-                            get_square_by_index(i, flipped),
-                        )
-                        .unwrap();
+                    canvas.copy(
+                        &asset_pack.sprite_texture,
+                        get_sprite_rect(&piece, piece_color),
+                        get_square_by_index(i, flipped),
+                    )?;
                 }
             }
         }
     }
+    Ok(())
+}
+
+fn draw_single_move_indicator(
+    canvas: &mut Canvas<Window>,
+    piece_move: Move,
+    flipped: bool,
+) -> Result<(), String> {
+    canvas.set_draw_color(COLOR_MOVEMENT_INDICATOR);
+
+    let mut rect = get_square_by_index(piece_move.get_dst() as usize, flipped);
+
+    let (x, y, w, h, s, m, l, t) = (
+        rect.x,
+        rect.y,
+        rect.width(),
+        rect.height(),
+        SQUARE_SIZE,
+        CAPTURE_INDICATOR_MARGIN,
+        CAPTURE_INDICATOR_SIDE_LEN,
+        CAPTURE_INDICATOR_THICKNESS,
+    );
+
+    if piece_move.is_capture() {
+        canvas.set_blend_mode(BlendMode::None);
+        let corner_rects = [
+            Rect::new(x + m, y + m, l, t),
+            Rect::new(x + m, y + m, t, l),
+            Rect::new(x + s - m - l as i32, y + m, l, t),
+            Rect::new(x + s - m - t as i32, y + m, t, l),
+            Rect::new(x + m, y + s - m - l as i32, t, l),
+            Rect::new(x + m, y + s - m - t as i32, l, t),
+            Rect::new(x + s - m - t as i32, y + s - m - l as i32, t, l),
+            Rect::new(x + s - m - l as i32, y + s - m - t as i32, l, t),
+        ];
+
+        for r in corner_rects {
+            canvas.fill_rect(r)?;
+        }
+    } else {
+        canvas.set_blend_mode(BlendMode::Blend);
+        rect.set_x(x + (SQUARE_SIZE / 3));
+        rect.set_y(y + (SQUARE_SIZE / 3));
+        rect.set_width(w - (2 * SQUARE_SIZE / 3) as u32);
+        rect.set_height(h - (2 * SQUARE_SIZE / 3) as u32);
+        canvas.fill_rect(rect)?;
+    }
+
+    Ok(())
 }
 
 fn draw_moves_indicator(
@@ -213,23 +294,16 @@ fn draw_moves_indicator(
     board_state: &ChessBoardState,
     pos: u16,
     flipped: bool,
-) {
+) -> Result<(), String> {
     let moves_of_piece: Vec<Move> = generate_pseudo_legal_moves(board_state, board_state.side)
         .iter()
         .filter(|mv| mv.get_src() == pos)
         .map(|&x| x)
         .collect();
-
     for piece_move in moves_of_piece {
-        canvas.set_draw_color(COLOR_MOVEMENT_INDICATOR);
-        canvas.set_blend_mode(BlendMode::Blend);
-        canvas
-            .fill_rect(get_move_indicator_rect(
-                piece_move.get_dst() as usize,
-                flipped,
-            ))
-            .unwrap();
+        draw_single_move_indicator(canvas, piece_move, flipped)?;
     }
+    Ok(())
 }
 
 fn get_square_from_cursor_pos(x: i32, y: i32) -> Option<u16> {
@@ -295,13 +369,15 @@ fn main() {
 
     let mut flipped = false;
 
-    let mut redraw_board = |clicked_pos: Option<u16>, flipped: bool| {
-        draw_grid(&mut canvas, &asset_pack, &texture_creator, flipped);
-        draw_chess_board(&mut canvas, &board_state, &asset_pack, flipped);
+    let mut redraw_board = |clicked_pos: Option<u16>, flipped: bool| -> Result<(), String> {
+        draw_grid(&mut canvas, &asset_pack, &texture_creator, flipped)?;
+        draw_chess_board(&mut canvas, &board_state, &asset_pack, flipped)?;
         if let Some(pos) = clicked_pos {
-            draw_moves_indicator(&mut canvas, &board_state, pos, flipped);
+            draw_moves_indicator(&mut canvas, &board_state, pos, flipped)?;
         }
+        draw_stats_bar(&mut canvas, &board_state, &asset_pack, &texture_creator);
         canvas.present();
+        Ok(())
     };
 
     redraw_board(None, flipped);

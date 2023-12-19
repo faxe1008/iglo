@@ -1,3 +1,5 @@
+use std::io::empty;
+
 use super::{
     bitboard::BitBoard,
     board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor},
@@ -152,10 +154,9 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
     moves
 }
 
-
-const KNIGHT_MOVE_LOOKUP : [BitBoard; 64] = unsafe { std::mem::transmute(*include_bytes!("lookup_gens/knight_lookup.bin")) };
+const KNIGHT_MOVE_LOOKUP: [BitBoard; 64] =
+    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/knight_lookup.bin")) };
 fn generate_knight_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
-
     let mut moves = Vec::with_capacity(16);
     let side_knight_board = if color == PieceColor::White {
         board_state.board.white_pieces[ChessPiece::Knight as usize]
@@ -170,42 +171,91 @@ fn generate_knight_moves(board_state: &ChessBoardState, color: PieceColor) -> Ve
     let empty_squares = board_state.board.empty_squares();
     let opposite_board = if color == PieceColor::White {
         board_state.board.all_black_pieces
-    }else{
+    } else {
         board_state.board.all_white_pieces
     };
-    
-    for knight_pos  in side_knight_board {
+
+    for knight_pos in side_knight_board {
         let attack_map = KNIGHT_MOVE_LOOKUP[knight_pos];
 
         for silent_jump_target in attack_map & empty_squares {
-            moves.push(Move::new(knight_pos as u16, silent_jump_target as u16, MoveType::Silent));
+            moves.push(Move::new(
+                knight_pos as u16,
+                silent_jump_target as u16,
+                MoveType::Silent,
+            ));
         }
 
         for capture_jump in attack_map & opposite_board {
-            moves.push(Move::new(knight_pos as u16, capture_jump as u16, MoveType::Capture));
+            moves.push(Move::new(
+                knight_pos as u16,
+                capture_jump as u16,
+                MoveType::Capture,
+            ));
         }
     }
 
     moves
 }
 
+const KING_MOVE_LOOKUP: [BitBoard; 64] =
+    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/king_lookup.bin")) };
+fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
+    let mut moves = Vec::with_capacity(16);
+    let side_king_board = if color == PieceColor::White {
+        board_state.board.white_pieces[ChessPiece::King as usize]
+    } else {
+        board_state.board.black_pieces[ChessPiece::King as usize]
+    };
+
+    if side_king_board == BitBoard::EMPTY {
+        return moves;
+    }
+
+    let empty_squares = board_state.board.empty_squares();
+    let opposite_board = if color == PieceColor::White {
+        board_state.board.all_black_pieces
+    } else {
+        board_state.board.all_white_pieces
+    };
+
+    for king_pos in side_king_board {
+        let attack_map = KING_MOVE_LOOKUP[king_pos];
+
+        for silent_move_target in attack_map & empty_squares {
+            moves.push(Move::new(
+                king_pos as u16,
+                silent_move_target as u16,
+                MoveType::Silent,
+            ));
+        }
+        for capture_move in attack_map & opposite_board {
+            moves.push(Move::new(
+                king_pos as u16,
+                capture_move as u16,
+                MoveType::Capture,
+            ));
+        }
+    }
+
+    moves
+}
 
 pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
     let mut vec = Vec::with_capacity(32);
 
     vec.append(&mut generate_knight_moves(board_state, color));
     vec.append(&mut generate_pawn_moves(board_state, color));
-
+    vec.append(&mut generate_king_moves(board_state, color));
     vec
 }
-
 
 #[cfg(test)]
 mod move_gen_tests {
     use crate::engine::{
         board::{ChessBoardState, PieceColor},
         chess_move::{Move, MoveType},
-        move_generator::{generate_pawn_moves, KNIGHT_MOVE_LOOKUP, generate_knight_moves},
+        move_generator::{generate_knight_moves, generate_pawn_moves, KNIGHT_MOVE_LOOKUP},
         square::Square,
     };
 
@@ -293,27 +343,22 @@ mod move_gen_tests {
         ];
         compare_moves(&white_pawn_moves, &expected_moves_white);
 
-
         let black_pawn_moves = generate_pawn_moves(&board_state, PieceColor::Black);
         let expected_black_moves = [
             Move::new(Square::A5, Square::A4, MoveType::Silent),
             Move::new(Square::A5, Square::B4, MoveType::Capture),
-
             Move::new(Square::D2, Square::D1, MoveType::KnightPromotion),
             Move::new(Square::D2, Square::D1, MoveType::BishopPromotion),
             Move::new(Square::D2, Square::D1, MoveType::RookPromotion),
             Move::new(Square::D2, Square::D1, MoveType::QueenPromotion),
-
             Move::new(Square::H8, Square::G7, MoveType::Capture),
             Move::new(Square::H8, Square::H7, MoveType::Silent),
         ];
         compare_moves(&black_pawn_moves, &expected_black_moves);
-
     }
 
     #[test]
-    fn knight_attacks() 
-    {
+    fn knight_attacks() {
         let board_state = ChessBoardState::from_fen("3R4/5n1k/7N/R3B3/3q4/1N6/K7/2b5 w QKqk - 0 0");
         assert!(board_state.is_ok());
         let board_state = board_state.unwrap();
@@ -325,14 +370,12 @@ mod move_gen_tests {
             Move::new(Square::B3, Square::D2, MoveType::Silent),
             Move::new(Square::B3, Square::C1, MoveType::Capture),
             Move::new(Square::B3, Square::A1, MoveType::Silent),
-
             Move::new(Square::H6, Square::G8, MoveType::Silent),
             Move::new(Square::H6, Square::G4, MoveType::Silent),
             Move::new(Square::H6, Square::F5, MoveType::Silent),
             Move::new(Square::H6, Square::F7, MoveType::Capture),
         ];
         compare_moves(&white_knight_moves, &expected_white_knight_moves);
-
 
         let black_knight_moves = generate_knight_moves(&board_state, PieceColor::Black);
         let expected_black_moves = [
@@ -344,7 +387,5 @@ mod move_gen_tests {
             Move::new(Square::F7, Square::D8, MoveType::Capture),
         ];
         compare_moves(&black_knight_moves, &expected_black_moves);
-
     }
-
 }

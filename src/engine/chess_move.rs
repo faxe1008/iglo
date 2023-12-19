@@ -87,6 +87,10 @@ impl Move {
     pub fn get_type(&self) -> MoveType {
         (((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) as u8).into()
     }
+
+    pub fn is_capture(&self) -> bool {
+        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) & 0b0100 != 0
+    }
 }
 
 impl Debug for Move {

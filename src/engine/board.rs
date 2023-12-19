@@ -109,6 +109,25 @@ impl TryFrom<&str> for CastlingRights {
     }
 }
 
+impl ToString for CastlingRights {
+    fn to_string(&self) -> String {
+        let mut text = String::with_capacity(4);
+        if self.white_queen_side {
+            text.push('Q');
+        }
+        if self.white_king_side {
+            text.push('K');
+        }
+        if self.black_queen_side {
+            text.push('q');
+        }
+        if self.black_king_side {
+            text.push('k');
+        }
+        text
+    }
+}
+
 impl ChessPiece {
     pub fn eval_value(&self) -> u32 {
         match self {
