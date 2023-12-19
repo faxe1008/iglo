@@ -37,16 +37,22 @@ const CAPTURE_INDICATOR_THICKNESS: u32 = 5;
 const CAPTURE_INDICATOR_MARGIN: i32 = 3;
 const CAPTURE_INDICATOR_SIDE_LEN: u32 = SQUARE_SIZE as u32 / 5;
 
-pub struct AssetPack<'a> {
-    pub sprite_texture: Texture<'a>,
-    pub font: Font<'a, 'a>,
+struct AssetPack<'a> {
+    sprite_texture: Texture<'a>,
+    font: Font<'a, 'a>,
 }
 
-fn get_square_by_pos(x: i32, mut y: i32, flipped: bool) -> Rect {
+#[derive(Default, Debug)]
+struct GameUIState {
+    flipped: bool,
+    last_clicked_square: Option<u16>
+}
+
+fn get_square_by_pos(x: i32, mut y: i32, ui_state: &GameUIState) -> Rect {
     let x_orig = MIN_MARGIN;
     let y_orig = MIN_MARGIN;
 
-    if flipped {
+    if ui_state.flipped {
         y = 7 - y;
     }
 
@@ -58,21 +64,21 @@ fn get_square_by_pos(x: i32, mut y: i32, flipped: bool) -> Rect {
     )
 }
 
-fn get_square_by_index(index: usize, flipped: bool) -> Rect {
+fn get_square_by_index(index: usize, ui_state: &GameUIState) -> Rect {
     let x = (index % 8) as i32;
     let y = (index / 8) as i32;
 
-    get_square_by_pos(x, y, flipped)
+    get_square_by_pos(x, y, ui_state)
 }
 
 fn get_designator_rect(
     x: i32,
     mut y: i32,
-    flipped: bool,
+    ui_state: &GameUIState,
     is_vertical: bool,
     designator_size: (u32, u32),
 ) -> Rect {
-    let mut rect = get_square_by_pos(x, y, flipped);
+    let mut rect = get_square_by_pos(x, y, ui_state);
 
     if is_vertical {
         rect.set_x(rect.x() + DESIGNATOR_MARGIN);
@@ -134,7 +140,7 @@ fn draw_grid(
     canvas: &mut Canvas<Window>,
     asset_pack: &AssetPack,
     texture_creator: &TextureCreator<WindowContext>,
-    flipped: bool,
+    ui_state: &GameUIState,
 ) -> Result<(), String> {
     canvas.set_draw_color(COLOR_BACKGROUND);
     canvas.clear();
@@ -157,7 +163,7 @@ fn draw_grid(
         canvas.copy(
             &texture,
             surface.rect(),
-            get_designator_rect(x, y, flipped, is_vertical, surface.size()),
+            get_designator_rect(x, y, ui_state, is_vertical, surface.size()),
         )?;
         Ok(())
     };
@@ -171,7 +177,7 @@ fn draw_grid(
             };
 
             canvas.set_draw_color(field_color);
-            canvas.fill_rect(get_square_by_pos(x, y, flipped))?;
+            canvas.fill_rect(get_square_by_pos(x, y, ui_state))?;
 
             if x == 0 {
                 draw_designator(
@@ -217,7 +223,7 @@ fn draw_chess_board(
     canvas: &mut Canvas<Window>,
     board_state: &ChessBoardState,
     asset_pack: &AssetPack,
-    flipped: bool,
+    ui_state: &GameUIState,
 ) -> Result<(), String> {
     let piece_boards = [
         (&board_state.board.white_pieces, PieceColor::White),
@@ -232,7 +238,7 @@ fn draw_chess_board(
                     canvas.copy(
                         &asset_pack.sprite_texture,
                         get_sprite_rect(&piece, piece_color),
-                        get_square_by_index(i, flipped),
+                        get_square_by_index(i, ui_state),
                     )?;
                 }
             }
@@ -244,11 +250,11 @@ fn draw_chess_board(
 fn draw_single_move_indicator(
     canvas: &mut Canvas<Window>,
     piece_move: Move,
-    flipped: bool,
+    ui_state: &GameUIState,
 ) -> Result<(), String> {
     canvas.set_draw_color(COLOR_MOVEMENT_INDICATOR);
 
-    let mut rect = get_square_by_index(piece_move.get_dst() as usize, flipped);
+    let mut rect = get_square_by_index(piece_move.get_dst() as usize, ui_state);
 
     let (x, y, w, h, s, m, l, t) = (
         rect.x,
@@ -293,7 +299,7 @@ fn draw_moves_indicator(
     canvas: &mut Canvas<Window>,
     board_state: &ChessBoardState,
     pos: u16,
-    flipped: bool,
+    ui_state: &GameUIState,
 ) -> Result<(), String> {
     let moves_of_piece: Vec<Move> = generate_pseudo_legal_moves(board_state, board_state.side)
         .iter()
@@ -301,7 +307,7 @@ fn draw_moves_indicator(
         .map(|&x| x)
         .collect();
     for piece_move in moves_of_piece {
-        draw_single_move_indicator(canvas, piece_move, flipped)?;
+        draw_single_move_indicator(canvas, piece_move, ui_state)?;
     }
     Ok(())
 }
@@ -367,20 +373,20 @@ fn main() {
         font,
     };
 
-    let mut flipped = false;
+    let mut game_ui_state = GameUIState::default();
 
-    let mut redraw_board = |clicked_pos: Option<u16>, flipped: bool| -> Result<(), String> {
-        draw_grid(&mut canvas, &asset_pack, &texture_creator, flipped)?;
-        draw_chess_board(&mut canvas, &board_state, &asset_pack, flipped)?;
-        if let Some(pos) = clicked_pos {
-            draw_moves_indicator(&mut canvas, &board_state, pos, flipped)?;
+    let mut redraw_board = |game_ui_state: &GameUIState| -> Result<(), String> {
+        draw_grid(&mut canvas, &asset_pack, &texture_creator, game_ui_state)?;
+        draw_chess_board(&mut canvas, &board_state, &asset_pack, game_ui_state)?;
+        if let Some(pos) = game_ui_state.last_clicked_square {
+            draw_moves_indicator(&mut canvas, &board_state, pos, game_ui_state)?;
         }
         draw_stats_bar(&mut canvas, &board_state, &asset_pack, &texture_creator);
         canvas.present();
         Ok(())
     };
 
-    redraw_board(None, flipped);
+    redraw_board(&game_ui_state);
     let mut event_pump = sdl_context.event_pump().unwrap();
 
     'running: loop {
@@ -396,11 +402,12 @@ fn main() {
                     keycode: Some(Keycode::F),
                     ..
                 } => {
-                    flipped = !flipped;
-                    redraw_board(None, flipped);
+                    game_ui_state.flipped = !game_ui_state.flipped;
+                    redraw_board(&game_ui_state);
                 }
                 Event::MouseButtonDown { x, y, .. } => {
-                    redraw_board(get_square_from_cursor_pos(x, y), flipped);
+                    game_ui_state.last_clicked_square = get_square_from_cursor_pos(x, y);
+                    redraw_board(&game_ui_state);
                 }
 
                 _ => {}
