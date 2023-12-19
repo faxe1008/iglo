@@ -196,7 +196,7 @@ impl ChessBoard {
             self.all_white_pieces = self.all_white_pieces.clear_bit(index);
             &mut self.white_pieces[piece as usize]
         } else {
-            self.all_black_pieces = self.all_black_pieces.set_bit(index);
+            self.all_black_pieces = self.all_black_pieces.clear_bit(index);
             &mut self.black_pieces[piece as usize]
         };
         *piece_bitboard = piece_bitboard.clear_bit(index);
@@ -341,7 +341,7 @@ impl ChessBoardState {
         // En passant
         if mv.is_en_passant() {
             let dst = if src_color == PieceColor::White {
-                dbg!(mv.get_dst()) + 8
+                mv.get_dst() + 8
             } else {
                 mv.get_dst() - 8
             };

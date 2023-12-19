@@ -93,7 +93,7 @@ impl Move {
     }
 
     pub fn is_silent(&self) -> bool {
-        (self.0 & MOVE_TYPE_MASK) == 0
+        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) == MoveType::Silent as u16
     }
 
     pub fn is_double_push(&self) -> bool {
