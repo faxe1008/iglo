@@ -1,5 +1,5 @@
 use chessica::engine::{
-    board::{ChessBoardState, ChessPiece, PieceColor},
+    board::{self, ChessBoardState, ChessPiece, PieceColor},
     board_eval::{EvaluationEngine, EvaluationFunction},
     chess_move::Move,
     move_generator::generate_pseudo_legal_moves,
@@ -10,6 +10,7 @@ use sdl2::{
     event::Event,
     image::{self, InitFlag, LoadTexture},
     keyboard::Keycode,
+    mouse::MouseButton,
     pixels::Color,
     rect::{Point, Rect},
     render::{BlendMode, Canvas, Texture, TextureCreator},
@@ -47,6 +48,7 @@ struct GameUIState {
     flipped: bool,
     moves_for_selected_piece: Vec<Move>,
     last_clicked_square: Option<u16>,
+    dragging_piece_pos: Option<(i32, i32)>,
 }
 
 fn get_square_by_pos(x: i32, mut y: i32, ui_state: &GameUIState) -> Rect {
@@ -108,6 +110,7 @@ fn draw_stats_bar(
     let evaluation = EvaluationEngine::eval(board_state);
 
     let text_blocks = [
+        format!("Turn: {}", board_state.side.as_display_str()),
         format!("Evaluation: {}", evaluation),
         format!("Castling: {}", board_state.castling_rights.to_string()),
     ];
@@ -220,6 +223,20 @@ fn get_sprite_rect(piece: &ChessPiece, color: &PieceColor) -> Rect {
     Rect::new(x as i32, y as i32, PIECE_SPRITE_SIZE, PIECE_SPRITE_SIZE)
 }
 
+fn draw_piece_at_location(
+    canvas: &mut Canvas<Window>,
+    asset_pack: &AssetPack,
+    piece: ChessPiece,
+    color: PieceColor,
+    rct: Rect,
+) -> Result<(), String> {
+    canvas.copy(
+        &asset_pack.sprite_texture,
+        get_sprite_rect(&piece, &color),
+        rct
+    )
+}
+
 fn draw_chess_board(
     canvas: &mut Canvas<Window>,
     board_state: &ChessBoardState,
@@ -236,11 +253,12 @@ fn draw_chess_board(
             let piece = ChessPiece::from(piece_index);
             for i in 0..64 {
                 if bitboard.get_bit(i) {
-                    canvas.copy(
-                        &asset_pack.sprite_texture,
-                        get_sprite_rect(&piece, piece_color),
-                        get_square_by_index(i, ui_state),
-                    )?;
+                    let dst_rct = get_square_by_index(i, ui_state);
+                    // Do not draw dragged piece
+                    if ui_state.dragging_piece_pos.is_some() && ui_state.last_clicked_square == Some(i as u16) {
+                        continue;
+                    }
+                    draw_piece_at_location(canvas, asset_pack, piece, *piece_color, dst_rct);
                 }
             }
         }
@@ -296,13 +314,38 @@ fn draw_single_move_indicator(
     Ok(())
 }
 
-fn draw_moves_indicator(
-    canvas: &mut Canvas<Window>,
-    ui_state: &GameUIState,
-) -> Result<(), String> {
+fn draw_moves_indicator(canvas: &mut Canvas<Window>, ui_state: &GameUIState) -> Result<(), String> {
     for piece_move in &ui_state.moves_for_selected_piece {
         draw_single_move_indicator(canvas, *piece_move, ui_state)?;
     }
+    Ok(())
+}
+
+fn draw_dragged_piece(
+    canvas: &mut Canvas<Window>,
+    asset_pack: &AssetPack,
+    board_state: &ChessBoardState,
+    ui_state: &GameUIState,
+) -> Result<(), String> {
+    if ui_state.dragging_piece_pos.is_none() || ui_state.last_clicked_square.is_none() {
+        return Ok(());
+    }
+    let last_clicked_pos = ui_state.last_clicked_square.unwrap();
+    let cursor_pos = ui_state.dragging_piece_pos.unwrap();
+
+    if let Some((piece, piece_col)) = board_state
+        .board
+        .get_piece_at_pos(last_clicked_pos as usize)
+    {
+        let dst_rect = Rect::new(
+            cursor_pos.0 - SQUARE_SIZE / 2,
+            cursor_pos.1 - SQUARE_SIZE / 2,
+            SQUARE_SIZE as u32,
+            SQUARE_SIZE as u32,
+        );
+        draw_piece_at_location(canvas, asset_pack, piece, piece_col, dst_rect)?;
+    }
+
     Ok(())
 }
 
@@ -401,6 +444,7 @@ fn main() {
             draw_grid(&mut canvas, &asset_pack, &texture_creator, game_ui_state)?;
             draw_chess_board(&mut canvas, &board_state, &asset_pack, game_ui_state)?;
             draw_moves_indicator(&mut canvas, game_ui_state)?;
+            draw_dragged_piece(&mut canvas, &asset_pack, board_state, game_ui_state)?;
             draw_stats_bar(&mut canvas, &board_state, &asset_pack, &texture_creator)?;
             canvas.present();
             Ok(())
@@ -435,9 +479,10 @@ fn main() {
                             src,
                             dst,
                         ),
-                        (Some(src), None) => {
+                        (Some(_), None) => {
                             game_ui_state.last_clicked_square = None;
                             game_ui_state.moves_for_selected_piece.clear();
+                            game_ui_state.dragging_piece_pos = None;
                         }
                         (None, Some(dst)) => {
                             game_ui_state.last_clicked_square = clicked_square;
@@ -449,12 +494,42 @@ fn main() {
 
                     redraw_board(&board_state, &game_ui_state);
                 }
+                Event::MouseMotion {
+                    x, y, mousestate, ..
+                } => {
+                    if mousestate.left() && game_ui_state.last_clicked_square.is_some() {
+                        game_ui_state.dragging_piece_pos = Some((x, y));
+                        redraw_board(&board_state, &game_ui_state);
+                    }
+                }
+                Event::MouseButtonUp {
+                    x, y, mouse_btn, ..
+                } => {
+                    if mouse_btn == MouseButton::Left
+                        && game_ui_state.dragging_piece_pos.is_some()
+                        && game_ui_state.last_clicked_square.is_some()
+                    {
+                        let mv_src = game_ui_state.last_clicked_square.unwrap();
+                        if let Some(dst_square) = get_square_from_cursor_pos(x, y) {
+                            execute_move_with_src_and_dst(
+                                &mut board_state,
+                                &mut game_ui_state,
+                                mv_src,
+                                dst_square,
+                            );
+                        }
+                        game_ui_state.dragging_piece_pos = None;
+                        game_ui_state.last_clicked_square = None;
+                        game_ui_state.moves_for_selected_piece.clear();
+                        redraw_board(&board_state, &game_ui_state);
+                    }
+                }
 
                 _ => {}
             }
         }
 
-        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
+        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
         // The rest of the game loop goes here...
     }
 }

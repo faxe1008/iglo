@@ -67,8 +67,18 @@ impl Not for PieceColor {
     fn not(self) -> Self::Output {
         match self {
             PieceColor::Black => PieceColor::White,
-            PieceColor::White => PieceColor::Black
+            PieceColor::White => PieceColor::Black,
         }
+    }
+}
+
+impl PieceColor {
+    pub fn as_display_str(&self) -> String {
+        match self {
+            PieceColor::White => "White",
+            PieceColor::Black => "Black",
+        }
+        .to_string()
     }
 }
 
@@ -156,7 +166,6 @@ impl ChessPiece {
 }
 
 impl ChessBoard {
-
     fn place_piece_of_color(&mut self, piece: ChessPiece, col: PieceColor, index_to_set: usize) {
         let piece_bitboard = if col == PieceColor::White {
             self.all_white_pieces = self.all_white_pieces.set_bit(index_to_set);
@@ -168,8 +177,7 @@ impl ChessBoard {
         *piece_bitboard = piece_bitboard.set_bit(index_to_set);
     }
 
-    fn get_piece_at_pos(&self, index: usize) -> Option<(ChessPiece, PieceColor)>
-    {
+    pub fn get_piece_at_pos(&self, index: usize) -> Option<(ChessPiece, PieceColor)> {
         for (piece_type, bb) in self.white_pieces.iter().enumerate() {
             if bb.get_bit(index) {
                 return Some((piece_type.into(), PieceColor::White));
@@ -234,8 +242,6 @@ impl ChessBoard {
 }
 
 impl ChessBoardState {
-
-
     pub fn starting_state() -> Self {
         Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0").unwrap()
     }
@@ -287,34 +293,41 @@ impl ChessBoardState {
 
         let (src_piece, src_color) = match self.board.get_piece_at_pos(mv.get_src() as usize) {
             None => panic!("No piece at src pos!"),
-            Some(e) => e
+            Some(e) => e,
         };
 
-        assert!(src_color == self.side, "Moving piece which does not belong to current player!");
-        
+        assert!(
+            src_color == self.side,
+            "Moving piece which does not belong to current player!"
+        );
+
         // Move is a capture
         if mv.is_capture() {
             let (dst_piece, dst_color) = match self.board.get_piece_at_pos(mv.get_dst() as usize) {
                 None => panic!("No piece to capture"),
-                Some(e) => e
+                Some(e) => e,
             };
             assert!(dst_color != src_color, "Can not capture own pieces");
-            new.board.remove_piece_at_pos(dst_piece, dst_color, mv.get_dst() as usize);
-            new.board.remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
-            new.board.place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
+            new.board
+                .remove_piece_at_pos(dst_piece, dst_color, mv.get_dst() as usize);
+            new.board
+                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
+            new.board
+                .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
         }
 
         // Move is silent
         if mv.is_silent() || mv.is_double_push() {
-            new.board.remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
-            new.board.place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
+            new.board
+                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
+            new.board
+                .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
         }
 
         new.full_moves += 1;
         new.side = !new.side;
         new
     }
-
 }
 
 #[cfg(test)]
@@ -437,7 +450,7 @@ mod board_tests {
     }
 
     #[test]
-    fn test_empty_squares(){
+    fn test_empty_squares() {
         let board_state =
             ChessBoardState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0");
         assert!(board_state.is_ok());

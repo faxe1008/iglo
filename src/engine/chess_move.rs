@@ -97,7 +97,7 @@ impl Move {
     }
 
     pub fn is_double_push(&self) -> bool {
-        ((self.0 & MOVE_DST_MASK) >> MOVE_TYPE_SHIFT) == MoveType::DoublePush as u16
+        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) == MoveType::DoublePush as u16
     }
 
 }
