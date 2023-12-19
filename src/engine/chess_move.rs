@@ -89,7 +89,7 @@ impl Move {
     }
 
     pub fn is_capture(&self) -> bool {
-        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) & 0b0100 != 0
+        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) == MoveType::Capture as u16
     }
 
     pub fn is_silent(&self) -> bool {
@@ -98,6 +98,10 @@ impl Move {
 
     pub fn is_double_push(&self) -> bool {
         ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) == MoveType::DoublePush as u16
+    }
+
+    pub fn is_en_passant(&self) -> bool {
+        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) == MoveType::EnPassant as u16 
     }
 
 }

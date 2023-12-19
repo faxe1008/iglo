@@ -46,6 +46,16 @@ impl ChessBoard {
             self.all_white_pieces.sNoEa() & self.black_pieces[ChessPiece::Pawn as usize]
         }
     }
+
+    #[inline(always)]
+    fn pawns_able_to_enpassant(&self, color: PieceColor, en_passant_target: u8) -> BitBoard {
+        let target_bb = BitBoard::EMPTY.set_bit(en_passant_target as usize);
+        if color == PieceColor::White {
+            (target_bb.sSoEa() | target_bb.sSoWe()) & self.white_pieces[ChessPiece::Pawn as usize]
+        } else {
+            (target_bb.sNoEa() | target_bb.sNoWe()) & self.black_pieces[ChessPiece::Pawn as usize]
+        }
+    }
 }
 
 fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
@@ -147,6 +157,19 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
                 west_atacking_pawn as u16,
                 target as u16,
                 MoveType::Capture,
+            ));
+        }
+    }
+
+    if let Some(en_passant_target) = board_state.en_passant_target {
+        for en_passant_pawns in board_state
+            .board
+            .pawns_able_to_enpassant(color, en_passant_target)
+        {
+            moves.push(Move::new(
+                en_passant_pawns as u16,
+                en_passant_target as u16,
+                MoveType::EnPassant,
             ));
         }
     }

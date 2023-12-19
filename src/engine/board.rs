@@ -317,7 +317,41 @@ impl ChessBoardState {
         }
 
         // Move is silent
-        if mv.is_silent() || mv.is_double_push() {
+        if mv.is_silent() {
+            new.board
+                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
+            new.board
+                .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
+        }
+
+        if mv.is_double_push() {
+            new.board
+                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
+            new.board
+                .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
+            new.en_passant_target = if src_color == PieceColor::White {
+                Some(mv.get_dst() as u8 + 8)
+            } else {
+                Some(mv.get_dst() as u8 - 8)
+            };
+        } else {
+            new.en_passant_target = None;
+        }
+
+        // En passant
+        if mv.is_en_passant() {
+            let dst = if src_color == PieceColor::White {
+                dbg!(mv.get_dst()) + 8
+            } else {
+                mv.get_dst() - 8
+            };
+            let (dst_piece, dst_color) = match self.board.get_piece_at_pos(dst as usize) {
+                None => panic!("No piece to capture"),
+                Some(e) => e,
+            };
+
+            new.board
+                .remove_piece_at_pos(dst_piece, dst_color, dst as usize);
             new.board
                 .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
             new.board

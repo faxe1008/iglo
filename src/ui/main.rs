@@ -109,10 +109,17 @@ fn draw_stats_bar(
 ) -> Result<(), String> {
     let evaluation = EvaluationEngine::eval(board_state);
 
+    let enpassant_text = if let Some(target) = board_state.en_passant_target {
+        Square::designator_str_from_index(target as u16)
+    } else {
+        "None".to_string()
+    };
+
     let text_blocks = [
         format!("Turn: {}", board_state.side.as_display_str()),
         format!("Evaluation: {}", evaluation),
         format!("Castling: {}", board_state.castling_rights.to_string()),
+        format!("En Passant: {}", enpassant_text)
     ];
 
     let mut y_offset = 0;
@@ -286,7 +293,7 @@ fn draw_single_move_indicator(
         CAPTURE_INDICATOR_THICKNESS,
     );
 
-    if piece_move.is_capture() {
+    if piece_move.is_capture() || piece_move.is_en_passant() {
         canvas.set_blend_mode(BlendMode::None);
         let corner_rects = [
             Rect::new(x + m, y + m, l, t),
