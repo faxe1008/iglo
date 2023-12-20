@@ -417,16 +417,20 @@ fn draw_promotion_prompt(
     Ok(())
 }
 
-fn get_square_from_cursor_pos(x: i32, y: i32) -> Option<u16> {
+fn get_square_from_cursor_pos(x: i32, y: i32, ui_state: &GameUIState) -> Option<u16> {
     let x = (x - MIN_MARGIN) / SQUARE_SIZE;
     if x < 0 || x > 7 {
         return None;
     }
 
-    let y = (y - MIN_MARGIN) / SQUARE_SIZE;
+    let mut y = (y - MIN_MARGIN) / SQUARE_SIZE;
     if y < 0 || y > 7 {
         return None;
     }
+    if ui_state.flipped {
+        y = 7 - y;
+    }
+
     Some(x as u16 + y as u16 * 8)
 }
 
@@ -545,7 +549,7 @@ fn main() {
                 }
                 Event::MouseButtonDown { x, y, .. } => {
                     if game_ui_state.promotion_prompt.is_none() {
-                        let clicked_square = get_square_from_cursor_pos(x, y);
+                        let clicked_square = get_square_from_cursor_pos(x, y, &game_ui_state);
                         match (game_ui_state.last_clicked_square, clicked_square) {
                             (Some(src), Some(dst)) => execute_move_with_src_and_dst(
                                 &mut board_state,
@@ -608,7 +612,7 @@ fn main() {
                         && game_ui_state.promotion_prompt.is_none()
                     {
                         let mv_src = game_ui_state.last_clicked_square.unwrap();
-                        if let Some(dst_square) = get_square_from_cursor_pos(x, y) {
+                        if let Some(dst_square) = get_square_from_cursor_pos(x, y, &game_ui_state) {
                             execute_move_with_src_and_dst(
                                 &mut board_state,
                                 &mut game_ui_state,
