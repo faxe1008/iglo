@@ -82,4 +82,15 @@ impl Square {
         x + y * 8
     }
 
+    pub fn add_offset(square: u16, x: i32, y: i32) -> Option<u16> {
+        let rank = (square as i32 / 8_i32) + y;
+        let file = (square as i32 % 8_i32) + x;
+
+        if rank < 0 || rank > 7 || file < 0 || file > 7 {
+            None
+        } else {
+            Some(file as u16 + rank as u16 * 8)
+        }
+    }
+
 }

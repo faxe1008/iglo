@@ -11,6 +11,9 @@ sdl2 = "0.36.0"
 default-features = false
 features = ["image", "ttf"]
 
+[dev-dependencies.rand]
+rand = "0.8.5"
+
 [lib]
 name = "chessica"
 path = "src/lib.rs"

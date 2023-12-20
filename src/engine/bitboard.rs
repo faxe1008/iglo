@@ -1,5 +1,18 @@
+
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Default, Hash)]
 pub struct BitBoard(pub u64);
+
+#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Default, Hash)]
+pub struct MagicEntry {
+    pub mask: BitBoard,
+    pub magic: u64,
+    pub index_bits: u8,
+}
+pub struct BitBoardSubsetIter {
+    set: BitBoard,
+    subset: BitBoard,
+    finished: bool
+}
 
 #[macro_export]
 macro_rules! bb {
@@ -35,13 +48,11 @@ impl BitBoard {
         self.0.count_ones()
     }
 
-    #[inline(always)]
-    pub fn for_each_set_bit<F: FnMut(usize)>(&self, functor: &mut F) {
-        if *self == BitBoard::EMPTY {
-            return;
-        }
-        for i in 0..64 {
-            functor(i);
+    pub fn iter_subsets(self) -> BitBoardSubsetIter {
+        BitBoardSubsetIter {
+            set: self,
+            subset: Self::EMPTY,
+            finished: false
         }
     }
 
@@ -68,7 +79,7 @@ impl BitBoard {
     pub fn sEa(&self) -> Self {
         Self((self.0 & Self::NOT_H_FILE) << 1) //
     }
-    
+
     #[must_use]
     pub fn sSoWe(&self) -> Self {
         Self((self.0 & Self::NOT_A_FILE) << 7) //
@@ -82,6 +93,15 @@ impl BitBoard {
     #[must_use]
     pub fn sSoEa(&self) -> Self {
         Self((self.0 & Self::NOT_H_FILE) << 9) //
+    }
+}
+
+impl MagicEntry {
+    pub fn magic_index(&self, blockers: BitBoard) -> usize {
+        let blockers = blockers & self.mask;
+        let hash = blockers.0.wrapping_mul(self.magic);
+        let index = (hash >> (64 - self.index_bits)) as usize;
+        index
     }
 }
 
@@ -143,6 +163,22 @@ impl std::ops::BitOr<BitBoard> for BitBoard {
         BitBoard(self.0 | rhs.0)
     }
 }
+
+impl Iterator for BitBoardSubsetIter {
+    type Item = BitBoard;
+
+    #[inline(always)]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.finished {
+            return None;
+        }
+        let current = self.subset;
+        self.subset.0 = self.subset.0.wrapping_sub(self.set.0) & self.set.0;
+        self.finished = self.subset.0 == 0;
+        Some(current)
+    }
+}
+
 
 
 #[cfg(test)]
