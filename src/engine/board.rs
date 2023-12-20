@@ -320,7 +320,7 @@ impl ChessBoardState {
             };
             
             new.board
-                .place_piece_of_color(dbg!(new_piece), src_color, mv.get_dst() as usize);
+                .place_piece_of_color(new_piece, src_color, mv.get_dst() as usize);
         }
 
         if mv.is_promotion() && !mv.is_capture() {

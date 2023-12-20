@@ -18,3 +18,7 @@ path = "src/lib.rs"
 [[example]]        
 name = "chessica_ui"
 path = "src/ui/main.rs"
+
+[[example]]
+name = "lookup_gen"
+path = "src/engine/lookup_gens/main.rs"

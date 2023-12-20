@@ -16,14 +16,17 @@ impl BitBoard {
     pub const RANK_4: u64 = 1095216660480;
     pub const RANK_5: u64 = 4278190080;
 
+    #[must_use]
     pub fn get_bit(&self, pos: usize) -> bool {
         (self.0 & (1u64 << pos)) != 0
     }
 
+    #[must_use]
     pub fn set_bit(&self, pos: usize) -> Self {
         Self(self.0 | (1u64 << pos))
     }
 
+    #[must_use]
     pub fn clear_bit(&self, pos: usize) -> Self {
         Self(self.0 & !(1u64 << pos))
     }
@@ -42,33 +45,41 @@ impl BitBoard {
         }
     }
 
+    #[must_use]
     pub fn sNoWe(&self) -> Self {
         Self((self.0 & Self::NOT_A_FILE) >> 9) //
     }
-
+    #[must_use]
     pub fn sNo(&self) -> Self {
         Self(self.0 >> 8) //
     }
 
+    #[must_use]
     pub fn sNoEa(&self) -> Self {
         Self((self.0 & Self::NOT_H_FILE) >> 7) //
     }
 
+    #[must_use]
     pub fn sWe(&self) -> Self {
         Self((self.0 & Self::NOT_A_FILE) >> 1) //
     }
 
+    #[must_use]
     pub fn sEa(&self) -> Self {
         Self((self.0 & Self::NOT_H_FILE) << 1) //
     }
-
+    
+    #[must_use]
     pub fn sSoWe(&self) -> Self {
         Self((self.0 & Self::NOT_A_FILE) << 7) //
     }
 
+    #[must_use]
     pub fn sSo(&self) -> Self {
         Self(self.0 << 8) //
     }
+
+    #[must_use]
     pub fn sSoEa(&self) -> Self {
         Self((self.0 & Self::NOT_H_FILE) << 9) //
     }

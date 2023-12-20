@@ -66,6 +66,8 @@ impl Square {
     pub const G1: u16 = 62;
     pub const H1: u16 = 63;
 
+    pub const NUM: u16 = 64;
+
 
     pub fn designator_str_from_index(index: u16) -> String {
         let file = index % 8;
@@ -75,4 +77,9 @@ impl Square {
         let rank_char =  char::from_u32('1' as u32 + rank as u32).unwrap();
         [file_char, rank_char].iter().collect()
     }
+
+    pub fn square_from_pos(x: u16, y: u16) -> u16 {
+        x + y * 8
+    }
+
 }
