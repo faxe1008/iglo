@@ -703,10 +703,13 @@ pub fn generate_pinned_piece_mask(
         let blockers_without_pin = blockers & !pinned_by_bishop;
 
         for pinned in pinned_by_bishop {
-            pinned_move_masks[pinned] =
-                (ChessBoard::bishop_attacks(opp_bishop, blockers_without_pin)
-                    & ChessBoard::bishop_attacks(king_pos, blockers_without_pin))
-                .set_bit(opp_bishop);
+            let bishop_attacks = ChessBoard::bishop_attacks(opp_bishop, blockers_without_pin);
+            if !bishop_attacks.get_bit(king_pos) {
+                continue;
+            }
+            pinned_move_masks[pinned] = (bishop_attacks
+                & ChessBoard::bishop_attacks(king_pos, blockers_without_pin))
+            .set_bit(opp_bishop);
         }
     }
 
@@ -718,8 +721,11 @@ pub fn generate_pinned_piece_mask(
         let blockers_without_pin = blockers & !pinned_by_rook;
 
         for pinned in pinned_by_rook {
-            pinned_move_masks[pinned] = (ChessBoard::rook_attacks(opp_rook, blockers_without_pin)
-                & ChessBoard::rook_attacks(king_pos, blockers_without_pin).set_bit(opp_rook));
+            let rook_attack = ChessBoard::rook_attacks(opp_rook, blockers_without_pin);
+            if !rook_attack.get_bit(king_pos){
+                continue;
+            }
+            pinned_move_masks[pinned] = (rook_attack & ChessBoard::rook_attacks(king_pos, blockers_without_pin).set_bit(opp_rook));
         }
     }
 

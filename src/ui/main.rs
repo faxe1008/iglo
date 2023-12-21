@@ -132,6 +132,8 @@ fn draw_stats_bar(
             "King Attackers: {}",
             board_state.board.king_attackers(board_state.side)[6].0
         ),
+        format!("Legal Move Count: {}", 
+        generate_pseudo_legal_moves(board_state, board_state.side).len())
     ];
 
     let mut y_offset = 0;
