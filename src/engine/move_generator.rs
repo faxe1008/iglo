@@ -65,7 +65,7 @@ impl ChessBoard {
         }
     }
 
-    pub fn squares_attacked_by_side(&self, color: PieceColor) -> BitBoard {
+    pub fn squares_attacked_by_side(&self, color: PieceColor, ignore_opposing_king: bool) -> BitBoard {
         let mut attacked_map = BitBoard::EMPTY;
 
         let side_pieces = if color == PieceColor::White {
@@ -80,7 +80,15 @@ impl ChessBoard {
             &self.black_pieces
         };
 
-        let blockers = self.all_black_pieces | self.all_white_pieces;
+        let mut blockers = self.all_black_pieces | self.all_white_pieces;
+        // Remove the king from the mask of blockers
+        if ignore_opposing_king {
+            blockers = blockers & !(if color == PieceColor::White {
+                self.black_pieces[ChessPiece::King as usize]
+            } else {
+                self.white_pieces[ChessPiece::King as usize]
+            });
+        }
 
         for knight_pos in side_pieces[ChessPiece::Knight as usize] {
             attacked_map = attacked_map | KNIGHT_MOVE_LOOKUP[knight_pos];
@@ -342,7 +350,7 @@ fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
         board_state.board.all_white_pieces
     };
 
-    let attacked_by_enemy = board_state.board.squares_attacked_by_side(!color);
+    let attacked_by_enemy = board_state.board.squares_attacked_by_side(!color, true);
     let blockers = !empty_squares;
 
     let king_pos = side_king_board.into_iter().nth(0).unwrap();
@@ -364,34 +372,42 @@ fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
         ));
     }
 
-    // Check for Castling Rights
-    let combinations = [
-        (
-            board_state.castling_rights.white_king_side,
-            WHITE_KING_SIDE_CASTLE_SQUARES,
-            Square::G1,
-        ),
-        (
-            board_state.castling_rights.white_queen_side,
-            WHITE_QUEEN_SIDE_CASTLE_SQAURES,
-            Square::C1,
-        ),
-        (
-            board_state.castling_rights.black_king_side,
-            BLACK_KING_SIDE_CASTLE_SQUARES,
-            Square::G8,
-        ),
-        (
-            board_state.castling_rights.black_queen_side,
-            BLACK_QUEEN_SIDE_CASTLE_SQUARES,
-            Square::C8,
-        ),
-    ];
-    for (right, squares_to_check, target_square) in &combinations {
-        let squares_not_attacked = (attacked_by_enemy & *squares_to_check) == BitBoard::EMPTY;
-        let squares_not_occupied = (blockers & *squares_to_check) == BitBoard::EMPTY;
-        if *right && squares_not_occupied && squares_not_attacked {
-            moves.push(Move::new(king_pos as u16, *target_square, MoveType::Castle));
+    let in_check = (attacked_by_enemy & side_king_board) != BitBoard::EMPTY;
+
+    if !in_check {
+        // Check for Castling Rights
+        let combinations = [
+            (
+                board_state.castling_rights.white_king_side,
+                WHITE_KING_SIDE_CASTLE_SQUARES,
+                MoveType::CastleKingSide,
+                Square::G1,
+            ),
+            (
+                board_state.castling_rights.white_queen_side,
+                WHITE_QUEEN_SIDE_CASTLE_SQAURES,
+                MoveType::CastleQueenSide,
+                Square::C1,
+            ),
+            (
+                board_state.castling_rights.black_king_side,
+                BLACK_KING_SIDE_CASTLE_SQUARES,
+                MoveType::CastleKingSide,
+                Square::G8,
+            ),
+            (
+                board_state.castling_rights.black_queen_side,
+                BLACK_QUEEN_SIDE_CASTLE_SQUARES,
+                MoveType::CastleQueenSide,
+                Square::C8,
+            ),
+        ];
+        for (right, squares_to_check, mv_type, target_square) in &combinations {
+            let squares_not_attacked = (attacked_by_enemy & *squares_to_check) == BitBoard::EMPTY;
+            let squares_not_occupied = (blockers & *squares_to_check) == BitBoard::EMPTY;
+            if *right && squares_not_occupied && squares_not_attacked {
+                moves.push(Move::new(king_pos as u16, *target_square, *mv_type));
+            }
         }
     }
 

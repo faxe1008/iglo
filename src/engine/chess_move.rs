@@ -28,8 +28,9 @@ pub const PROMOTION_CAPTURE_TARGETS: [MoveType; 4] = [
 pub enum MoveType {
     Silent = 0b0000,
     DoublePush = 0b0001,
-    Castle = 0b0010,
-
+    CastleKingSide = 0b0010,
+    CastleQueenSide = 0b0011,
+    
     Capture = 0b0100,
     EnPassant = 0b0101,
 
