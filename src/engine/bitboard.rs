@@ -3,8 +3,9 @@
 pub struct BitBoard(pub u64);
 
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Default, Hash)]
+#[repr(packed)]
 pub struct MagicEntry {
-    pub mask: BitBoard,
+    pub blocker_mask: BitBoard,
     pub magic: u64,
     pub index_bits: u8,
 }
@@ -98,7 +99,7 @@ impl BitBoard {
 
 impl MagicEntry {
     pub fn magic_index(&self, blockers: BitBoard) -> usize {
-        let blockers = blockers & self.mask;
+        let blockers = blockers & self.blocker_mask;
         let hash = blockers.0.wrapping_mul(self.magic);
         let index = (hash >> (64 - self.index_bits)) as usize;
         index
@@ -204,5 +205,25 @@ mod bitboard_tests {
         assert_eq!(iter.next(), Some(4));
         assert_eq!(iter.next(), Some(63));
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_subset_iterator() {
+        let mut bitboard = BitBoard::EMPTY;
+
+        bitboard = bitboard.set_bit(10);
+        bitboard = bitboard.set_bit(5);
+        bitboard = bitboard.set_bit(1);
+
+        let subsets : Vec<BitBoard> = bitboard.iter_subsets().collect();
+        assert!(subsets.len() == 8);
+        assert!(subsets.contains(&BitBoard(0 << 1 | 0 << 5 | 0 << 10)));
+        assert!(subsets.contains(&BitBoard(1 << 1 | 0 << 5 | 0 << 10)));
+        assert!(subsets.contains(&BitBoard(0 << 1 | 1 << 5 | 0 << 10)));
+        assert!(subsets.contains(&BitBoard(1 << 1 | 1 << 5 | 0 << 10)));
+        assert!(subsets.contains(&BitBoard(0 << 1 | 0 << 5 | 1 << 10)));
+        assert!(subsets.contains(&BitBoard(1 << 1 | 0 << 5 | 1 << 10)));
+        assert!(subsets.contains(&BitBoard(0 << 1 | 1 << 5 | 1 << 10)));
+        assert!(subsets.contains(&BitBoard(1 << 1 | 1 << 5 | 1 << 10)));
     }
 }
