@@ -3,7 +3,7 @@ use chessica::engine::{
     board_eval::{EvaluationEngine, EvaluationFunction},
     chess_move::Move,
     move_generator::generate_pseudo_legal_moves,
-    square::Square,
+    square::Square, bitboard::BitBoard,
 };
 use core::time::Duration;
 use sdl2::{
@@ -31,6 +31,7 @@ const COLOR_WHITE_FIELD: Color = Color::RGBA(235, 236, 208, 255);
 const COLOR_BACKGROUND: Color = Color::RGBA(18, 18, 18, 255);
 const COLOR_MOVEMENT_INDICATOR: Color = Color::RGBA(17, 102, 0, 153);
 const COLOR_PROMOTION_PROMPT_COLOR: Color = Color::RGBA(230, 230, 230, 200);
+const COLOR_CHECK_BACKGROUND: Color = Color::RGBA(230, 0, 0, 200);
 
 const PIECE_SPRITE_SIZE: u32 = 320;
 const DESIGNATOR_MARGIN: i32 = 5;
@@ -127,7 +128,10 @@ fn draw_stats_bar(
         format!("En Passant: {}", enpassant_text),
         format!("Fullmoves: {}", board_state.full_moves),
         format!("Halfmoves: {}", board_state.half_moves),
-        format!("King Attackers: {}", board_state.board.king_attackers(board_state.side).0)
+        format!(
+            "King Attackers: {}",
+            board_state.board.king_attackers(board_state.side).0
+        ),
     ];
 
     let mut y_offset = 0;
@@ -269,13 +273,14 @@ fn draw_chess_board(
             for i in 0..64 {
                 if bitboard.get_bit(i) {
                     let dst_rct = get_square_by_index(i, ui_state);
+
                     // Do not draw dragged piece
                     if ui_state.dragging_piece_pos.is_some()
                         && ui_state.last_clicked_square == Some(i as u16)
                     {
                         continue;
                     }
-                    draw_piece_at_location(canvas, asset_pack, piece, *piece_color, dst_rct);
+                    draw_piece_at_location(canvas, asset_pack, piece, *piece_color, dst_rct)?;
                 }
             }
         }
@@ -454,13 +459,12 @@ fn execute_move_with_src_and_dst(
     } else if moves.len() == 1 {
         *board_state = board_state.exec_move(moves[0]);
     } else {
-        dbg!(&ui_state.moves_for_selected_piece);
-        dbg!(&moves);
         ui_state.promotion_prompt = Some((board_state.side, moves))
     }
 
     ui_state.last_clicked_square = None;
     ui_state.moves_for_selected_piece.clear();
+  
 }
 
 fn generate_possible_moves_for_piece(board_state: &ChessBoardState, pos: u16) -> Vec<Move> {

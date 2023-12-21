@@ -1,5 +1,7 @@
 use std::ops::Not;
 
+use crate::engine::square::Square;
+
 use super::{bitboard::BitBoard, chess_move::Move};
 
 const PIECE_TYPE_COUNT: usize = 6;
@@ -166,7 +168,12 @@ impl ChessPiece {
 }
 
 impl ChessBoard {
-    pub fn place_piece_of_color(&mut self, piece: ChessPiece, col: PieceColor, index_to_set: usize) {
+    pub fn place_piece_of_color(
+        &mut self,
+        piece: ChessPiece,
+        col: PieceColor,
+        index_to_set: usize,
+    ) {
         let piece_bitboard = if col == PieceColor::White {
             self.all_white_pieces = self.all_white_pieces.set_bit(index_to_set);
             &mut self.white_pieces[piece as usize]
@@ -288,6 +295,68 @@ impl ChessBoardState {
         })
     }
 
+    pub fn revoke_castling_rights(
+        &mut self,
+        src_piece: ChessPiece,
+        src_color: PieceColor,
+        mv: &Move,
+    ) {
+        // Revoke Castling Rights, King has moved
+        if src_piece == ChessPiece::King {
+            if src_color == PieceColor::White {
+                self.castling_rights.white_king_side = false;
+                self.castling_rights.white_queen_side = false;
+            } else {
+                self.castling_rights.black_king_side = false;
+                self.castling_rights.black_queen_side = false;
+            }
+        }
+        let mut combinations = [
+            (
+                PieceColor::White,
+                &mut self.castling_rights.white_queen_side,
+                Square::A1,
+            ),
+            (
+                PieceColor::White,
+                &mut self.castling_rights.white_king_side,
+                Square::H8,
+            ),
+            (
+                PieceColor::Black,
+                &mut self.castling_rights.black_queen_side,
+                Square::A8,
+            ),
+            (
+                PieceColor::Black,
+                &mut self.castling_rights.black_king_side,
+                Square::H8,
+            ),
+        ];
+        // Revoke Castling Rights, Rook has moved
+        if src_piece == ChessPiece::Rook {
+            for (pc, right, square) in &mut combinations {
+                if src_color == *pc && **right && mv.get_src() == *square {
+                    **right = false;
+                }
+            }
+        }
+        // Revoke Castling Rights, Rook was captured
+        if mv.is_capture() {
+            let (dst_piece, dst_color) = match self.board.get_piece_at_pos(mv.get_dst() as usize) {
+                None => panic!("No piece to capture"),
+                Some(e) => e,
+            };
+            if dst_piece == ChessPiece::Rook {
+                for (pc, right, square) in &mut combinations {
+                    if *pc == dst_color && **right && mv.get_dst() == *square {
+                        **right = false;
+                    }
+                }
+            }
+        }
+    }
+
     pub fn exec_move(&self, mv: Move) -> Self {
         let mut new = *self;
 
@@ -312,22 +381,22 @@ impl ChessBoardState {
                 .remove_piece_at_pos(dst_piece, dst_color, mv.get_dst() as usize);
             new.board
                 .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
-            
+
             let new_piece = if mv.is_promotion() {
                 mv.promotion_target()
             } else {
                 src_piece
             };
-            
+
             new.board
                 .place_piece_of_color(new_piece, src_color, mv.get_dst() as usize);
         }
 
         if mv.is_promotion() && !mv.is_capture() {
             new.board
-            .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
-        new.board
-            .place_piece_of_color(mv.promotion_target(), src_color, mv.get_dst() as usize);
+                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
+            new.board
+                .place_piece_of_color(mv.promotion_target(), src_color, mv.get_dst() as usize);
         }
 
         // Move is silent
@@ -372,8 +441,7 @@ impl ChessBoardState {
                 .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
         }
 
-
-
+        new.revoke_castling_rights(src_piece, src_color, &mv);
 
         if mv.is_capture() || src_piece == ChessPiece::Pawn {
             new.half_moves = 0;

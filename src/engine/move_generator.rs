@@ -28,20 +28,20 @@ impl ChessBoard {
     }
 
     #[inline(always)]
-    fn pawns_able_to_attack_east(&self, color: PieceColor) -> BitBoard {
+    fn pawns_able_to_attack_east(&self, pawn_board: BitBoard, color: PieceColor) -> BitBoard {
         if color == PieceColor::White {
-            self.all_black_pieces.s_so_we() & self.white_pieces[ChessPiece::Pawn as usize]
+            self.all_black_pieces.s_so_we() & pawn_board
         } else {
-            self.all_white_pieces.s_no_we() & self.black_pieces[ChessPiece::Pawn as usize]
+            self.all_white_pieces.s_no_we() & pawn_board
         }
     }
 
     #[inline(always)]
-    fn pawns_able_to_attack_west(&self, color: PieceColor) -> BitBoard {
+    fn pawns_able_to_attack_west(&self, pawn_board: BitBoard, color: PieceColor) -> BitBoard {
         if color == PieceColor::White {
-            self.all_black_pieces.s_so_ea() & self.white_pieces[ChessPiece::Pawn as usize]
+            self.all_black_pieces.s_so_ea() & pawn_board
         } else {
-            self.all_white_pieces.s_no_ea() & self.black_pieces[ChessPiece::Pawn as usize]
+            self.all_white_pieces.s_no_ea() & pawn_board
         }
     }
 
@@ -84,6 +84,15 @@ impl ChessBoard {
         let rook_attacks = ROOK_MOVES[king_pos][ROOK_MAGICS[king_pos].magic_index(blockers)];
         attacker_map = attacker_map | (rook_attacks & (opposing_pieces[ChessPiece::Rook as usize] | opposing_pieces[ChessPiece::Queen as usize]));
 
+        // Check for pawns
+        let king_board = BitBoard(1 << king_pos);
+        let attackers = if color == PieceColor::White {
+            (king_board.s_no_we() | king_board.s_no_ea()) & opposing_pieces[ChessPiece::Pawn as usize]
+        }else {
+            (king_board.s_so_we() | king_board.s_so_ea()) & opposing_pieces[ChessPiece::Pawn as usize]
+        };
+        attacker_map = attacker_map | attackers;
+        
         attacker_map
     }
 
@@ -147,7 +156,7 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
     let east_attack_dir = if color == PieceColor::White { -7 } else { 9 };
     for east_attacking_pawn in board_state
         .board
-        .pawns_able_to_attack_east(color)
+        .pawns_able_to_attack_east(side_pawn_board, color)
         .into_iter()
     {
         let target = east_attacking_pawn as i32 + east_attack_dir;
@@ -171,7 +180,7 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
     let west_attack_dir = if color == PieceColor::White { -9 } else { 7 };
     for west_atacking_pawn in board_state
         .board
-        .pawns_able_to_attack_west(color)
+        .pawns_able_to_attack_west(side_pawn_board, color)
         .into_iter()
     {
         let target = west_atacking_pawn as i32 + west_attack_dir;
