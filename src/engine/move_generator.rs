@@ -645,6 +645,13 @@ fn generate_legal_move_mask(
     (capture_mask | push_mask, en_passant_capture_mask)
 }
 
+pub fn generate_pinned_piece_mask(board_state: &ChessBoardState, color: PieceColor) -> BitBoard {
+
+    BitBoard::EMPTY
+
+}
+
+
 pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
     let king_attackers = board_state.board.king_attackers(color);
     let checker_count = king_attackers[6].bit_count();
@@ -701,7 +708,7 @@ mod move_gen_tests {
         board::{ChessBoardState, PieceColor},
         chess_move::{Move, MoveType},
         move_generator::{generate_knight_moves, generate_pawn_moves, KNIGHT_MOVE_LOOKUP},
-        square::Square,
+        square::Square, bitboard::BitBoard,
     };
 
     fn compare_moves(generated: &[Move], expected: &[Move]) {
@@ -736,7 +743,7 @@ mod move_gen_tests {
             Move::new(Square::A2, Square::A4, MoveType::DoublePush),
         ];
 
-        let white_pawn_moves = generate_pawn_moves(&board_state, PieceColor::White);
+        let white_pawn_moves = generate_pawn_moves(&board_state, PieceColor::White, BitBoard::FULL, BitBoard::FULL);
         compare_moves(&white_pawn_moves, &expected_moves_white);
 
         let expected_moves_black = [
@@ -757,7 +764,7 @@ mod move_gen_tests {
             Move::new(Square::B7, Square::B5, MoveType::DoublePush),
             Move::new(Square::A7, Square::A5, MoveType::DoublePush),
         ];
-        let black_pawn_moves = generate_pawn_moves(&board_state, PieceColor::Black);
+        let black_pawn_moves = generate_pawn_moves(&board_state, PieceColor::Black, BitBoard::FULL, BitBoard::FULL);
         compare_moves(&black_pawn_moves, &expected_moves_black);
     }
 
@@ -768,7 +775,7 @@ mod move_gen_tests {
         assert!(board_state.is_ok());
         let board_state = board_state.unwrap();
 
-        let white_pawn_moves = generate_pawn_moves(&board_state, PieceColor::White);
+        let white_pawn_moves = generate_pawn_moves(&board_state, PieceColor::White, BitBoard::FULL, BitBoard::FULL);
         let expected_moves_white = [
             Move::new(Square::A2, Square::A3, MoveType::Silent),
             Move::new(Square::A2, Square::A4, MoveType::DoublePush),
@@ -788,7 +795,7 @@ mod move_gen_tests {
         ];
         compare_moves(&white_pawn_moves, &expected_moves_white);
 
-        let black_pawn_moves = generate_pawn_moves(&board_state, PieceColor::Black);
+        let black_pawn_moves = generate_pawn_moves(&board_state, PieceColor::Black, BitBoard::FULL, BitBoard::FULL);
         let expected_black_moves = [
             Move::new(Square::A5, Square::A4, MoveType::Silent),
             Move::new(Square::A5, Square::B4, MoveType::Capture),
@@ -808,7 +815,7 @@ mod move_gen_tests {
         assert!(board_state.is_ok());
         let board_state = board_state.unwrap();
 
-        let white_knight_moves = generate_knight_moves(&board_state, PieceColor::White);
+        let white_knight_moves = generate_knight_moves(&board_state, PieceColor::White, BitBoard::FULL);
         let expected_white_knight_moves = [
             Move::new(Square::B3, Square::C5, MoveType::Silent),
             Move::new(Square::B3, Square::D4, MoveType::Capture),
@@ -822,7 +829,7 @@ mod move_gen_tests {
         ];
         compare_moves(&white_knight_moves, &expected_white_knight_moves);
 
-        let black_knight_moves = generate_knight_moves(&board_state, PieceColor::Black);
+        let black_knight_moves = generate_knight_moves(&board_state, PieceColor::Black, BitBoard::FULL);
         let expected_black_moves = [
             Move::new(Square::F7, Square::H8, MoveType::Silent),
             Move::new(Square::F7, Square::H6, MoveType::Capture),
