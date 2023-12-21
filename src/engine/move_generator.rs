@@ -1,8 +1,8 @@
-use std::io::{empty, Empty};
+
 
 use super::{
     bitboard::{BitBoard, MagicEntry},
-    board::{self, ChessBoard, ChessBoardState, ChessPiece, PieceColor},
+    board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor},
     chess_move::{Move, MoveType, PROMOTION_CAPTURE_TARGETS, PROMOTION_TARGETS},
     square::Square,
 };
@@ -725,7 +725,7 @@ pub fn generate_pinned_piece_mask(
             if !rook_attack.get_bit(king_pos){
                 continue;
             }
-            pinned_move_masks[pinned] = (rook_attack & ChessBoard::rook_attacks(king_pos, blockers_without_pin).set_bit(opp_rook));
+            pinned_move_masks[pinned] = rook_attack & ChessBoard::rook_attacks(king_pos, blockers_without_pin).set_bit(opp_rook);
         }
     }
 
