@@ -344,16 +344,57 @@ fn generate_bishop_moves(board_state: &ChessBoardState, color: PieceColor) -> Ve
     moves
 }
 
+fn generate_queen_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
+    let mut moves = Vec::with_capacity(16);
 
+    let side_queen_board = if color == PieceColor::White {
+        board_state.board.white_pieces[ChessPiece::Queen as usize]
+    } else {
+        board_state.board.black_pieces[ChessPiece::Queen as usize]
+    };
+
+    if side_queen_board == BitBoard::EMPTY {
+        return moves;
+    }
+
+    let opposing_pieces = if color == PieceColor::White {
+        board_state.board.all_black_pieces
+    } else {
+        board_state.board.all_white_pieces
+    };
+    let blockers = board_state.board.all_white_pieces | board_state.board.all_black_pieces;
+    let empty_squares = board_state.board.empty_squares();
+
+    for queen_pos in side_queen_board {
+        let bishop_magic = &BISHOP_MAGICS[queen_pos].magic_index(blockers);
+        let bishop_move_bitboard = BISHOP_MOVES[queen_pos][*bishop_magic];
+    
+        let rook_magic = &ROOK_MAGICS[queen_pos].magic_index(blockers);
+        let rook_move_bitboard = ROOK_MOVES[queen_pos][*rook_magic];
+
+        let queen_move_bitboard = bishop_move_bitboard | rook_move_bitboard;
+
+        for queen_dst in queen_move_bitboard {
+            if opposing_pieces.get_bit(queen_dst) {
+                moves.push(Move::new(queen_pos as u16, queen_dst as u16, MoveType::Capture));
+            } else if empty_squares.get_bit(queen_dst) {
+                moves.push(Move::new(queen_pos as u16, queen_dst as u16, MoveType::Silent));
+            }
+        }
+    }
+
+
+    moves
+}
 
 pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
     let mut vec = Vec::with_capacity(32);
-
     vec.append(&mut generate_knight_moves(board_state, color));
     vec.append(&mut generate_pawn_moves(board_state, color));
     vec.append(&mut generate_king_moves(board_state, color));
     vec.append(&mut generate_rook_moves(board_state, color));
     vec.append(&mut generate_bishop_moves(board_state, color));
+    vec.append(&mut generate_queen_moves(board_state, color));
     vec
 }
 

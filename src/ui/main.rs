@@ -440,7 +440,7 @@ fn execute_move_with_src_and_dst(
     src: u16,
     dst: u16,
 ) {
-    let moves: Vec<Move> = ui_state
+    let mut moves: Vec<Move> = ui_state
         .moves_for_selected_piece
         .iter()
         .filter(|mv| mv.get_src() == src && mv.get_dst() == dst)
@@ -451,6 +451,8 @@ fn execute_move_with_src_and_dst(
     } else if moves.len() == 1 {
         *board_state = board_state.exec_move(moves[0]);
     } else {
+        dbg!(&ui_state.moves_for_selected_piece);
+        dbg!(&moves);
         ui_state.promotion_prompt = Some((board_state.side, moves))
     }
 
@@ -598,7 +600,10 @@ fn main() {
                 Event::MouseMotion {
                     x, y, mousestate, ..
                 } => {
-                    if mousestate.left() && game_ui_state.last_clicked_square.is_some() && game_ui_state.promotion_prompt.is_none() {
+                    if mousestate.left()
+                        && game_ui_state.last_clicked_square.is_some()
+                        && game_ui_state.promotion_prompt.is_none()
+                    {
                         game_ui_state.dragging_piece_pos = Some((x, y));
                         redraw_board(&board_state, &game_ui_state);
                     }
@@ -608,7 +613,7 @@ fn main() {
                 } => {
                     if mouse_btn == MouseButton::Left
                         && game_ui_state.dragging_piece_pos.is_some()
-                        && game_ui_state.last_clicked_square.is_some() 
+                        && game_ui_state.last_clicked_square.is_some()
                         && game_ui_state.promotion_prompt.is_none()
                     {
                         let mv_src = game_ui_state.last_clicked_square.unwrap();

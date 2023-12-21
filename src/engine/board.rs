@@ -166,7 +166,7 @@ impl ChessPiece {
 }
 
 impl ChessBoard {
-    fn place_piece_of_color(&mut self, piece: ChessPiece, col: PieceColor, index_to_set: usize) {
+    pub fn place_piece_of_color(&mut self, piece: ChessPiece, col: PieceColor, index_to_set: usize) {
         let piece_bitboard = if col == PieceColor::White {
             self.all_white_pieces = self.all_white_pieces.set_bit(index_to_set);
             &mut self.white_pieces[piece as usize]
@@ -191,7 +191,7 @@ impl ChessBoard {
         None
     }
 
-    fn remove_piece_at_pos(&mut self, piece: ChessPiece, col: PieceColor, index: usize) {
+    pub fn remove_piece_at_pos(&mut self, piece: ChessPiece, col: PieceColor, index: usize) {
         let piece_bitboard = if col == PieceColor::White {
             self.all_white_pieces = self.all_white_pieces.clear_bit(index);
             &mut self.white_pieces[piece as usize]
