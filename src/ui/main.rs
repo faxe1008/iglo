@@ -1,5 +1,5 @@
 use chessica::engine::{
-    board::{self, ChessBoardState, ChessPiece, PieceColor},
+    board::{ChessBoardState, ChessPiece, PieceColor},
     board_eval::{EvaluationEngine, EvaluationFunction},
     chess_move::Move,
     move_generator::generate_pseudo_legal_moves,
@@ -81,7 +81,7 @@ fn get_square_by_index(index: usize, ui_state: &GameUIState) -> Rect {
 
 fn get_designator_rect(
     x: i32,
-    mut y: i32,
+    y: i32,
     ui_state: &GameUIState,
     is_vertical: bool,
     designator_size: (u32, u32),
@@ -126,7 +126,8 @@ fn draw_stats_bar(
         format!("Castling: {}", board_state.castling_rights.to_string()),
         format!("En Passant: {}", enpassant_text),
         format!("Fullmoves: {}", board_state.full_moves),
-        format!("Halfmoves: {}", board_state.half_moves)
+        format!("Halfmoves: {}", board_state.half_moves),
+        format!("King Attackers: {}", board_state.board.king_attackers(board_state.side).0)
     ];
 
     let mut y_offset = 0;
@@ -577,7 +578,7 @@ fn main() {
                         let promotion_candidates = promotion_prompt_rects();
                         let promotion_target = promotion_candidates
                             .iter()
-                            .filter(|(r, p)| r.contains_point(Point::new(x, y)))
+                            .filter(|(r, _p)| r.contains_point(Point::new(x, y)))
                             .map(|(_, p)| p)
                             .nth(0);
 
