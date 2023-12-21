@@ -165,6 +165,14 @@ impl std::ops::BitOr<BitBoard> for BitBoard {
     }
 }
 
+impl std::ops::Not for BitBoard {
+    type Output = BitBoard;
+
+    fn not(self) -> Self::Output {
+        BitBoard(!self.0)
+    }
+}
+
 impl Iterator for BitBoardSubsetIter {
     type Item = BitBoard;
 

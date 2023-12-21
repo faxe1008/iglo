@@ -49,10 +49,50 @@ impl ChessBoard {
     fn pawns_able_to_enpassant(&self, color: PieceColor, en_passant_target: u8) -> BitBoard {
         let target_bb = BitBoard::EMPTY.set_bit(en_passant_target as usize);
         if color == PieceColor::White {
-            (target_bb.s_so_ea() | target_bb.s_so_we()) & self.white_pieces[ChessPiece::Pawn as usize]
+            (target_bb.s_so_ea() | target_bb.s_so_we())
+                & self.white_pieces[ChessPiece::Pawn as usize]
         } else {
-            (target_bb.s_no_ea() | target_bb.s_no_we()) & self.black_pieces[ChessPiece::Pawn as usize]
+            (target_bb.s_no_ea() | target_bb.s_no_we())
+                & self.black_pieces[ChessPiece::Pawn as usize]
         }
+    }
+
+    pub fn squares_attacked_by_side(&self, color: PieceColor) -> BitBoard {
+        let mut attacked_map = BitBoard::EMPTY;
+
+        let side_pieces = if color == PieceColor::White {
+            attacked_map = attacked_map
+                | self.white_pieces[ChessPiece::Pawn as usize].s_no_we()
+                | self.white_pieces[ChessPiece::Pawn as usize].s_no_ea();
+            &self.white_pieces
+        } else {
+            attacked_map = attacked_map
+                | self.black_pieces[ChessPiece::Pawn as usize].s_so_we()
+                | self.black_pieces[ChessPiece::Pawn as usize].s_so_ea();
+            &self.black_pieces
+        };
+
+        let blockers = self.all_black_pieces | self.all_white_pieces;
+
+        for knight_pos in side_pieces[ChessPiece::Knight as usize] {
+            attacked_map = attacked_map | KNIGHT_MOVE_LOOKUP[knight_pos];
+        }
+        for bishop in side_pieces[ChessPiece::Bishop as usize] {
+            let magic = BISHOP_MAGICS[bishop].magic_index(blockers);
+            attacked_map = attacked_map | (&BISHOP_MOVES[bishop])[magic];
+        }
+        for rook in side_pieces[ChessPiece::Rook as usize] {
+            let magic = ROOK_MAGICS[rook].magic_index(blockers);
+            attacked_map = attacked_map | (&ROOK_MOVES[rook])[magic];
+        }
+        for queen in side_pieces[ChessPiece::Queen as usize] {
+            let r_magic = ROOK_MAGICS[queen].magic_index(blockers);
+            let b_magic = BISHOP_MAGICS[queen].magic_index(blockers);
+            attacked_map = attacked_map | (&ROOK_MOVES[queen])[r_magic];
+            attacked_map = attacked_map | (&BISHOP_MOVES[queen])[b_magic];
+        }
+
+        attacked_map
     }
 
     #[inline(always)]
@@ -63,7 +103,10 @@ impl ChessBoard {
             self.white_pieces[ChessPiece::King as usize]
         } else {
             self.black_pieces[ChessPiece::King as usize]
-        }.into_iter().nth(0).unwrap();
+        }
+        .into_iter()
+        .nth(0)
+        .unwrap();
 
         let opposing_pieces = if color == PieceColor::White {
             &self.black_pieces
@@ -74,28 +117,37 @@ impl ChessBoard {
         let blockers = self.all_black_pieces | self.all_white_pieces;
 
         // Check for knights
-        attacker_map = attacker_map | (KNIGHT_MOVE_LOOKUP[king_pos] & opposing_pieces[ChessPiece::Knight as usize]);
+        attacker_map = attacker_map
+            | (KNIGHT_MOVE_LOOKUP[king_pos] & opposing_pieces[ChessPiece::Knight as usize]);
 
         // Check for bishops and queens attack as bishops
-        let bishop_attacks = BISHOP_MOVES[king_pos][BISHOP_MAGICS[king_pos].magic_index(blockers)];
-        attacker_map = attacker_map | (bishop_attacks & (opposing_pieces[ChessPiece::Bishop as usize] | opposing_pieces[ChessPiece::Queen as usize]));
+        let bishop_attacks =
+            (&BISHOP_MOVES[king_pos])[BISHOP_MAGICS[king_pos].magic_index(blockers)];
+        attacker_map = attacker_map
+            | (bishop_attacks
+                & (opposing_pieces[ChessPiece::Bishop as usize]
+                    | opposing_pieces[ChessPiece::Queen as usize]));
 
         // Check for rooks and queens attack as rooks
-        let rook_attacks = ROOK_MOVES[king_pos][ROOK_MAGICS[king_pos].magic_index(blockers)];
-        attacker_map = attacker_map | (rook_attacks & (opposing_pieces[ChessPiece::Rook as usize] | opposing_pieces[ChessPiece::Queen as usize]));
+        let rook_attacks = (&ROOK_MOVES[king_pos])[ROOK_MAGICS[king_pos].magic_index(blockers)];
+        attacker_map = attacker_map
+            | (rook_attacks
+                & (opposing_pieces[ChessPiece::Rook as usize]
+                    | opposing_pieces[ChessPiece::Queen as usize]));
 
         // Check for pawns
         let king_board = BitBoard(1 << king_pos);
         let attackers = if color == PieceColor::White {
-            (king_board.s_no_we() | king_board.s_no_ea()) & opposing_pieces[ChessPiece::Pawn as usize]
-        }else {
-            (king_board.s_so_we() | king_board.s_so_ea()) & opposing_pieces[ChessPiece::Pawn as usize]
+            (king_board.s_no_we() | king_board.s_no_ea())
+                & opposing_pieces[ChessPiece::Pawn as usize]
+        } else {
+            (king_board.s_so_we() | king_board.s_so_ea())
+                & opposing_pieces[ChessPiece::Pawn as usize]
         };
         attacker_map = attacker_map | attackers;
-        
+
         attacker_map
     }
-
 }
 
 fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
@@ -282,8 +334,10 @@ fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
         board_state.board.all_white_pieces
     };
 
+    let attacked_by_enemy = board_state.board.squares_attacked_by_side(!color);
+
     for king_pos in side_king_board {
-        let attack_map = KING_MOVE_LOOKUP[king_pos];
+        let attack_map = KING_MOVE_LOOKUP[king_pos] & !attacked_by_enemy;
 
         for silent_move_target in attack_map & empty_squares {
             moves.push(Move::new(
@@ -304,12 +358,12 @@ fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
     moves
 }
 
+const ROOK_MAGICS: [MagicEntry; 64] =
+    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/rook_magics.bin")) };
+const ROOK_MOVES: [[BitBoard; 4096]; 64] =
+    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/rook_moves.bin")) };
 
-const ROOK_MAGICS: [MagicEntry; 64] = unsafe { std::mem::transmute(*include_bytes!("lookup_gens/rook_magics.bin")) };
-const ROOK_MOVES: [[BitBoard; 4096]; 64]  = unsafe { std::mem::transmute(*include_bytes!("lookup_gens/rook_moves.bin")) };
-
-fn generate_rook_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> 
-{
+fn generate_rook_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
     let side_rook_board = if color == PieceColor::White {
         board_state.board.white_pieces[ChessPiece::Rook as usize]
@@ -345,8 +399,10 @@ fn generate_rook_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
     moves
 }
 
-const BISHOP_MAGICS: [MagicEntry; 64] = unsafe { std::mem::transmute(*include_bytes!("lookup_gens/bishop_magics.bin")) };
-const BISHOP_MOVES: [[BitBoard; 4096]; 64]  = unsafe { std::mem::transmute(*include_bytes!("lookup_gens/bishop_moves.bin")) };
+const BISHOP_MAGICS: [MagicEntry; 64] =
+    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/bishop_magics.bin")) };
+const BISHOP_MOVES: [[BitBoard; 4096]; 64] =
+    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/bishop_moves.bin")) };
 
 fn generate_bishop_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
@@ -374,9 +430,17 @@ fn generate_bishop_moves(board_state: &ChessBoardState, color: PieceColor) -> Ve
         let move_bitboard = BISHOP_MOVES[bishop_pos][*magic_index];
         for mv_dst in move_bitboard {
             if opposing_pieces.get_bit(mv_dst) {
-                moves.push(Move::new(bishop_pos as u16, mv_dst as u16, MoveType::Capture));
+                moves.push(Move::new(
+                    bishop_pos as u16,
+                    mv_dst as u16,
+                    MoveType::Capture,
+                ));
             } else if empty_squares.get_bit(mv_dst) {
-                moves.push(Move::new(bishop_pos as u16, mv_dst as u16, MoveType::Silent));
+                moves.push(Move::new(
+                    bishop_pos as u16,
+                    mv_dst as u16,
+                    MoveType::Silent,
+                ));
             }
         }
     }
@@ -408,7 +472,7 @@ fn generate_queen_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec
     for queen_pos in side_queen_board {
         let bishop_magic = &BISHOP_MAGICS[queen_pos].magic_index(blockers);
         let bishop_move_bitboard = BISHOP_MOVES[queen_pos][*bishop_magic];
-    
+
         let rook_magic = &ROOK_MAGICS[queen_pos].magic_index(blockers);
         let rook_move_bitboard = ROOK_MOVES[queen_pos][*rook_magic];
 
@@ -416,13 +480,20 @@ fn generate_queen_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec
 
         for queen_dst in queen_move_bitboard {
             if opposing_pieces.get_bit(queen_dst) {
-                moves.push(Move::new(queen_pos as u16, queen_dst as u16, MoveType::Capture));
+                moves.push(Move::new(
+                    queen_pos as u16,
+                    queen_dst as u16,
+                    MoveType::Capture,
+                ));
             } else if empty_squares.get_bit(queen_dst) {
-                moves.push(Move::new(queen_pos as u16, queen_dst as u16, MoveType::Silent));
+                moves.push(Move::new(
+                    queen_pos as u16,
+                    queen_dst as u16,
+                    MoveType::Silent,
+                ));
             }
         }
     }
-
 
     moves
 }
