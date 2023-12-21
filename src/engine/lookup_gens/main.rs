@@ -32,7 +32,7 @@ const ROOK_OFFSETS: [(i32, i32); 4] = [(0, -1), (1, 0), (0, 1), (-1, 0)];
 const BISHOP_OFFSETS: [(i32, i32); 4] = [(-1, -1), (1, -1), (1, 1), (-1, 1)];
 
 const ROOK_INDEX_BITS: u8 = 12;
-const BISHOP_INDEX_BITS: u8 = 9;
+const BISHOP_INDEX_BITS: u8 = 12;
 
 const NON_EDGE_BOARD: BitBoard = BitBoard(0x7e7e7e7e7e7e00);
 
@@ -179,7 +179,6 @@ fn try_make_table(
 ) -> Result<Vec<BitBoard>, TableFillError> {
     let mut table = vec![BitBoard::EMPTY; 1 << magic_entry.index_bits];
     // Iterate all configurations of blockers
-    let mut count = 0;
     for blockers in magic_entry.blocker_mask.iter_subsets() {
         let moves = move_gen_fn(square, blockers);
         let table_entry = &mut table[magic_entry.magic_index(blockers)];
@@ -206,6 +205,7 @@ fn generate_magic_entries(
     for square in 0..Square::NUM {
         let (magic, moves)  = find_magic(move_gen_fn, blocker_mask_fn, square, index_bits);
         magic_array[square as usize] = magic;
+        dbg!(&moves.len());
         moves_array[square as usize] = moves;
     }
     (magic_array, moves_array)
