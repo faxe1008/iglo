@@ -126,6 +126,11 @@ impl ChessBoard {
     }
 
     #[inline(always)]
+    pub fn queen_attack(queen_square: usize, blockers: BitBoard) -> BitBoard {
+        Self::rook_attacks(queen_square, blockers) | Self::bishop_attacks(queen_square, blockers)
+    }
+
+    #[inline(always)]
     pub fn king_attackers(&self, color: PieceColor) -> [BitBoard; 7] {
         let mut attacker_maps = [BitBoard::EMPTY; 7];
 
@@ -590,9 +595,7 @@ fn generate_queen_moves(
     let empty_squares = board_state.board.empty_squares();
 
     for queen_pos in side_queen_board {
-        let queen_move_bitboard = ChessBoard::bishop_attacks(queen_pos, blockers)
-            | ChessBoard::rook_attacks(queen_pos, blockers);
-
+        let queen_move_bitboard = ChessBoard::queen_attack(queen_pos, blockers);
         for queen_dst in queen_move_bitboard & legal_move_mask & pinned_move_masks[queen_pos] {
             if opposing_pieces.get_bit(queen_dst) {
                 moves.push(Move::new(
@@ -701,8 +704,8 @@ pub fn generate_pinned_piece_mask(
 
         for pinned in pinned_by_bishop {
             pinned_move_masks[pinned] =
-                ChessBoard::bishop_attacks(opp_bishop, blockers_without_pin)
-                    & ChessBoard::bishop_attacks(king_pos, blockers_without_pin);
+                (ChessBoard::bishop_attacks(opp_bishop, blockers_without_pin)
+                    & ChessBoard::bishop_attacks(king_pos, blockers_without_pin)).set_bit(opp_bishop);
         }
     }
 
@@ -714,27 +717,23 @@ pub fn generate_pinned_piece_mask(
         let blockers_without_pin = blockers & !pinned_by_rook;
 
         for pinned in pinned_by_rook {
-            pinned_move_masks[pinned] = ChessBoard::rook_attacks(opp_rook, blockers_without_pin)
-                & ChessBoard::rook_attacks(king_pos, blockers_without_pin);
+            pinned_move_masks[pinned] = (ChessBoard::rook_attacks(opp_rook, blockers_without_pin)
+                & ChessBoard::rook_attacks(king_pos, blockers_without_pin).set_bit(opp_rook));
         }
     }
 
     for opp_queen in opposing_pieces[ChessPiece::Queen as usize] {
-        let queen_attack = ChessBoard::rook_attacks(opp_queen, blockers)
-            | ChessBoard::bishop_attacks(opp_queen, blockers);
-        let king_queen_attack = ChessBoard::rook_attacks(king_pos, blockers)
-            | ChessBoard::bishop_attacks(king_pos, blockers);
+        let queen_attack = ChessBoard::queen_attack(opp_queen, blockers);
+        let king_attack = ChessBoard::queen_attack(king_pos, blockers);
 
-        let pinned_by_queen = queen_attack & king_queen_attack & side_pieces;
+        let pinned_by_queen = queen_attack & king_attack & side_pieces;
         let blockers_without_pin = blockers & !pinned_by_queen;
 
         for pinned in pinned_by_queen {
-            let queen_attack = ChessBoard::rook_attacks(opp_queen, blockers_without_pin)
-                | ChessBoard::bishop_attacks(opp_queen, blockers_without_pin);
-            let king_queen_attack = ChessBoard::rook_attacks(king_pos, blockers_without_pin)
-                | ChessBoard::bishop_attacks(king_pos, blockers_without_pin);
+            let queen_attack = ChessBoard::queen_attack(opp_queen, blockers_without_pin);
+            let king_queen_attack = ChessBoard::queen_attack(king_pos, blockers_without_pin);
 
-            pinned_move_masks[pinned] = queen_attack & king_queen_attack;
+            pinned_move_masks[pinned] = (queen_attack & king_queen_attack).set_bit(opp_queen);
         }
     }
 
