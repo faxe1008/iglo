@@ -1,8 +1,16 @@
+use std::io::empty;
+
 use super::{
     bitboard::{BitBoard, MagicEntry},
     board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor},
     chess_move::{Move, MoveType, PROMOTION_CAPTURE_TARGETS, PROMOTION_TARGETS},
+    square::Square,
 };
+
+const BLACK_KING_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0x60);
+const BLACK_QUEEN_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0xe);
+const WHITE_KING_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0x6000000000000000);
+const WHITE_QUEEN_SIDE_CASTLE_SQAURES: BitBoard = BitBoard(0xe00000000000000);
 
 impl ChessBoard {
     #[inline(always)]
@@ -335,23 +343,55 @@ fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
     };
 
     let attacked_by_enemy = board_state.board.squares_attacked_by_side(!color);
+    let blockers = !empty_squares;
 
-    for king_pos in side_king_board {
-        let attack_map = KING_MOVE_LOOKUP[king_pos] & !attacked_by_enemy;
+    let king_pos = side_king_board.into_iter().nth(0).unwrap();
 
-        for silent_move_target in attack_map & empty_squares {
-            moves.push(Move::new(
-                king_pos as u16,
-                silent_move_target as u16,
-                MoveType::Silent,
-            ));
-        }
-        for capture_move in attack_map & opposite_board {
-            moves.push(Move::new(
-                king_pos as u16,
-                capture_move as u16,
-                MoveType::Capture,
-            ));
+    let attack_map = KING_MOVE_LOOKUP[king_pos] & !attacked_by_enemy;
+
+    for silent_move_target in attack_map & empty_squares {
+        moves.push(Move::new(
+            king_pos as u16,
+            silent_move_target as u16,
+            MoveType::Silent,
+        ));
+    }
+    for capture_move in attack_map & opposite_board {
+        moves.push(Move::new(
+            king_pos as u16,
+            capture_move as u16,
+            MoveType::Capture,
+        ));
+    }
+
+    // Check for Castling Rights
+    let combinations = [
+        (
+            board_state.castling_rights.white_king_side,
+            WHITE_KING_SIDE_CASTLE_SQUARES,
+            Square::G1,
+        ),
+        (
+            board_state.castling_rights.white_queen_side,
+            WHITE_QUEEN_SIDE_CASTLE_SQAURES,
+            Square::C1,
+        ),
+        (
+            board_state.castling_rights.black_king_side,
+            BLACK_KING_SIDE_CASTLE_SQUARES,
+            Square::G8,
+        ),
+        (
+            board_state.castling_rights.black_queen_side,
+            BLACK_QUEEN_SIDE_CASTLE_SQUARES,
+            Square::C8,
+        ),
+    ];
+    for (right, squares_to_check, target_square) in &combinations {
+        let squares_not_attacked = (attacked_by_enemy & *squares_to_check) == BitBoard::EMPTY;
+        let squares_not_occupied = (blockers & *squares_to_check) == BitBoard::EMPTY;
+        if *right && squares_not_occupied && squares_not_attacked {
+            moves.push(Move::new(king_pos as u16, *target_square, MoveType::Castle));
         }
     }
 
