@@ -181,7 +181,12 @@ impl ChessBoard {
     }
 }
 
-fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
+fn generate_pawn_moves(
+    board_state: &ChessBoardState,
+    color: PieceColor,
+    capture_mask: BitBoard,
+    push_mask: BitBoard,
+) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
 
     let side_pawn_board = if color == PieceColor::White {
@@ -194,6 +199,8 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
         return moves;
     }
 
+    let legal_move_mask = capture_mask | push_mask;
+
     let push_dir: i32 = if color == PieceColor::White { -1 } else { 1 };
     let promotion_range = if color == PieceColor::White {
         0..8
@@ -201,9 +208,9 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
         56..64
     };
 
-    for pushable_pawn in board_state.board.pawns_able_to_push(color).into_iter() {
+    for pushable_pawn in board_state.board.pawns_able_to_push(color) {
         let target = pushable_pawn as i32 + 8 * push_dir;
-        if target < 0 || target > 63 {
+        if target < 0 || target > 63 || !legal_move_mask.get_bit(target as usize) {
             continue;
         }
 
@@ -221,13 +228,9 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
         }
     }
 
-    for double_pushable_pawn in board_state
-        .board
-        .pawns_able_to_double_push(color)
-        .into_iter()
-    {
+    for double_pushable_pawn in board_state.board.pawns_able_to_double_push(color) {
         let target = double_pushable_pawn as i32 + 16 * push_dir;
-        if target >= 0 && target <= 63 {
+        if target >= 0 && target <= 63 && legal_move_mask.get_bit(target as usize) {
             moves.push(Move::new(
                 double_pushable_pawn as u16,
                 target as u16,
@@ -240,10 +243,9 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
     for east_attacking_pawn in board_state
         .board
         .pawns_able_to_attack_east(side_pawn_board, color)
-        .into_iter()
     {
         let target = east_attacking_pawn as i32 + east_attack_dir;
-        if target < 0 || target > 63 {
+        if target < 0 || target > 63 || !legal_move_mask.get_bit(target as usize) {
             continue;
         }
 
@@ -264,10 +266,9 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
     for west_atacking_pawn in board_state
         .board
         .pawns_able_to_attack_west(side_pawn_board, color)
-        .into_iter()
     {
         let target = west_atacking_pawn as i32 + west_attack_dir;
-        if target < 0 || target > 63 {
+        if target < 0 || target > 63 || !legal_move_mask.get_bit(target as usize) {
             continue;
         }
 
@@ -285,15 +286,17 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
     }
 
     if let Some(en_passant_target) = board_state.en_passant_target {
-        for en_passant_pawns in board_state
-            .board
-            .pawns_able_to_enpassant(color, en_passant_target)
-        {
-            moves.push(Move::new(
-                en_passant_pawns as u16,
-                en_passant_target as u16,
-                MoveType::EnPassant,
-            ));
+        if legal_move_mask.get_bit(en_passant_target as usize) {
+            for en_passant_pawns in board_state
+                .board
+                .pawns_able_to_enpassant(color, en_passant_target)
+            {
+                moves.push(Move::new(
+                    en_passant_pawns as u16,
+                    en_passant_target as u16,
+                    MoveType::EnPassant,
+                ));
+            }
         }
     }
 
@@ -302,7 +305,12 @@ fn generate_pawn_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
 
 const KNIGHT_MOVE_LOOKUP: [BitBoard; 64] =
     unsafe { std::mem::transmute(*include_bytes!("lookup_gens/knight_lookup.bin")) };
-fn generate_knight_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
+fn generate_knight_moves(
+    board_state: &ChessBoardState,
+    color: PieceColor,
+    capture_mask: BitBoard,
+    push_mask: BitBoard,
+) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
     let side_knight_board = if color == PieceColor::White {
         board_state.board.white_pieces[ChessPiece::Knight as usize]
@@ -322,7 +330,7 @@ fn generate_knight_moves(board_state: &ChessBoardState, color: PieceColor) -> Ve
     };
 
     for knight_pos in side_knight_board {
-        let attack_map = KNIGHT_MOVE_LOOKUP[knight_pos];
+        let attack_map = KNIGHT_MOVE_LOOKUP[knight_pos] & (capture_mask | push_mask);
 
         for silent_jump_target in attack_map & empty_squares {
             moves.push(Move::new(
@@ -434,7 +442,12 @@ const ROOK_MAGICS: [MagicEntry; 64] =
 const ROOK_MOVES: [[BitBoard; 4096]; 64] =
     unsafe { std::mem::transmute(*include_bytes!("lookup_gens/rook_moves.bin")) };
 
-fn generate_rook_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
+fn generate_rook_moves(
+    board_state: &ChessBoardState,
+    color: PieceColor,
+    capture_mask: BitBoard,
+    push_mask: BitBoard,
+) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
     let side_rook_board = if color == PieceColor::White {
         board_state.board.white_pieces[ChessPiece::Rook as usize]
@@ -454,11 +467,12 @@ fn generate_rook_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
 
     let blockers = board_state.board.all_white_pieces | board_state.board.all_black_pieces;
     let empty_squares = board_state.board.empty_squares();
+    let legal_move_mask = capture_mask | push_mask;
 
     for rook_pos in side_rook_board {
         let magic_index = &ROOK_MAGICS[rook_pos].magic_index(blockers);
         let move_bitboard = ROOK_MOVES[rook_pos][*magic_index];
-        for mv_dst in move_bitboard {
+        for mv_dst in move_bitboard & legal_move_mask {
             if opposing_pieces.get_bit(mv_dst) {
                 moves.push(Move::new(rook_pos as u16, mv_dst as u16, MoveType::Capture));
             } else if empty_squares.get_bit(mv_dst) {
@@ -475,7 +489,12 @@ const BISHOP_MAGICS: [MagicEntry; 64] =
 const BISHOP_MOVES: [[BitBoard; 4096]; 64] =
     unsafe { std::mem::transmute(*include_bytes!("lookup_gens/bishop_moves.bin")) };
 
-fn generate_bishop_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
+fn generate_bishop_moves(
+    board_state: &ChessBoardState,
+    color: PieceColor,
+    capture_mask: BitBoard,
+    push_mask: BitBoard,
+) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
     let side_bishop_board = if color == PieceColor::White {
         board_state.board.white_pieces[ChessPiece::Bishop as usize]
@@ -495,11 +514,12 @@ fn generate_bishop_moves(board_state: &ChessBoardState, color: PieceColor) -> Ve
 
     let blockers = board_state.board.all_white_pieces | board_state.board.all_black_pieces;
     let empty_squares = board_state.board.empty_squares();
+    let legal_move_mask = capture_mask | push_mask;
 
     for bishop_pos in side_bishop_board {
         let magic_index = &BISHOP_MAGICS[bishop_pos].magic_index(blockers);
         let move_bitboard = BISHOP_MOVES[bishop_pos][*magic_index];
-        for mv_dst in move_bitboard {
+        for mv_dst in move_bitboard & legal_move_mask {
             if opposing_pieces.get_bit(mv_dst) {
                 moves.push(Move::new(
                     bishop_pos as u16,
@@ -519,7 +539,12 @@ fn generate_bishop_moves(board_state: &ChessBoardState, color: PieceColor) -> Ve
     moves
 }
 
-fn generate_queen_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
+fn generate_queen_moves(
+    board_state: &ChessBoardState,
+    color: PieceColor,
+    capture_mask: BitBoard,
+    push_mask: BitBoard,
+) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
 
     let side_queen_board = if color == PieceColor::White {
@@ -539,6 +564,7 @@ fn generate_queen_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec
     };
     let blockers = board_state.board.all_white_pieces | board_state.board.all_black_pieces;
     let empty_squares = board_state.board.empty_squares();
+    let legal_move_mask = capture_mask | push_mask;
 
     for queen_pos in side_queen_board {
         let bishop_magic = &BISHOP_MAGICS[queen_pos].magic_index(blockers);
@@ -549,7 +575,7 @@ fn generate_queen_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec
 
         let queen_move_bitboard = bishop_move_bitboard | rook_move_bitboard;
 
-        for queen_dst in queen_move_bitboard {
+        for queen_dst in queen_move_bitboard & legal_move_mask {
             if opposing_pieces.get_bit(queen_dst) {
                 moves.push(Move::new(
                     queen_pos as u16,
@@ -569,6 +595,19 @@ fn generate_queen_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec
     moves
 }
 
+fn generate_legal_move_mask(
+    board_state: &ChessBoardState,
+    king_attackers: &[BitBoard; 7],
+) -> (BitBoard, BitBoard) {
+    let checker_count = king_attackers[6].bit_count();
+    if checker_count == 0 {
+        return (BitBoard::FULL, BitBoard::FULL);
+    }
+    assert!(checker_count == 1);
+
+    (king_attackers[6], BitBoard::EMPTY)
+}
+
 pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
     let king_attackers = board_state.board.king_attackers(color);
     let checker_count = king_attackers[6].bit_count();
@@ -577,14 +616,40 @@ pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceCo
     if checker_count >= 2 {
         return generate_king_moves(board_state, color);
     }
+    let mut vec = generate_king_moves(board_state, color);
 
-    let mut vec = Vec::with_capacity(32);
-    vec.append(&mut generate_king_moves(board_state, color));
-    vec.append(&mut generate_knight_moves(board_state, color));
-    vec.append(&mut generate_pawn_moves(board_state, color));
-    vec.append(&mut generate_rook_moves(board_state, color));
-    vec.append(&mut generate_bishop_moves(board_state, color));
-    vec.append(&mut generate_queen_moves(board_state, color));
+    let (capture_mask, push_mask) = generate_legal_move_mask(board_state, &king_attackers);
+
+    vec.append(&mut generate_knight_moves(
+        board_state,
+        color,
+        capture_mask,
+        push_mask,
+    ));
+    vec.append(&mut generate_pawn_moves(
+        board_state,
+        color,
+        capture_mask,
+        push_mask,
+    ));
+    vec.append(&mut generate_rook_moves(
+        board_state,
+        color,
+        capture_mask,
+        push_mask,
+    ));
+    vec.append(&mut generate_bishop_moves(
+        board_state,
+        color,
+        capture_mask,
+        push_mask,
+    ));
+    vec.append(&mut generate_queen_moves(
+        board_state,
+        color,
+        capture_mask,
+        push_mask,
+    ));
     vec
 }
 
