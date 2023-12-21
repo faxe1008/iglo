@@ -104,7 +104,7 @@ fn bishop_blocker_mask(pos: u16) -> BitBoard {
         if upper_left.0 == 0 {
             break;
         }
-        upper_left = upper_left.sNoWe();
+        upper_left = upper_left.s_no_we();
         blocker_map = blocker_map | upper_left;
     }
 
@@ -113,7 +113,7 @@ fn bishop_blocker_mask(pos: u16) -> BitBoard {
         if upper_right.0 == 0 {
             break;
         }
-        upper_right = upper_right.sNoEa();
+        upper_right = upper_right.s_no_ea();
         blocker_map = blocker_map | upper_right;
     }
 
@@ -122,7 +122,7 @@ fn bishop_blocker_mask(pos: u16) -> BitBoard {
         if lower_left.0 == 0 {
             break;
         }
-        lower_left = lower_left.sSoEa();
+        lower_left = lower_left.s_so_ea();
         blocker_map = blocker_map | lower_left;
     }
 
@@ -131,7 +131,7 @@ fn bishop_blocker_mask(pos: u16) -> BitBoard {
         if lower_right.0 == 0 {
             break;
         }
-        lower_right = lower_right.sSoWe();
+        lower_right = lower_right.s_so_we();
         blocker_map = blocker_map | lower_right;
     }
 

@@ -58,41 +58,41 @@ impl BitBoard {
     }
 
     #[must_use]
-    pub fn sNoWe(&self) -> Self {
+    pub fn s_no_we(&self) -> Self {
         Self((self.0 & Self::NOT_A_FILE) >> 9) //
     }
     #[must_use]
-    pub fn sNo(&self) -> Self {
+    pub fn s_no(&self) -> Self {
         Self(self.0 >> 8) //
     }
 
     #[must_use]
-    pub fn sNoEa(&self) -> Self {
+    pub fn s_no_ea(&self) -> Self {
         Self((self.0 & Self::NOT_H_FILE) >> 7) //
     }
 
     #[must_use]
-    pub fn sWe(&self) -> Self {
+    pub fn s_we(&self) -> Self {
         Self((self.0 & Self::NOT_A_FILE) >> 1) //
     }
 
     #[must_use]
-    pub fn sEa(&self) -> Self {
+    pub fn s_ea(&self) -> Self {
         Self((self.0 & Self::NOT_H_FILE) << 1) //
     }
 
     #[must_use]
-    pub fn sSoWe(&self) -> Self {
+    pub fn s_so_we(&self) -> Self {
         Self((self.0 & Self::NOT_A_FILE) << 7) //
     }
 
     #[must_use]
-    pub fn sSo(&self) -> Self {
+    pub fn s_so(&self) -> Self {
         Self(self.0 << 8) //
     }
 
     #[must_use]
-    pub fn sSoEa(&self) -> Self {
+    pub fn s_so_ea(&self) -> Self {
         Self((self.0 & Self::NOT_H_FILE) << 9) //
     }
 }

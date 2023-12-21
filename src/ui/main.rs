@@ -125,6 +125,8 @@ fn draw_stats_bar(
         format!("Evaluation: {}", evaluation),
         format!("Castling: {}", board_state.castling_rights.to_string()),
         format!("En Passant: {}", enpassant_text),
+        format!("Fullmoves: {}", board_state.full_moves),
+        format!("Halfmoves: {}", board_state.half_moves)
     ];
 
     let mut y_offset = 0;
@@ -363,7 +365,7 @@ fn draw_dragged_piece(
     Ok(())
 }
 
-fn promotion_prompt_rects(board_state: &ChessBoardState) -> [(Rect, ChessPiece); 4] {
+fn promotion_prompt_rects() -> [(Rect, ChessPiece); 4] {
     let x = MIN_MARGIN + 4 * SQUARE_SIZE - 2 * (PROMOTION_PIECE_SIZE as i32 + MIN_MARGIN);
     let y = MIN_MARGIN + (SQUARE_SIZE * 4) - (PROMOTION_PIECE_SIZE as i32 / 2);
     [
@@ -410,7 +412,7 @@ fn draw_promotion_prompt(
     );
     canvas.fill_rect(rct)?;
 
-    for (rct, piece) in promotion_prompt_rects(board_state) {
+    for (rct, piece) in promotion_prompt_rects() {
         draw_piece_at_location(canvas, asset_pack, piece, board_state.side, rct)?;
     }
 
@@ -440,7 +442,7 @@ fn execute_move_with_src_and_dst(
     src: u16,
     dst: u16,
 ) {
-    let mut moves: Vec<Move> = ui_state
+    let moves: Vec<Move> = ui_state
         .moves_for_selected_piece
         .iter()
         .filter(|mv| mv.get_src() == src && mv.get_dst() == dst)
@@ -572,7 +574,7 @@ fn main() {
                             (None, None) => {}
                         };
                     } else {
-                        let promotion_candidates = promotion_prompt_rects(&board_state);
+                        let promotion_candidates = promotion_prompt_rects();
                         let promotion_target = promotion_candidates
                             .iter()
                             .filter(|(r, p)| r.contains_point(Point::new(x, y)))

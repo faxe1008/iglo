@@ -1,8 +1,6 @@
-use std::io::empty;
-
 use super::{
     bitboard::{BitBoard, MagicEntry},
-    board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor, self},
+    board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor},
     chess_move::{Move, MoveType, PROMOTION_CAPTURE_TARGETS, PROMOTION_TARGETS},
 };
 
@@ -10,9 +8,9 @@ impl ChessBoard {
     #[inline(always)]
     fn pawns_able_to_push(&self, color: PieceColor) -> BitBoard {
         if color == PieceColor::White {
-            self.empty_squares().sSo() & self.white_pieces[ChessPiece::Pawn as usize]
+            self.empty_squares().s_so() & self.white_pieces[ChessPiece::Pawn as usize]
         } else {
-            self.empty_squares().sNo() & self.black_pieces[ChessPiece::Pawn as usize]
+            self.empty_squares().s_no() & self.black_pieces[ChessPiece::Pawn as usize]
         }
     }
 
@@ -20,30 +18,30 @@ impl ChessBoard {
     fn pawns_able_to_double_push(&self, color: PieceColor) -> BitBoard {
         if color == PieceColor::White {
             let empty_rank_3 =
-                (self.empty_squares() & BitBoard::RANK_4).sSo() & self.empty_squares();
-            empty_rank_3.sSo() & self.white_pieces[ChessPiece::Pawn as usize]
+                (self.empty_squares() & BitBoard::RANK_4).s_so() & self.empty_squares();
+            empty_rank_3.s_so() & self.white_pieces[ChessPiece::Pawn as usize]
         } else {
             let empty_rank_6 =
-                (self.empty_squares() & BitBoard::RANK_5).sNo() & self.empty_squares();
-            empty_rank_6.sNo() & self.black_pieces[ChessPiece::Pawn as usize]
+                (self.empty_squares() & BitBoard::RANK_5).s_no() & self.empty_squares();
+            empty_rank_6.s_no() & self.black_pieces[ChessPiece::Pawn as usize]
         }
     }
 
     #[inline(always)]
     fn pawns_able_to_attack_east(&self, color: PieceColor) -> BitBoard {
         if color == PieceColor::White {
-            self.all_black_pieces.sSoWe() & self.white_pieces[ChessPiece::Pawn as usize]
+            self.all_black_pieces.s_so_we() & self.white_pieces[ChessPiece::Pawn as usize]
         } else {
-            self.all_white_pieces.sNoWe() & self.black_pieces[ChessPiece::Pawn as usize]
+            self.all_white_pieces.s_no_we() & self.black_pieces[ChessPiece::Pawn as usize]
         }
     }
 
     #[inline(always)]
     fn pawns_able_to_attack_west(&self, color: PieceColor) -> BitBoard {
         if color == PieceColor::White {
-            self.all_black_pieces.sSoEa() & self.white_pieces[ChessPiece::Pawn as usize]
+            self.all_black_pieces.s_so_ea() & self.white_pieces[ChessPiece::Pawn as usize]
         } else {
-            self.all_white_pieces.sNoEa() & self.black_pieces[ChessPiece::Pawn as usize]
+            self.all_white_pieces.s_no_ea() & self.black_pieces[ChessPiece::Pawn as usize]
         }
     }
 
@@ -51,9 +49,9 @@ impl ChessBoard {
     fn pawns_able_to_enpassant(&self, color: PieceColor, en_passant_target: u8) -> BitBoard {
         let target_bb = BitBoard::EMPTY.set_bit(en_passant_target as usize);
         if color == PieceColor::White {
-            (target_bb.sSoEa() | target_bb.sSoWe()) & self.white_pieces[ChessPiece::Pawn as usize]
+            (target_bb.s_so_ea() | target_bb.s_so_we()) & self.white_pieces[ChessPiece::Pawn as usize]
         } else {
-            (target_bb.sNoEa() | target_bb.sNoWe()) & self.black_pieces[ChessPiece::Pawn as usize]
+            (target_bb.s_no_ea() | target_bb.s_no_we()) & self.black_pieces[ChessPiece::Pawn as usize]
         }
     }
 }

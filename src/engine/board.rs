@@ -372,6 +372,14 @@ impl ChessBoardState {
                 .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
         }
 
+
+
+
+        if mv.is_capture() || src_piece == ChessPiece::Pawn {
+            new.half_moves = 0;
+        } else {
+            new.half_moves += 1;
+        }
         new.full_moves += 1;
         new.side = !new.side;
         new
