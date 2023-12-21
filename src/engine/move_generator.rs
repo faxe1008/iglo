@@ -1,8 +1,8 @@
-use std::io::empty;
+use std::io::{empty, Empty};
 
 use super::{
     bitboard::{BitBoard, MagicEntry},
-    board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor},
+    board::{self, ChessBoard, ChessBoardState, ChessPiece, PieceColor},
     chess_move::{Move, MoveType, PROMOTION_CAPTURE_TARGETS, PROMOTION_TARGETS},
     square::Square,
 };
@@ -65,7 +65,11 @@ impl ChessBoard {
         }
     }
 
-    pub fn squares_attacked_by_side(&self, color: PieceColor, ignore_opposing_king: bool) -> BitBoard {
+    pub fn squares_attacked_by_side(
+        &self,
+        color: PieceColor,
+        ignore_opposing_king: bool,
+    ) -> BitBoard {
         let mut attacked_map = BitBoard::EMPTY;
 
         let side_pieces = if color == PieceColor::White {
@@ -83,11 +87,12 @@ impl ChessBoard {
         let mut blockers = self.all_black_pieces | self.all_white_pieces;
         // Remove the king from the mask of blockers
         if ignore_opposing_king {
-            blockers = blockers & !(if color == PieceColor::White {
-                self.black_pieces[ChessPiece::King as usize]
-            } else {
-                self.white_pieces[ChessPiece::King as usize]
-            });
+            blockers = blockers
+                & !(if color == PieceColor::White {
+                    self.black_pieces[ChessPiece::King as usize]
+                } else {
+                    self.white_pieces[ChessPiece::King as usize]
+                });
         }
 
         for knight_pos in side_pieces[ChessPiece::Knight as usize] {
@@ -112,8 +117,8 @@ impl ChessBoard {
     }
 
     #[inline(always)]
-    pub fn king_attackers(&self, color: PieceColor) -> BitBoard {
-        let mut attacker_map = BitBoard::EMPTY;
+    pub fn king_attackers(&self, color: PieceColor) -> [BitBoard; 7] {
+        let mut attacker_maps = [BitBoard::EMPTY; 7];
 
         let king_pos = if color == PieceColor::White {
             self.white_pieces[ChessPiece::King as usize]
@@ -133,25 +138,29 @@ impl ChessBoard {
         let blockers = self.all_black_pieces | self.all_white_pieces;
 
         // Check for knights
-        attacker_map = attacker_map
+        let mut knight_attackers = &mut attacker_maps[ChessPiece::Knight as usize];
+        *knight_attackers = *knight_attackers
             | (KNIGHT_MOVE_LOOKUP[king_pos] & opposing_pieces[ChessPiece::Knight as usize]);
 
         // Check for bishops and queens attack as bishops
+        let mut bishop_attackers = &mut attacker_maps[ChessPiece::Bishop as usize];
         let bishop_attacks =
             (&BISHOP_MOVES[king_pos])[BISHOP_MAGICS[king_pos].magic_index(blockers)];
-        attacker_map = attacker_map
+        *bishop_attackers = *bishop_attackers
             | (bishop_attacks
                 & (opposing_pieces[ChessPiece::Bishop as usize]
                     | opposing_pieces[ChessPiece::Queen as usize]));
 
         // Check for rooks and queens attack as rooks
+        let mut rook_attackers = &mut attacker_maps[ChessPiece::Rook as usize];
         let rook_attacks = (&ROOK_MOVES[king_pos])[ROOK_MAGICS[king_pos].magic_index(blockers)];
-        attacker_map = attacker_map
+        *rook_attackers = *rook_attackers
             | (rook_attacks
                 & (opposing_pieces[ChessPiece::Rook as usize]
                     | opposing_pieces[ChessPiece::Queen as usize]));
 
         // Check for pawns
+        let mut pawn_attackers = &mut attacker_maps[ChessPiece::Pawn as usize];
         let king_board = BitBoard(1 << king_pos);
         let attackers = if color == PieceColor::White {
             (king_board.s_no_we() | king_board.s_no_ea())
@@ -160,9 +169,15 @@ impl ChessBoard {
             (king_board.s_so_we() | king_board.s_so_ea())
                 & opposing_pieces[ChessPiece::Pawn as usize]
         };
-        attacker_map = attacker_map | attackers;
+        *pawn_attackers = *pawn_attackers | attackers;
 
-        attacker_map
+        attacker_maps[6] = attacker_maps[0]
+            | attacker_maps[1]
+            | attacker_maps[2]
+            | attacker_maps[3]
+            | attacker_maps[4]
+            | attacker_maps[5];
+        attacker_maps
     }
 }
 
@@ -555,10 +570,18 @@ fn generate_queen_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec
 }
 
 pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
+    let king_attackers = board_state.board.king_attackers(color);
+    let checker_count = king_attackers[6].bit_count();
+
+    // If there are two checking pieces, only king moves are legal
+    if checker_count >= 2 {
+        return generate_king_moves(board_state, color);
+    }
+
     let mut vec = Vec::with_capacity(32);
+    vec.append(&mut generate_king_moves(board_state, color));
     vec.append(&mut generate_knight_moves(board_state, color));
     vec.append(&mut generate_pawn_moves(board_state, color));
-    vec.append(&mut generate_king_moves(board_state, color));
     vec.append(&mut generate_rook_moves(board_state, color));
     vec.append(&mut generate_bishop_moves(board_state, color));
     vec.append(&mut generate_queen_moves(board_state, color));

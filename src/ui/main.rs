@@ -3,7 +3,7 @@ use chessica::engine::{
     board_eval::{EvaluationEngine, EvaluationFunction},
     chess_move::Move,
     move_generator::generate_pseudo_legal_moves,
-    square::Square, bitboard::BitBoard,
+    square::Square,
 };
 use core::time::Duration;
 use sdl2::{
@@ -130,7 +130,7 @@ fn draw_stats_bar(
         format!("Halfmoves: {}", board_state.half_moves),
         format!(
             "King Attackers: {}",
-            board_state.board.king_attackers(board_state.side).0
+            board_state.board.king_attackers(board_state.side)[6].0
         ),
     ];
 
