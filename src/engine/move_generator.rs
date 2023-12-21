@@ -193,6 +193,7 @@ fn generate_pawn_moves(
     board_state: &ChessBoardState,
     color: PieceColor,
     legal_move_mask: BitBoard,
+    en_passant_capture_mask: BitBoard,
 ) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
 
@@ -291,7 +292,9 @@ fn generate_pawn_moves(
     }
 
     if let Some(en_passant_target) = board_state.en_passant_target {
-        if legal_move_mask.get_bit(en_passant_target as usize) {
+        if legal_move_mask.get_bit(en_passant_target as usize)
+            || en_passant_capture_mask.get_bit(en_passant_target as usize)
+        {
             for en_passant_pawns in board_state
                 .board
                 .pawns_able_to_enpassant(color, en_passant_target)
@@ -586,14 +589,15 @@ fn generate_queen_moves(
     moves
 }
 
+#[inline(always)]
 fn generate_legal_move_mask(
     board_state: &ChessBoardState,
     king_pos: usize,
     king_attackers: &[BitBoard; 7],
-) -> BitBoard {
+) -> (BitBoard, BitBoard) {
     let checker_count = king_attackers[6].bit_count();
     if checker_count == 0 {
-        return BitBoard::FULL;
+        return (BitBoard::FULL, BitBoard::FULL);
     }
     assert!(checker_count == 1);
 
@@ -632,7 +636,13 @@ fn generate_legal_move_mask(
         BitBoard::EMPTY
     };
 
-    capture_mask | push_mask
+    let en_passant_capture_mask = if let Some(en_passant_target) = board_state.en_passant_target {
+        BitBoard(1 << en_passant_target as usize)
+    } else {
+        BitBoard::EMPTY
+    };
+
+    (capture_mask | push_mask, en_passant_capture_mask)
 }
 
 pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
@@ -653,7 +663,8 @@ pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceCo
     }
     let mut vec = generate_king_moves(board_state, color);
 
-    let legal_move_mask = generate_legal_move_mask(board_state, king_pos, &king_attackers);
+    let (legal_move_mask, en_passant_capture_mask) =
+        generate_legal_move_mask(board_state, king_pos, &king_attackers);
 
     vec.append(&mut generate_knight_moves(
         board_state,
@@ -664,6 +675,7 @@ pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceCo
         board_state,
         color,
         legal_move_mask,
+        en_passant_capture_mask,
     ));
     vec.append(&mut generate_rook_moves(
         board_state,
