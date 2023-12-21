@@ -165,6 +165,9 @@ impl ChessPiece {
             ChessPiece::King => 1200,
         }
     }
+    pub fn is_slider(&self) -> bool {
+        *self == ChessPiece::Rook || *self == ChessPiece::Bishop || *self == ChessPiece::Queen
+    }
 }
 
 impl ChessBoard {

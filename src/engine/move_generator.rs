@@ -99,21 +99,27 @@ impl ChessBoard {
             attacked_map = attacked_map | KNIGHT_MOVE_LOOKUP[knight_pos];
         }
         for bishop in side_pieces[ChessPiece::Bishop as usize] {
-            let magic = BISHOP_MAGICS[bishop].magic_index(blockers);
-            attacked_map = attacked_map | (&BISHOP_MOVES[bishop])[magic];
+            attacked_map = attacked_map | Self::bishop_attacks(bishop, blockers);
         }
         for rook in side_pieces[ChessPiece::Rook as usize] {
-            let magic = ROOK_MAGICS[rook].magic_index(blockers);
-            attacked_map = attacked_map | (&ROOK_MOVES[rook])[magic];
+            attacked_map = attacked_map | Self::rook_attacks(rook, blockers);
         }
         for queen in side_pieces[ChessPiece::Queen as usize] {
-            let r_magic = ROOK_MAGICS[queen].magic_index(blockers);
-            let b_magic = BISHOP_MAGICS[queen].magic_index(blockers);
-            attacked_map = attacked_map | (&ROOK_MOVES[queen])[r_magic];
-            attacked_map = attacked_map | (&BISHOP_MOVES[queen])[b_magic];
+            attacked_map = attacked_map | Self::rook_attacks(queen, blockers);
+            attacked_map = attacked_map | Self::bishop_attacks(queen, blockers);
         }
 
         attacked_map
+    }
+
+    #[inline(always)]
+    pub fn rook_attacks(rook_square: usize, blockers: BitBoard) -> BitBoard {
+        (&ROOK_MOVES[rook_square])[ROOK_MAGICS[rook_square].magic_index(blockers)]
+    }
+
+    #[inline(always)]
+    pub fn bishop_attacks(bishop_square: usize, blockers: BitBoard) -> BitBoard {
+        (&BISHOP_MOVES[bishop_square])[BISHOP_MAGICS[bishop_square].magic_index(blockers)]
     }
 
     #[inline(always)]
@@ -138,29 +144,28 @@ impl ChessBoard {
         let blockers = self.all_black_pieces | self.all_white_pieces;
 
         // Check for knights
-        let mut knight_attackers = &mut attacker_maps[ChessPiece::Knight as usize];
+        let knight_attackers = &mut attacker_maps[ChessPiece::Knight as usize];
         *knight_attackers = *knight_attackers
             | (KNIGHT_MOVE_LOOKUP[king_pos] & opposing_pieces[ChessPiece::Knight as usize]);
 
         // Check for bishops and queens attack as bishops
-        let mut bishop_attackers = &mut attacker_maps[ChessPiece::Bishop as usize];
-        let bishop_attacks =
-            (&BISHOP_MOVES[king_pos])[BISHOP_MAGICS[king_pos].magic_index(blockers)];
+        let bishop_attackers = &mut attacker_maps[ChessPiece::Bishop as usize];
+        let bishop_attacks = Self::bishop_attacks(king_pos, blockers);
         *bishop_attackers = *bishop_attackers
             | (bishop_attacks
                 & (opposing_pieces[ChessPiece::Bishop as usize]
                     | opposing_pieces[ChessPiece::Queen as usize]));
 
         // Check for rooks and queens attack as rooks
-        let mut rook_attackers = &mut attacker_maps[ChessPiece::Rook as usize];
-        let rook_attacks = (&ROOK_MOVES[king_pos])[ROOK_MAGICS[king_pos].magic_index(blockers)];
+        let rook_attackers = &mut attacker_maps[ChessPiece::Rook as usize];
+        let rook_attacks = Self::rook_attacks(king_pos, blockers);
         *rook_attackers = *rook_attackers
             | (rook_attacks
                 & (opposing_pieces[ChessPiece::Rook as usize]
                     | opposing_pieces[ChessPiece::Queen as usize]));
 
         // Check for pawns
-        let mut pawn_attackers = &mut attacker_maps[ChessPiece::Pawn as usize];
+        let pawn_attackers = &mut attacker_maps[ChessPiece::Pawn as usize];
         let king_board = BitBoard(1 << king_pos);
         let attackers = if color == PieceColor::White {
             (king_board.s_no_we() | king_board.s_no_ea())
@@ -470,8 +475,7 @@ fn generate_rook_moves(
     let legal_move_mask = capture_mask | push_mask;
 
     for rook_pos in side_rook_board {
-        let magic_index = &ROOK_MAGICS[rook_pos].magic_index(blockers);
-        let move_bitboard = ROOK_MOVES[rook_pos][*magic_index];
+        let move_bitboard = ChessBoard::rook_attacks(rook_pos, blockers);
         for mv_dst in move_bitboard & legal_move_mask {
             if opposing_pieces.get_bit(mv_dst) {
                 moves.push(Move::new(rook_pos as u16, mv_dst as u16, MoveType::Capture));
@@ -517,8 +521,7 @@ fn generate_bishop_moves(
     let legal_move_mask = capture_mask | push_mask;
 
     for bishop_pos in side_bishop_board {
-        let magic_index = &BISHOP_MAGICS[bishop_pos].magic_index(blockers);
-        let move_bitboard = BISHOP_MOVES[bishop_pos][*magic_index];
+        let move_bitboard = ChessBoard::bishop_attacks(bishop_pos, blockers);
         for mv_dst in move_bitboard & legal_move_mask {
             if opposing_pieces.get_bit(mv_dst) {
                 moves.push(Move::new(
@@ -567,13 +570,8 @@ fn generate_queen_moves(
     let legal_move_mask = capture_mask | push_mask;
 
     for queen_pos in side_queen_board {
-        let bishop_magic = &BISHOP_MAGICS[queen_pos].magic_index(blockers);
-        let bishop_move_bitboard = BISHOP_MOVES[queen_pos][*bishop_magic];
-
-        let rook_magic = &ROOK_MAGICS[queen_pos].magic_index(blockers);
-        let rook_move_bitboard = ROOK_MOVES[queen_pos][*rook_magic];
-
-        let queen_move_bitboard = bishop_move_bitboard | rook_move_bitboard;
+        let queen_move_bitboard = ChessBoard::bishop_attacks(queen_pos, blockers)
+            | ChessBoard::rook_attacks(queen_pos, blockers);
 
         for queen_dst in queen_move_bitboard & legal_move_mask {
             if opposing_pieces.get_bit(queen_dst) {
@@ -597,6 +595,7 @@ fn generate_queen_moves(
 
 fn generate_legal_move_mask(
     board_state: &ChessBoardState,
+    king_pos: usize,
     king_attackers: &[BitBoard; 7],
 ) -> (BitBoard, BitBoard) {
     let checker_count = king_attackers[6].bit_count();
@@ -605,12 +604,43 @@ fn generate_legal_move_mask(
     }
     assert!(checker_count == 1);
 
-    (king_attackers[6], BitBoard::EMPTY)
+    let checking_piece_type: ChessPiece = king_attackers.iter().position(|bb| *bb != BitBoard::EMPTY).unwrap().into();
+    let checking_piece_pos = king_attackers[checking_piece_type as usize].into_iter().nth(0).unwrap();
+
+    let capture_mask = king_attackers[6];
+    let blockers = board_state.board.all_black_pieces | board_state.board.all_white_pieces;
+    
+    let push_mask = if checking_piece_type.is_slider() {
+        match checking_piece_type {
+            ChessPiece::Rook => {
+                ChessBoard::rook_attacks(king_pos, blockers) &  ChessBoard::rook_attacks(checking_piece_pos, blockers)
+            },
+            ChessPiece::Bishop => {
+                ChessBoard::bishop_attacks(king_pos, blockers) &  ChessBoard::bishop_attacks(checking_piece_pos, blockers)
+            },
+            ChessPiece::Queen => {
+                (ChessBoard::rook_attacks(king_pos, blockers) &  ChessBoard::rook_attacks(checking_piece_pos, blockers))
+                | (ChessBoard::bishop_attacks(king_pos, blockers) &  ChessBoard::bishop_attacks(checking_piece_pos, blockers))
+            },
+            _ => panic!("Unknown slider")
+        }
+    } else {
+        BitBoard::EMPTY
+    };
+
+
+    (capture_mask, push_mask)
 }
 
-pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
+pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> 
+{
     let king_attackers = board_state.board.king_attackers(color);
     let checker_count = king_attackers[6].bit_count();
+    let king_pos = if color == PieceColor::White {
+        &board_state.board.white_pieces[ChessPiece::King as usize]
+    } else {
+        &board_state.board.black_pieces[ChessPiece::King as usize]
+    }.into_iter().nth(0).unwrap();
 
     // If there are two checking pieces, only king moves are legal
     if checker_count >= 2 {
@@ -618,7 +648,7 @@ pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceCo
     }
     let mut vec = generate_king_moves(board_state, color);
 
-    let (capture_mask, push_mask) = generate_legal_move_mask(board_state, &king_attackers);
+    let (capture_mask, push_mask) = generate_legal_move_mask(board_state, king_pos, &king_attackers);
 
     vec.append(&mut generate_knight_moves(
         board_state,
