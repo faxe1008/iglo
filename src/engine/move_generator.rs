@@ -865,6 +865,7 @@ mod move_gen_tests {
             PieceColor::White,
             BitBoard::FULL,
             BitBoard::FULL,
+            &[BitBoard::FULL; 64]
         );
         compare_moves(&white_pawn_moves, &expected_moves_white);
 
@@ -891,6 +892,7 @@ mod move_gen_tests {
             PieceColor::Black,
             BitBoard::FULL,
             BitBoard::FULL,
+            &[BitBoard::FULL; 64]
         );
         compare_moves(&black_pawn_moves, &expected_moves_black);
     }
@@ -907,6 +909,7 @@ mod move_gen_tests {
             PieceColor::White,
             BitBoard::FULL,
             BitBoard::FULL,
+            &[BitBoard::FULL; 64]
         );
         let expected_moves_white = [
             Move::new(Square::A2, Square::A3, MoveType::Silent),
@@ -932,6 +935,7 @@ mod move_gen_tests {
             PieceColor::Black,
             BitBoard::FULL,
             BitBoard::FULL,
+            &[BitBoard::FULL; 64]
         );
         let expected_black_moves = [
             Move::new(Square::A5, Square::A4, MoveType::Silent),
@@ -953,7 +957,7 @@ mod move_gen_tests {
         let board_state = board_state.unwrap();
 
         let white_knight_moves =
-            generate_knight_moves(&board_state, PieceColor::White, BitBoard::FULL);
+            generate_knight_moves(&board_state, PieceColor::White, BitBoard::FULL, &[BitBoard::FULL; 64]);
         let expected_white_knight_moves = [
             Move::new(Square::B3, Square::C5, MoveType::Silent),
             Move::new(Square::B3, Square::D4, MoveType::Capture),
@@ -968,7 +972,7 @@ mod move_gen_tests {
         compare_moves(&white_knight_moves, &expected_white_knight_moves);
 
         let black_knight_moves =
-            generate_knight_moves(&board_state, PieceColor::Black, BitBoard::FULL);
+            generate_knight_moves(&board_state, PieceColor::Black, BitBoard::FULL,&[BitBoard::FULL; 64]);
         let expected_black_moves = [
             Move::new(Square::F7, Square::H8, MoveType::Silent),
             Move::new(Square::F7, Square::H6, MoveType::Capture),
