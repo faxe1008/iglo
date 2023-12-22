@@ -282,7 +282,7 @@ impl ChessBoardState {
         Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0").unwrap()
     }
 
-    fn piece_to_fen_notation(piece: ChessPiece, color: PieceColor) -> char {
+    pub fn piece_to_fen_notation(piece: ChessPiece, color: PieceColor) -> char {
         match (piece, color) {
             (ChessPiece::Pawn, PieceColor::Black) => 'p',
             (ChessPiece::Knight, PieceColor::Black) => 'n',

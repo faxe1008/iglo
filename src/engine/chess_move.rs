@@ -1,5 +1,7 @@
-use super::board::ChessPiece;
+use super::board::{ChessPiece, PieceColor, ChessBoardState};
+use super::square::Square;
 use core::fmt::Debug;
+use std::fmt::Write;
 
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Default, Hash)]
 pub struct Move(pub u16);
@@ -30,7 +32,7 @@ pub enum MoveType {
     DoublePush = 0b0001,
     CastleKingSide = 0b0010,
     CastleQueenSide = 0b0011,
-    
+
     Capture = 0b0100,
     EnPassant = 0b0101,
 
@@ -118,15 +120,21 @@ impl Move {
             _ => panic!(""),
         }
     }
+
 }
+
+
 
 impl Debug for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "(src: {:?}, dst: {:?}, ty: {:?})\n",
-            self.get_src(),
-            self.get_dst(),
-            self.get_type()
-        ))
+            "{}{}",
+            &Square::to_square_name(Some(self.get_src() as u8)),
+            &Square::to_square_name(Some(self.get_dst() as u8)),
+        )).unwrap();
+        if self.is_promotion() {
+            f.write_char(ChessBoardState::piece_to_fen_notation(self.promotion_target(), PieceColor::Black));
+        }
+        Ok(())
     }
 }

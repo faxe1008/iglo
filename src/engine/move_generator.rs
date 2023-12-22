@@ -8,7 +8,7 @@ use super::{
 const BLACK_KING_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0x60);
 const BLACK_QUEEN_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0xc);
 const WHITE_KING_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0x6000000000000000);
-const WHITE_QUEEN_SIDE_CASTLE_SQAURES: BitBoard = BitBoard(0xe00000000000000);
+const WHITE_QUEEN_SIDE_CASTLE_SQAURES: BitBoard = BitBoard(0xc00000000000000);
 
 impl ChessBoard {
     #[inline(always)]
@@ -779,8 +779,12 @@ pub fn generate_pinned_piece_mask(
         if pinned_by_queen_rook_attack != BitBoard::EMPTY {
             let blockers_without_pin = blockers & !pinned_by_queen_rook_attack;
             for pinned in pinned_by_queen_rook_attack {
+                let rook_attack = ChessBoard::rook_attacks(opp_queen, blockers_without_pin);
+                if !rook_attack.get_bit(king_pos){
+                    continue;
+                }
                 pinned_move_masks[pinned] =
-                    (ChessBoard::rook_attacks(opp_queen, blockers_without_pin)
+                    (rook_attack
                         & ChessBoard::rook_attacks(king_pos, blockers_without_pin))
                     .set_bit(opp_queen);
             }
@@ -793,8 +797,12 @@ pub fn generate_pinned_piece_mask(
 
         let blockers_without_pin = blockers & !pinned_by_queen_bishop_attack;
         for pinned in pinned_by_queen_bishop_attack {
+            let bishop_attack = ChessBoard::bishop_attacks(opp_queen, blockers_without_pin);
+            if !bishop_attack.get_bit(king_pos) {
+                continue;
+            }
             pinned_move_masks[pinned] =
-                (ChessBoard::bishop_attacks(opp_queen, blockers_without_pin)
+                ( bishop_attack
                     & ChessBoard::bishop_attacks(king_pos, blockers_without_pin))
                 .set_bit(opp_queen);
         }
@@ -1103,7 +1111,7 @@ mod move_gen_tests {
             assert_eq!(
                 legal_moves.len(),
                 *expected_move_count,
-                "{} produced {} moves, expected {}, move_list {:?}",
+                "{} produced {} moves, expected {}, moves: {:?}",
                 fen,
                 legal_moves.len(),
                 expected_move_count,
