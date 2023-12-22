@@ -256,6 +256,11 @@ impl ChessBoard {
         }
     }
 
+    #[inline(always)]
+    pub fn get_king_pos(&self, col: PieceColor) -> usize {
+        self.get_piece_bitboard(ChessPiece::King, col).into_iter().nth(0).unwrap()
+    }
+
 
     pub fn from_fen_notation(fen: &str) -> Result<Self, ()> {
         let mut board = Self::default();

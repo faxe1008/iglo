@@ -131,15 +131,7 @@ impl ChessBoard {
     #[inline(always)]
     pub fn king_attackers(&self, color: PieceColor) -> [BitBoard; 7] {
         let mut attacker_maps = [BitBoard::EMPTY; 7];
-
-        let king_pos = if color == PieceColor::White {
-            self.white_pieces[ChessPiece::King as usize]
-        } else {
-            self.black_pieces[ChessPiece::King as usize]
-        }
-        .into_iter()
-        .nth(0)
-        .unwrap();
+        let king_pos = self.get_king_pos(color);
 
         let opposing_pieces = if color == PieceColor::White {
             &self.black_pieces
@@ -415,7 +407,7 @@ const KING_MOVE_LOOKUP: [BitBoard; 64] =
 
 #[inline(always)]
 fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(16);
+    let mut moves = Vec::with_capacity(62);
 
     let side_king_board = board_state
         .board
@@ -786,14 +778,7 @@ pub fn generate_pinned_piece_mask(
 pub fn generate_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
     let king_attackers = board_state.board.king_attackers(color);
     let checker_count = king_attackers[6].bit_count();
-    let king_pos = if color == PieceColor::White {
-        &board_state.board.white_pieces[ChessPiece::King as usize]
-    } else {
-        &board_state.board.black_pieces[ChessPiece::King as usize]
-    }
-    .into_iter()
-    .nth(0)
-    .unwrap();
+    let king_pos = board_state.board.get_king_pos(color);
 
     // If there are two checking pieces, only king moves are legal
     if checker_count >= 2 {
