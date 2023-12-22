@@ -93,4 +93,50 @@ impl Square {
         }
     }
 
+    pub fn from_square_name(name: &str) -> Result<Option<u8>, ()> {
+        if name == "-" {
+            return Ok(None);
+        }
+
+        if name.len() != 2 {
+            return Err(());
+        }
+
+        let col_designator = name.chars().nth(0).unwrap();
+        let row_designator = name.chars().nth(1).unwrap();
+
+        if col_designator < 'a' || col_designator > 'h' {
+            return Err(());
+        }
+
+        if row_designator < '1' || row_designator > '9' {
+            return Err(());
+        }
+
+        let col = col_designator as u8 - 'a' as u8;
+        let row = 7 - (row_designator as u8 - '1' as u8);
+
+        Ok(Some(col + row * 8))
+    }
+    
+    pub fn to_square_name(square: Option<u8>) -> String {
+        if square.is_none() {
+            return "-".to_string();
+        }
+        let mut name = String::with_capacity(2);
+
+        let rank = square.unwrap() / 8;
+        let file = square.unwrap() % 8;
+
+
+        let new_file : char = ('a' as u8 + file as u8).into();
+        let new_rank: char = ('8' as u8 - rank as u8).into();
+
+        name.push(new_file);
+        name.push(new_rank);
+
+        name
+    }
+
+
 }

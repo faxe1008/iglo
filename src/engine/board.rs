@@ -138,19 +138,32 @@ impl TryFrom<&str> for CastlingRights {
 impl ToString for CastlingRights {
     fn to_string(&self) -> String {
         let mut text = String::with_capacity(4);
-        if self.white_queen_side {
-            text.push('Q');
-        }
         if self.white_king_side {
             text.push('K');
         }
-        if self.black_queen_side {
-            text.push('q');
+        if self.white_queen_side {
+            text.push('Q');
         }
         if self.black_king_side {
             text.push('k');
         }
+        if self.black_queen_side {
+            text.push('q');
+        }
+
+        if text.is_empty() {
+            text.push('-');
+        }
         text
+    }
+}
+
+impl ToString for PieceColor {
+    fn to_string(&self) -> String {
+        match self {
+            PieceColor::White => "w".to_string(),
+            PieceColor::Black => "b".to_string(),
+        }
     }
 }
 
@@ -220,8 +233,8 @@ impl ChessBoard {
         for bb in new.black_pieces.iter_mut() {
             *bb = *bb & !to_be_removed;
         }
-        new.all_white_pieces = new.all_white_pieces &!to_be_removed;
-        new.all_black_pieces = new.all_black_pieces &!to_be_removed;
+        new.all_white_pieces = new.all_white_pieces & !to_be_removed;
+        new.all_black_pieces = new.all_black_pieces & !to_be_removed;
         new
     }
 
@@ -269,30 +282,21 @@ impl ChessBoardState {
         Self::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0").unwrap()
     }
 
-    pub fn pos_code_to_index(code: &str) -> Result<Option<u8>, ()> {
-        if code == "-" {
-            return Ok(None);
+    fn piece_to_fen_notation(piece: ChessPiece, color: PieceColor) -> char {
+        match (piece, color) {
+            (ChessPiece::Pawn, PieceColor::Black) => 'p',
+            (ChessPiece::Knight, PieceColor::Black) => 'n',
+            (ChessPiece::Bishop, PieceColor::Black) => 'b',
+            (ChessPiece::Rook, PieceColor::Black) => 'r',
+            (ChessPiece::Queen, PieceColor::Black) => 'q',
+            (ChessPiece::King, PieceColor::Black) => 'k',
+            (ChessPiece::Pawn, PieceColor::White) => 'P',
+            (ChessPiece::Knight, PieceColor::White) => 'N',
+            (ChessPiece::Bishop, PieceColor::White) => 'B',
+            (ChessPiece::Rook, PieceColor::White) => 'R',
+            (ChessPiece::Queen, PieceColor::White) => 'Q',
+            (ChessPiece::King, PieceColor::White) => 'K',
         }
-
-        if code.len() != 2 {
-            return Err(());
-        }
-
-        let col_designator = code.chars().nth(0).unwrap();
-        let row_designator = code.chars().nth(1).unwrap();
-
-        if col_designator < 'a' || col_designator > 'h' {
-            return Err(());
-        }
-
-        if row_designator < '1' || row_designator > '9' {
-            return Err(());
-        }
-
-        let col = col_designator as u8 - 'a' as u8;
-        let row = 7 - (row_designator as u8 - '1' as u8);
-
-        Ok(Some(col + row * 8))
     }
 
     pub fn from_fen(text: &str) -> Result<Self, ()> {
@@ -305,10 +309,50 @@ impl ChessBoardState {
             board: ChessBoard::from_fen_notation(fen_parts[0])?,
             side: PieceColor::try_from(fen_parts[1])?,
             castling_rights: CastlingRights::try_from(fen_parts[2])?,
-            en_passant_target: Self::pos_code_to_index(fen_parts[3])?,
+            en_passant_target: Square::from_square_name(fen_parts[3])?,
             half_moves: fen_parts[4].parse::<u8>().map_err(|_| ())?,
             full_moves: fen_parts[5].parse::<u8>().map_err(|_| ())?,
         })
+    }
+
+    pub fn to_fen(&self) -> String {
+        let mut fen = String::new();
+
+        for y in 0..8 {
+            let mut no_piece_count = 0;
+            for x in 0..8 {
+                let pos = x + 8 * y;
+                if let Some((piece, color)) = self.board.get_piece_at_pos(pos) {
+                    if no_piece_count != 0 {
+                        fen.push_str(&no_piece_count.to_string());
+                        no_piece_count = 0;
+                    }
+                    fen.push(Self::piece_to_fen_notation(piece, color));
+                } else {
+                    no_piece_count += 1;
+                }
+            }
+            if no_piece_count != 0 {
+                fen.push_str(&no_piece_count.to_string());
+            }
+            if y != 7 {
+                fen.push('/');
+            }
+        }
+
+        fen.push(' ');
+        fen.push_str(&self.side.to_string());
+        fen.push(' ');
+        fen.push_str(&self.castling_rights.to_string());
+        fen.push(' ');
+
+        fen.push_str(&Square::to_square_name(self.en_passant_target));
+        fen.push(' ');
+        fen.push_str(&self.half_moves.to_string());
+        fen.push(' ');
+        fen.push_str(&self.full_moves.to_string());
+
+        fen
     }
 
     pub fn revoke_castling_rights(
@@ -636,5 +680,36 @@ mod board_tests {
         assert!(board_state.is_ok());
         let board_state = board_state.unwrap();
         assert_eq!(board_state.board.empty_squares(), BitBoard(281474976645120));
+    }
+
+    #[test]
+    fn test_serialization_roundtrip() {
+        let board_strs = [
+            "r3k2r/p1pp1pb1/bn2Qnp1/2qPN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQkq - 3 2",
+            "2r5/3pk3/8/2P5/8/2K5/8/8 w - - 5 4",
+            "r6r/1b2k1bq/8/8/7B/8/8/R3K2R b KQ - 3 2",
+            "8/8/8/2k5/2pP4/8/B7/4K3 b - d3 0 3",
+            "r1bqkbnr/pppppppp/n7/8/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 2 2",
+            "2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2",
+            "rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9",
+            "4k3/4r3/4Q3/8/8/8/8/3K4 b - - 5 4",
+            "8/8/8/3Qrk2/8/8/8/3K4 b - - 0 1",
+            "6k1/5p2/8/3Q4/8/8/8/3K4 b - - 0 1",
+            "6k1/5p2/8/3B4/8/8/8/3K4 b - - 0 1",
+            "6k1/5n2/8/3B4/8/8/8/3K4 b - - 0 1",
+            "6k1/5q2/8/3B4/8/8/8/3K4 b - - 0 1",
+            "8/5k2/8/3B4/5R2/8/8/3K4 b - - 0 1",
+            "8/5k2/4q3/3B4/5R2/8/8/3K4 b - - 0 1",
+        ];
+
+        for board in &board_strs {
+            let board_state = ChessBoardState::from_fen(board);
+            assert!(board_state.is_ok());
+            let board_state = board_state.unwrap();
+
+            let fen = board_state.to_fen();
+            assert!(board.eq(&fen), "FENs are not equal, expected: {}, produced: {}", board, fen);
+        }
+
     }
 }
