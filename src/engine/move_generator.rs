@@ -6,7 +6,7 @@ use super::{
 };
 
 const BLACK_KING_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0x60);
-const BLACK_QUEEN_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0xe);
+const BLACK_QUEEN_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0xc);
 const WHITE_KING_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0x6000000000000000);
 const WHITE_QUEEN_SIDE_CASTLE_SQAURES: BitBoard = BitBoard(0xe00000000000000);
 
@@ -877,13 +877,12 @@ mod move_gen_tests {
         //assert_eq!(generated.len(), expected.len());
         for gen_move in generated {
             //println!("GEN: {:?}", &gen_move);
-            assert!(expected.contains(dbg!(&gen_move)));
+            assert!(expected.contains(&gen_move));
         }
     }
 
     #[test]
     fn pawns_moves_from_fen_simple() {
-        dbg!(KNIGHT_MOVE_LOOKUP);
         let board_state = ChessBoardState::starting_state();
 
         let expected_moves_white = [
@@ -1088,6 +1087,12 @@ mod move_gen_tests {
             ("8/8/8/3k4/2pP4/8/B7/4K3 b - - 0 3", 5),
             ("8/8/8/8/k1pP3Q/8/8/5K2 b - d3 0 3", 6),
             ("8/8/k7/8/2pP4/8/8/K4Q2 b - d3 0 3", 6),
+            ("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1R1K b kq - 1 2", 46),
+            ("r3k2r/Pppp1ppp/1b3nbN/nP6/BBPNP3/q7/Pp1P2PP/R2Q1RK1 b kq - 1 2", 45),
+            ("r3k2r/Pppp1ppp/1b3nbN/nPP5/BB2P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 0 2", 43),
+            ("r3k2r/Pppp1ppp/1b3nbN/nP6/BBPPP3/q4N2/Pp4PP/R2Q1RK1 b kq d3 0 2", 43),
+            ("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P1RPP/R2Q2K1 b kq - 1 2", 45),
+            ("r3k2r/Pppp1ppp/1b3nbN/nPB5/B1P1P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 1 2", 42)
         ];
 
         for (fen, expected_move_count) in &test_set {
