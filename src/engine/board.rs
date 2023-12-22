@@ -1,6 +1,6 @@
 use std::ops::Not;
 
-use crate::engine::{square::Square, chess_move::MoveType};
+use crate::engine::{chess_move::MoveType, square::Square};
 
 use super::{bitboard::BitBoard, chess_move::Move};
 
@@ -447,28 +447,40 @@ impl ChessBoardState {
         // Castling King Side
         if mv.get_type() == MoveType::CastleKingSide {
             assert!(src_piece == ChessPiece::King);
-            new.board.remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
-            new.board.place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
+            new.board
+                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
+            new.board
+                .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
             if src_color == PieceColor::White {
-                new.board.remove_piece_at_pos(ChessPiece::Rook, src_color, Square::H1 as usize);
-                new.board.place_piece_of_color(ChessPiece::Rook, src_color, Square::F1 as usize);
+                new.board
+                    .remove_piece_at_pos(ChessPiece::Rook, src_color, Square::H1 as usize);
+                new.board
+                    .place_piece_of_color(ChessPiece::Rook, src_color, Square::F1 as usize);
             } else {
-                new.board.remove_piece_at_pos(ChessPiece::Rook, src_color, Square::H8 as usize);
-                new.board.place_piece_of_color(ChessPiece::Rook, src_color, Square::F8 as usize);
+                new.board
+                    .remove_piece_at_pos(ChessPiece::Rook, src_color, Square::H8 as usize);
+                new.board
+                    .place_piece_of_color(ChessPiece::Rook, src_color, Square::F8 as usize);
             }
         }
 
         // Castling Queen Side
         if mv.get_type() == MoveType::CastleQueenSide {
             assert!(src_piece == ChessPiece::King);
-            new.board.remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
-            new.board.place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
+            new.board
+                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize);
+            new.board
+                .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize);
             if src_color == PieceColor::White {
-                new.board.remove_piece_at_pos(ChessPiece::Rook, src_color, Square::A1 as usize);
-                new.board.place_piece_of_color(ChessPiece::Rook, src_color, Square::D1 as usize);
+                new.board
+                    .remove_piece_at_pos(ChessPiece::Rook, src_color, Square::A1 as usize);
+                new.board
+                    .place_piece_of_color(ChessPiece::Rook, src_color, Square::D1 as usize);
             } else {
-                new.board.remove_piece_at_pos(ChessPiece::Rook, src_color, Square::A8 as usize);
-                new.board.place_piece_of_color(ChessPiece::Rook, src_color, Square::D8 as usize);
+                new.board
+                    .remove_piece_at_pos(ChessPiece::Rook, src_color, Square::A8 as usize);
+                new.board
+                    .place_piece_of_color(ChessPiece::Rook, src_color, Square::D8 as usize);
             }
         }
 

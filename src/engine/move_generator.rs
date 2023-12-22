@@ -1,8 +1,6 @@
-
-
 use super::{
     bitboard::{BitBoard, MagicEntry},
-    board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor},
+    board::{self, ChessBoard, ChessBoardState, ChessPiece, PieceColor},
     chess_move::{Move, MoveType, PROMOTION_CAPTURE_TARGETS, PROMOTION_TARGETS},
     square::Square,
 };
@@ -722,10 +720,11 @@ pub fn generate_pinned_piece_mask(
 
         for pinned in pinned_by_rook {
             let rook_attack = ChessBoard::rook_attacks(opp_rook, blockers_without_pin);
-            if !rook_attack.get_bit(king_pos){
+            if !rook_attack.get_bit(king_pos) {
                 continue;
             }
-            pinned_move_masks[pinned] = rook_attack & ChessBoard::rook_attacks(king_pos, blockers_without_pin).set_bit(opp_rook);
+            pinned_move_masks[pinned] = rook_attack
+                & ChessBoard::rook_attacks(king_pos, blockers_without_pin).set_bit(opp_rook);
         }
     }
 
@@ -822,9 +821,12 @@ pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceCo
 mod move_gen_tests {
     use crate::engine::{
         bitboard::BitBoard,
-        board::{ChessBoardState, PieceColor},
+        board::{self, ChessBoardState, PieceColor},
         chess_move::{Move, MoveType},
-        move_generator::{generate_knight_moves, generate_pawn_moves, KNIGHT_MOVE_LOOKUP},
+        move_generator::{
+            generate_knight_moves, generate_pawn_moves, generate_pseudo_legal_moves,
+            KNIGHT_MOVE_LOOKUP,
+        },
         square::Square,
     };
 
@@ -865,7 +867,7 @@ mod move_gen_tests {
             PieceColor::White,
             BitBoard::FULL,
             BitBoard::FULL,
-            &[BitBoard::FULL; 64]
+            &[BitBoard::FULL; 64],
         );
         compare_moves(&white_pawn_moves, &expected_moves_white);
 
@@ -892,7 +894,7 @@ mod move_gen_tests {
             PieceColor::Black,
             BitBoard::FULL,
             BitBoard::FULL,
-            &[BitBoard::FULL; 64]
+            &[BitBoard::FULL; 64],
         );
         compare_moves(&black_pawn_moves, &expected_moves_black);
     }
@@ -909,7 +911,7 @@ mod move_gen_tests {
             PieceColor::White,
             BitBoard::FULL,
             BitBoard::FULL,
-            &[BitBoard::FULL; 64]
+            &[BitBoard::FULL; 64],
         );
         let expected_moves_white = [
             Move::new(Square::A2, Square::A3, MoveType::Silent),
@@ -935,7 +937,7 @@ mod move_gen_tests {
             PieceColor::Black,
             BitBoard::FULL,
             BitBoard::FULL,
-            &[BitBoard::FULL; 64]
+            &[BitBoard::FULL; 64],
         );
         let expected_black_moves = [
             Move::new(Square::A5, Square::A4, MoveType::Silent),
@@ -956,8 +958,12 @@ mod move_gen_tests {
         assert!(board_state.is_ok());
         let board_state = board_state.unwrap();
 
-        let white_knight_moves =
-            generate_knight_moves(&board_state, PieceColor::White, BitBoard::FULL, &[BitBoard::FULL; 64]);
+        let white_knight_moves = generate_knight_moves(
+            &board_state,
+            PieceColor::White,
+            BitBoard::FULL,
+            &[BitBoard::FULL; 64],
+        );
         let expected_white_knight_moves = [
             Move::new(Square::B3, Square::C5, MoveType::Silent),
             Move::new(Square::B3, Square::D4, MoveType::Capture),
@@ -971,8 +977,12 @@ mod move_gen_tests {
         ];
         compare_moves(&white_knight_moves, &expected_white_knight_moves);
 
-        let black_knight_moves =
-            generate_knight_moves(&board_state, PieceColor::Black, BitBoard::FULL,&[BitBoard::FULL; 64]);
+        let black_knight_moves = generate_knight_moves(
+            &board_state,
+            PieceColor::Black,
+            BitBoard::FULL,
+            &[BitBoard::FULL; 64],
+        );
         let expected_black_moves = [
             Move::new(Square::F7, Square::H8, MoveType::Silent),
             Move::new(Square::F7, Square::H6, MoveType::Capture),
@@ -985,7 +995,71 @@ mod move_gen_tests {
     }
 
     #[test]
-    fn pinned_pieces() {
-        let board_state = ChessBoardState::from_fen("3R4/5n1k/7N/R3B3/3q4/1N6/K7/2b5 w QKqk - 0 0");
+    fn legal_move_count() {
+        let test_set = [
+            (
+                "r3k2r/p1pp1pb1/bn2Qnp1/2qPN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQkq - 3 2",
+                5_usize,
+            ),
+            ("2r5/3pk3/8/2P5/8/2K5/8/8 w - - 5 4", 9_usize),
+            ("r6r/1b2k1bq/8/8/7B/8/8/R3K2R b KQ - 3 2", 8_usize),
+            ("8/8/8/2k5/2pP4/8/B7/4K3 b - d3 0 3", 8_usize),
+            (
+                "r1bqkbnr/pppppppp/n7/8/8/P7/1PPPPPPP/RNBQKBNR w KQkq - 2 2",
+                19_usize,
+            ),
+            (
+                "2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2",
+                44_usize,
+            ),
+            (
+                "rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9",
+                39_usize,
+            ),
+            ("4k3/4r3/4Q3/8/8/8/8/3K4 b - - 5 4", 3_usize),
+            ("8/8/8/3Qrk2/8/8/8/3K4 b - - 0 1", 6_usize),
+            ("6k1/5p2/8/3Q4/8/8/8/3K4 b - - 0 1", 4_usize),
+            ("6k1/5p2/8/3B4/8/8/8/3K4 b - - 0 1", 4_usize),
+            ("6k1/5n2/8/3B4/8/8/8/3K4 b - - 0 1", 4_usize),
+            ("6k1/5q2/8/3B4/8/8/8/3K4 b - - 0 1", 6_usize),
+            ("8/5k2/8/3B4/5R2/8/8/3K4 b - - 0 1", 4_usize),
+            ("8/5k2/4q3/3B4/5R2/8/8/3K4 b - - 0 1", 5_usize),
+            (
+                "n1n1r1r1/1P1P1P1P/2NBN2k/3B4/R7/3Q4/1K3P1P/6R1 w - - 0 1",
+                137_usize,
+            ),
+            ("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", 26_usize),
+            (
+                "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+                48,
+            ),
+            ("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 14_usize),
+            (
+                "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
+                44,
+            ),
+            (
+                "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10",
+                46,
+            ),
+            ("8/8/8/3k4/2pP4/8/B7/4K3 b - - 0 3", 5),
+            ("8/8/8/8/k1pP3Q/8/8/5K2 b - d3 0 3", 6),
+        ];
+
+        for (fen, expected_move_count) in &test_set {
+            let board_state = ChessBoardState::from_fen(fen);
+            assert!(board_state.is_ok());
+            let board_state = board_state.unwrap();
+            let legal_moves = generate_pseudo_legal_moves(&board_state, board_state.side);
+            assert_eq!(
+                legal_moves.len(),
+                *expected_move_count,
+                "{} produced {} moves, expected {}, move_list {:?}",
+                fen,
+                legal_moves.len(),
+                expected_move_count,
+                legal_moves
+            );
+        }
     }
 }
