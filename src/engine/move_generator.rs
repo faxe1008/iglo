@@ -6,9 +6,12 @@ use super::{
 };
 
 const BLACK_KING_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0x60);
-const BLACK_QUEEN_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0xc);
 const WHITE_KING_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0x6000000000000000);
-const WHITE_QUEEN_SIDE_CASTLE_SQAURES: BitBoard = BitBoard(0xc00000000000000);
+
+const WHITE_QUEEN_SIDE_CASTLE_ATTACKED_SQAURES: BitBoard = BitBoard(0xc00000000000000);
+const WHITE_QUEEN_SIDE_CASTLE_OCCUPIED_SQUARES: BitBoard = BitBoard(0xe00000000000000);
+const BLACK_QUEEN_SIDE_CASTLE_ATTACKED_SQUARES: BitBoard = BitBoard(0xc);
+const BLACK_QUEEN_SIDE_CASTLE_OCCUPIED_SQUARES: BitBoard = BitBoard(0xe);
 
 impl ChessBoard {
     #[inline(always)]
@@ -474,31 +477,35 @@ fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
             (
                 board_state.castling_rights.white_king_side,
                 WHITE_KING_SIDE_CASTLE_SQUARES,
+                WHITE_KING_SIDE_CASTLE_SQUARES,
                 MoveType::CastleKingSide,
                 Square::G1,
             ),
             (
                 board_state.castling_rights.white_queen_side,
-                WHITE_QUEEN_SIDE_CASTLE_SQAURES,
+                WHITE_QUEEN_SIDE_CASTLE_ATTACKED_SQAURES,
+                WHITE_QUEEN_SIDE_CASTLE_OCCUPIED_SQUARES,
                 MoveType::CastleQueenSide,
                 Square::C1,
             ),
             (
                 board_state.castling_rights.black_king_side,
                 BLACK_KING_SIDE_CASTLE_SQUARES,
+                BLACK_KING_SIDE_CASTLE_SQUARES,
                 MoveType::CastleKingSide,
                 Square::G8,
             ),
             (
                 board_state.castling_rights.black_queen_side,
-                BLACK_QUEEN_SIDE_CASTLE_SQUARES,
+                BLACK_QUEEN_SIDE_CASTLE_ATTACKED_SQUARES,
+                BLACK_QUEEN_SIDE_CASTLE_OCCUPIED_SQUARES,
                 MoveType::CastleQueenSide,
                 Square::C8,
             ),
         ];
-        for (right, squares_to_check, mv_type, target_square) in &combinations {
-            let squares_not_attacked = (attacked_by_enemy & *squares_to_check) == BitBoard::EMPTY;
-            let squares_not_occupied = (blockers & *squares_to_check) == BitBoard::EMPTY;
+        for (right, attacked_squares, occupied_squares, mv_type, target_square) in &combinations {
+            let squares_not_attacked = (attacked_by_enemy & *attacked_squares) == BitBoard::EMPTY;
+            let squares_not_occupied = (blockers & *occupied_squares) == BitBoard::EMPTY;
             if *right && squares_not_occupied && squares_not_attacked {
                 moves.push(Move::new(king_pos as u16, *target_square, *mv_type));
             }

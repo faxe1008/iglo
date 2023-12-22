@@ -359,6 +359,7 @@ impl ChessBoardState {
         &mut self,
         src_piece: ChessPiece,
         src_color: PieceColor,
+        dst: Option<(ChessPiece, PieceColor)>,
         mv: &Move,
     ) {
         // Revoke Castling Rights, King has moved
@@ -402,8 +403,8 @@ impl ChessBoardState {
             }
         }
         // Revoke Castling Rights, Rook was captured
-        if mv.is_capture() {
-            let (dst_piece, dst_color) = match self.board.get_piece_at_pos(mv.get_dst() as usize) {
+        if mv.is_capture() && !mv.is_en_passant() {
+            let (dst_piece, dst_color) = match dst {
                 None => panic!("No piece to capture"),
                 Some(e) => e,
             };
@@ -424,6 +425,8 @@ impl ChessBoardState {
             None => panic!("No piece at src pos!"),
             Some(e) => e,
         };
+
+        let dst_piece_col = self.board.get_piece_at_pos(mv.get_dst() as usize);
 
         assert!(
             src_color == self.side,
@@ -541,7 +544,7 @@ impl ChessBoardState {
             }
         }
 
-        new.revoke_castling_rights(src_piece, src_color, &mv);
+        new.revoke_castling_rights(src_piece, src_color, dst_piece_col, &mv);
 
         if mv.is_capture() || src_piece == ChessPiece::Pawn {
             new.half_moves = 0;
@@ -560,6 +563,8 @@ mod board_tests {
     use crate::bb;
     use crate::engine::board::BitBoard;
     use crate::engine::board::{CastlingRights, ChessBoard, ChessBoardState, PieceColor};
+    use crate::engine::chess_move::{Move, MoveType};
+    use crate::engine::square::Square;
 
     fn check_board_equality(state: &ChessBoardState, state_expected: &ChessBoardState) {
         for piece_type in 0..=5 {
@@ -710,6 +715,33 @@ mod board_tests {
             let fen = board_state.to_fen();
             assert!(board.eq(&fen), "FENs are not equal, expected: {}, produced: {}", board, fen);
         }
+
+    }
+
+    #[test]
+    fn test_castling_right_update(){
+        let mut board_state = ChessBoardState::from_fen("r3k2r/8/8/R6R/r6r/8/8/R3K2R w KQkq - 0 12").unwrap();
+
+        // Castle King Side White
+        let castled_white_king_side = board_state.exec_move(Move::new(Square::E1, Square::G1, MoveType::CastleKingSide));
+        assert_eq!(castled_white_king_side.castling_rights.white_king_side, false, "Castle Kingside, all castling should be revoked");
+        assert_eq!(castled_white_king_side.castling_rights.white_queen_side, false, "Castle Kingside, all castling should be revoked");
+
+        // Castle Queen Side White
+        let castled_white_queen_side = board_state.exec_move(Move::new(Square::E1, Square::C1, MoveType::CastleQueenSide));
+        assert_eq!(castled_white_queen_side.castling_rights.white_king_side, false, "Castle Queenside, all castling should be revoked");
+        assert_eq!(castled_white_queen_side.castling_rights.white_queen_side, false, "Castle Queenside, all castling should be revoked");
+
+        // Make black the current player
+        board_state.side = PieceColor::Black;
+
+        // Capture Queen Side Rook
+        let capture_white_q_rook = board_state.exec_move(Move::new(Square::A4, Square::A1, MoveType::Capture));
+        assert_eq!(capture_white_q_rook.castling_rights.white_queen_side, false, "Captured queen side rook");
+
+        // Capture King Side Rook
+        let capture_white_k_rook = board_state.exec_move(Move::new(Square::H4, Square::H1, MoveType::Capture));
+        assert_eq!(capture_white_k_rook.castling_rights.white_king_side, false, "Captured king side rook");
 
     }
 }
