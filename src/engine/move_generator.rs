@@ -772,39 +772,32 @@ pub fn generate_pinned_piece_mask(
     }
 
     for opp_queen in opposing_pieces[ChessPiece::Queen as usize] {
-        let queen_rook_attack = ChessBoard::rook_attacks(opp_queen, blockers);
-        let king_rook_attack = ChessBoard::rook_attacks(king_pos, blockers);
+        let queen_attack = ChessBoard::queen_attack(opp_queen, blockers);
+        let king_queen_attack = ChessBoard::queen_attack(king_pos, blockers);
 
-        let pinned_by_queen_rook_attack = queen_rook_attack & king_rook_attack & side_pieces;
-        if pinned_by_queen_rook_attack != BitBoard::EMPTY {
-            let blockers_without_pin = blockers & !pinned_by_queen_rook_attack;
-            for pinned in pinned_by_queen_rook_attack {
-                let rook_attack = ChessBoard::rook_attacks(opp_queen, blockers_without_pin);
-                if !rook_attack.get_bit(king_pos){
-                    continue;
-                }
-                pinned_move_masks[pinned] =
-                    (rook_attack
-                        & ChessBoard::rook_attacks(king_pos, blockers_without_pin))
-                    .set_bit(opp_queen);
-            }
-            continue;
-        }
+        let pinned_by_queen = queen_attack & king_queen_attack & side_pieces;
+        for pinned in pinned_by_queen {
+            let blockers_without_pin = blockers & !BitBoard(1 << pinned);
+            let queen_attack_without = ChessBoard::queen_attack(opp_queen, blockers_without_pin);
 
-        let queen_bishop_attack = ChessBoard::bishop_attacks(opp_queen, blockers);
-        let king_bishop_attack = ChessBoard::bishop_attacks(king_pos, blockers);
-        let pinned_by_queen_bishop_attack = queen_bishop_attack & king_bishop_attack;
 
-        let blockers_without_pin = blockers & !pinned_by_queen_bishop_attack;
-        for pinned in pinned_by_queen_bishop_attack {
-            let bishop_attack = ChessBoard::bishop_attacks(opp_queen, blockers_without_pin);
-            if !bishop_attack.get_bit(king_pos) {
+            if !queen_attack_without.get_bit(king_pos) {
                 continue;
             }
-            pinned_move_masks[pinned] =
-                ( bishop_attack
-                    & ChessBoard::bishop_attacks(king_pos, blockers_without_pin))
-                .set_bit(opp_queen);
+            println!("Pinner: {}, blockers_without_pin: {:?}, queen_attack_without: {:?}", pinned, blockers_without_pin, queen_attack_without);
+
+            let mut king_attack_without = BitBoard::EMPTY;
+            let king_as_rook = ChessBoard::rook_attacks(king_pos, blockers_without_pin);
+            if king_as_rook.get_bit(opp_queen) {
+                king_attack_without  = king_as_rook;
+            }
+
+            let king_as_bishop = ChessBoard::bishop_attacks(king_pos, blockers_without_pin);
+            if king_as_bishop.get_bit(opp_queen) {
+                king_attack_without = king_attack_without | king_as_bishop;
+            }
+
+            pinned_move_masks[pinned] = (queen_attack_without & king_attack_without).set_bit(opp_queen);
         }
     }
 
