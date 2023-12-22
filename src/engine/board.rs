@@ -212,6 +212,19 @@ impl ChessBoard {
         *piece_bitboard = piece_bitboard.clear_bit(index);
     }
 
+    pub fn remove_any_piece_by_mask(&self, to_be_removed: BitBoard) -> Self {
+        let mut new = self.clone();
+        for bb in new.white_pieces.iter_mut() {
+            *bb = *bb & !to_be_removed;
+        }
+        for bb in new.black_pieces.iter_mut() {
+            *bb = *bb & !to_be_removed;
+        }
+        new.all_white_pieces = new.all_white_pieces &!to_be_removed;
+        new.all_black_pieces = new.all_black_pieces &!to_be_removed;
+        new
+    }
+
     pub fn from_fen_notation(fen: &str) -> Result<Self, ()> {
         let mut board = Self::default();
         let mut cur_index: usize = 0;

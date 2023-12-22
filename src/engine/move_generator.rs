@@ -192,6 +192,25 @@ impl ChessBoard {
     }
 }
 
+fn does_enpassant_reveal_friendly_check(
+    board_state: &ChessBoardState,
+    color: PieceColor,
+    en_passant_target: usize,
+    en_passant_attacker: usize,
+) -> bool {
+    let en_passanted_victim = if color == PieceColor::White {
+        en_passant_target + 8
+    } else {
+        en_passant_target - 8
+    };
+    let pawn_board = BitBoard::EMPTY
+        .set_bit(en_passanted_victim)
+        .set_bit(en_passant_attacker);
+
+    let board_without_pawns = board_state.board.remove_any_piece_by_mask(pawn_board);
+    board_without_pawns.king_attackers(color)[6] != BitBoard::EMPTY
+}
+
 fn generate_pawn_moves(
     board_state: &ChessBoardState,
     color: PieceColor,
@@ -319,7 +338,14 @@ fn generate_pawn_moves(
                 .board
                 .pawns_able_to_enpassant(color, en_passant_target)
             {
-                if pinned_move_masks[en_passant_pawns].get_bit(en_passant_target as usize) {
+                if pinned_move_masks[en_passant_pawns].get_bit(en_passant_target as usize)
+                    && !does_enpassant_reveal_friendly_check(
+                        board_state,
+                        color,
+                        en_passant_target as usize,
+                        en_passant_pawns,
+                    )
+                {
                     moves.push(Move::new(
                         en_passant_pawns as u16,
                         en_passant_target as u16,
