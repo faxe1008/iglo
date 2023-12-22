@@ -655,10 +655,8 @@ fn generate_legal_move_mask(
                     & ChessBoard::bishop_attacks(checking_piece_pos, blockers)
             }
             ChessPiece::Queen => {
-                (ChessBoard::rook_attacks(king_pos, blockers)
-                    & ChessBoard::rook_attacks(checking_piece_pos, blockers))
-                    | (ChessBoard::bishop_attacks(king_pos, blockers)
-                        & ChessBoard::bishop_attacks(checking_piece_pos, blockers))
+                ChessBoard::queen_attack(king_pos, blockers)
+                    & ChessBoard::queen_attack(checking_piece_pos, blockers)
             }
             _ => panic!("Unknown slider"),
         }
