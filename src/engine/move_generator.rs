@@ -201,7 +201,6 @@ impl ChessBoardState {
     }
 }
 
-
 #[inline(always)]
 fn does_enpassant_reveal_friendly_check(
     board_state: &ChessBoardState,
@@ -748,15 +747,14 @@ pub fn generate_pinned_piece_mask(
         let king_bishop_attack = ChessBoard::bishop_attacks(king_pos, blockers);
 
         let pinned_by_bishop = king_bishop_attack & bishop_attacks & side_pieces;
+        let blockers_without_pin = blockers & !pinned_by_bishop;
+        let bishop_attacks = ChessBoard::bishop_attacks(opp_bishop, blockers_without_pin);
+        if !bishop_attacks.get_bit(king_pos) {
+            continue;
+        }
 
         for pinned in pinned_by_bishop {
-            let blockers_without_pin = blockers & !BitBoard(1 << pinned);
-
-            let bishop_attacks = ChessBoard::bishop_attacks(opp_bishop, blockers_without_pin);
-            if !bishop_attacks.get_bit(king_pos) {
-                continue;
-            }
-            pinned_move_masks[pinned] = pinned_move_masks[pinned] & (bishop_attacks
+            pinned_move_masks[pinned] &= (bishop_attacks
                 & ChessBoard::bishop_attacks(king_pos, blockers_without_pin))
             .set_bit(opp_bishop);
         }
@@ -775,8 +773,9 @@ pub fn generate_pinned_piece_mask(
             if !rook_attack.get_bit(king_pos) {
                 continue;
             }
-            pinned_move_masks[pinned] = pinned_move_masks[pinned]  & (rook_attack
-                & ChessBoard::rook_attacks(king_pos, blockers_without_pin)).set_bit(opp_rook);
+            pinned_move_masks[pinned] &= (rook_attack
+                & ChessBoard::rook_attacks(king_pos, blockers_without_pin))
+            .set_bit(opp_rook);
         }
     }
 
@@ -785,6 +784,7 @@ pub fn generate_pinned_piece_mask(
         let king_queen_attack = ChessBoard::queen_attack(king_pos, blockers);
 
         let pinned_by_queen = queen_attack & king_queen_attack & side_pieces;
+
         for pinned in pinned_by_queen {
             let blockers_without_pin = blockers & !BitBoard(1 << pinned);
 
@@ -795,25 +795,26 @@ pub fn generate_pinned_piece_mask(
             if !(queen_attack).get_bit(king_pos) {
                 continue;
             }
+            let king_as_rook = ChessBoard::rook_attacks(king_pos, blockers_without_pin);
+            let king_as_bishop = ChessBoard::bishop_attacks(king_pos, blockers_without_pin);
 
             /* When intersecting the rays form the king
             Only factor in a rook,bishop ray if then queen is in it*/
             let mut king_attack_without = BitBoard::EMPTY;
             let mut queen_attack_without = BitBoard::EMPTY;
 
-            let king_as_rook = ChessBoard::rook_attacks(king_pos, blockers_without_pin);
             if king_as_rook.get_bit(opp_queen) {
-                king_attack_without  = king_as_rook;
+                king_attack_without = king_as_rook;
                 queen_attack_without = queen_rook_without;
             }
 
-            let king_as_bishop = ChessBoard::bishop_attacks(king_pos, blockers_without_pin);
             if king_as_bishop.get_bit(opp_queen) {
                 king_attack_without = king_attack_without | king_as_bishop;
                 queen_attack_without = queen_attack_without | queen_bishop_without;
             }
 
-            pinned_move_masks[dbg!(pinned)] = pinned_move_masks[pinned]  & (dbg!(queen_attack_without) & dbg!(king_attack_without)).set_bit(opp_queen);
+            pinned_move_masks[pinned] &=
+                (queen_attack_without & king_attack_without).set_bit(opp_queen);
         }
     }
 
@@ -884,8 +885,7 @@ mod move_gen_tests {
         board::{self, ChessBoardState, PieceColor},
         chess_move::{Move, MoveType},
         move_generator::{
-            generate_knight_moves, generate_pawn_moves, generate_legal_moves,
-            KNIGHT_MOVE_LOOKUP,
+            generate_knight_moves, generate_legal_moves, generate_pawn_moves, KNIGHT_MOVE_LOOKUP,
         },
         square::Square,
     };
@@ -1104,14 +1104,32 @@ mod move_gen_tests {
             ("8/8/8/3k4/2pP4/8/B7/4K3 b - - 0 3", 5),
             ("8/8/8/8/k1pP3Q/8/8/5K2 b - d3 0 3", 6),
             ("8/8/k7/8/2pP4/8/8/K4Q2 b - d3 0 3", 6),
-            ("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1R1K b kq - 1 2", 46),
-            ("r3k2r/Pppp1ppp/1b3nbN/nP6/BBPNP3/q7/Pp1P2PP/R2Q1RK1 b kq - 1 2", 45),
-            ("r3k2r/Pppp1ppp/1b3nbN/nPP5/BB2P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 0 2", 43),
-            ("r3k2r/Pppp1ppp/1b3nbN/nP6/BBPPP3/q4N2/Pp4PP/R2Q1RK1 b kq d3 0 2", 43),
-            ("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P1RPP/R2Q2K1 b kq - 1 2", 45),
-            ("r3k2r/Pppp1ppp/1b3nbN/nPB5/B1P1P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 1 2", 42),
+            (
+                "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1R1K b kq - 1 2",
+                46,
+            ),
+            (
+                "r3k2r/Pppp1ppp/1b3nbN/nP6/BBPNP3/q7/Pp1P2PP/R2Q1RK1 b kq - 1 2",
+                45,
+            ),
+            (
+                "r3k2r/Pppp1ppp/1b3nbN/nPP5/BB2P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 0 2",
+                43,
+            ),
+            (
+                "r3k2r/Pppp1ppp/1b3nbN/nP6/BBPPP3/q4N2/Pp4PP/R2Q1RK1 b kq d3 0 2",
+                43,
+            ),
+            (
+                "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P1RPP/R2Q2K1 b kq - 1 2",
+                45,
+            ),
+            (
+                "r3k2r/Pppp1ppp/1b3nbN/nPB5/B1P1P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 1 2",
+                42,
+            ),
             ("7k/6pp/5Q2/8/8/8/8/4K3 b - - 0 3", 4),
-            ("5k2/8/8/8/8/8/3qNK2/8 w - - 1 12", 5)
+            ("5k2/8/8/8/8/8/3qNK2/8 w - - 1 12", 5),
         ];
 
         for (fen, expected_move_count) in &test_set {
