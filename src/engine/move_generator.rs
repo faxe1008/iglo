@@ -192,6 +192,14 @@ impl ChessBoard {
     }
 }
 
+impl ChessBoardState {
+    pub fn generate_legal_moves_for_current_player(&self) -> Vec<Move> {
+        generate_legal_moves(self, self.side)
+    }
+}
+
+
+#[inline(always)]
 fn does_enpassant_reveal_friendly_check(
     board_state: &ChessBoardState,
     color: PieceColor,
@@ -206,13 +214,14 @@ fn does_enpassant_reveal_friendly_check(
 
     let pawn_board = BitBoard::EMPTY
         .set_bit(en_passanted_victim)
-        .set_bit(en_passant_attacker); 
+        .set_bit(en_passant_attacker);
     let mut board_without_pawns = board_state.board.remove_any_piece_by_mask(pawn_board);
     board_without_pawns.place_piece_of_color(ChessPiece::Pawn, color, en_passant_target);
 
     board_without_pawns.king_attackers(color)[6] != BitBoard::EMPTY
 }
 
+#[inline(always)]
 fn generate_pawn_moves(
     board_state: &ChessBoardState,
     color: PieceColor,
@@ -363,6 +372,7 @@ fn generate_pawn_moves(
 
 const KNIGHT_MOVE_LOOKUP: [BitBoard; 64] =
     unsafe { std::mem::transmute(*include_bytes!("lookup_gens/knight_lookup.bin")) };
+#[inline(always)]
 fn generate_knight_moves(
     board_state: &ChessBoardState,
     color: PieceColor,
@@ -413,6 +423,8 @@ fn generate_knight_moves(
 
 const KING_MOVE_LOOKUP: [BitBoard; 64] =
     unsafe { std::mem::transmute(*include_bytes!("lookup_gens/king_lookup.bin")) };
+
+#[inline(always)]
 fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
     let side_king_board = if color == PieceColor::White {
@@ -501,6 +513,7 @@ const ROOK_MAGICS: [MagicEntry; 64] =
 const ROOK_MOVES: [[BitBoard; 4096]; 64] =
     unsafe { std::mem::transmute(*include_bytes!("lookup_gens/rook_moves.bin")) };
 
+#[inline(always)]
 fn generate_rook_moves(
     board_state: &ChessBoardState,
     color: PieceColor,
@@ -546,6 +559,7 @@ const BISHOP_MAGICS: [MagicEntry; 64] =
 const BISHOP_MOVES: [[BitBoard; 4096]; 64] =
     unsafe { std::mem::transmute(*include_bytes!("lookup_gens/bishop_moves.bin")) };
 
+#[inline(always)]
 fn generate_bishop_moves(
     board_state: &ChessBoardState,
     color: PieceColor,
@@ -594,6 +608,7 @@ fn generate_bishop_moves(
     moves
 }
 
+#[inline(always)]
 fn generate_queen_moves(
     board_state: &ChessBoardState,
     color: PieceColor,
@@ -788,7 +803,7 @@ pub fn generate_pinned_piece_mask(
     pinned_move_masks
 }
 
-pub fn generate_pseudo_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
+pub fn generate_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
     let king_attackers = board_state.board.king_attackers(color);
     let checker_count = king_attackers[6].bit_count();
     let king_pos = if color == PieceColor::White {
@@ -852,7 +867,7 @@ mod move_gen_tests {
         board::{self, ChessBoardState, PieceColor},
         chess_move::{Move, MoveType},
         move_generator::{
-            generate_knight_moves, generate_pawn_moves, generate_pseudo_legal_moves,
+            generate_knight_moves, generate_pawn_moves, generate_legal_moves,
             KNIGHT_MOVE_LOOKUP,
         },
         square::Square,
@@ -1072,14 +1087,14 @@ mod move_gen_tests {
             ),
             ("8/8/8/3k4/2pP4/8/B7/4K3 b - - 0 3", 5),
             ("8/8/8/8/k1pP3Q/8/8/5K2 b - d3 0 3", 6),
-            ("8/8/k7/8/2pP4/8/8/K4Q2 b - d3 0 3", 6)
+            ("8/8/k7/8/2pP4/8/8/K4Q2 b - d3 0 3", 6),
         ];
 
         for (fen, expected_move_count) in &test_set {
             let board_state = ChessBoardState::from_fen(fen);
             assert!(board_state.is_ok());
             let board_state = board_state.unwrap();
-            let legal_moves = generate_pseudo_legal_moves(&board_state, board_state.side);
+            let legal_moves = generate_legal_moves(&board_state, board_state.side);
             assert_eq!(
                 legal_moves.len(),
                 *expected_move_count,

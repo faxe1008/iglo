@@ -2,7 +2,7 @@ use chessica::engine::{
     board::{ChessBoardState, ChessPiece, PieceColor},
     board_eval::{EvaluationEngine, EvaluationFunction},
     chess_move::Move,
-    move_generator::generate_pseudo_legal_moves,
+    move_generator::generate_legal_moves,
     square::Square,
 };
 use core::time::Duration;
@@ -133,7 +133,7 @@ fn draw_stats_bar(
             board_state.board.king_attackers(board_state.side)[6].0
         ),
         format!("Legal Move Count: {}", 
-        generate_pseudo_legal_moves(board_state, board_state.side).len())
+        generate_legal_moves(board_state, board_state.side).len())
     ];
 
     let mut y_offset = 0;
@@ -470,7 +470,7 @@ fn execute_move_with_src_and_dst(
 }
 
 fn generate_possible_moves_for_piece(board_state: &ChessBoardState, pos: u16) -> Vec<Move> {
-    generate_pseudo_legal_moves(board_state, board_state.side)
+    generate_legal_moves(board_state, board_state.side)
         .iter()
         .filter(|mv| mv.get_src() == pos)
         .map(|&x| x)
