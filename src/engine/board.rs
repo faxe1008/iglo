@@ -247,6 +247,16 @@ impl ChessBoard {
         } 
     }
 
+    #[inline(always)]
+    pub fn get_opposing_pieces(&self, col: PieceColor) -> BitBoard {
+        if col == PieceColor::White {
+            self.all_black_pieces
+        } else {
+            self.all_white_pieces
+        }
+    }
+
+
     pub fn from_fen_notation(fen: &str) -> Result<Self, ()> {
         let mut board = Self::default();
         let mut cur_index: usize = 0;

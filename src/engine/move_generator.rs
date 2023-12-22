@@ -384,11 +384,7 @@ fn generate_knight_moves(
     }
 
     let empty_squares = board_state.board.empty_squares();
-    let opposite_board = if color == PieceColor::White {
-        board_state.board.all_black_pieces
-    } else {
-        board_state.board.all_white_pieces
-    };
+    let opposite_board = board_state.board.get_opposing_pieces(color);
 
     for knight_pos in side_knight_board {
         let attack_map =
@@ -430,11 +426,7 @@ fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
     }
 
     let empty_squares = board_state.board.empty_squares();
-    let opposite_board = if color == PieceColor::White {
-        board_state.board.all_black_pieces
-    } else {
-        board_state.board.all_white_pieces
-    };
+    let opposite_board = board_state.board.get_opposing_pieces(color);
 
     let attacked_by_enemy = board_state.board.squares_attacked_by_side(!color, true);
     let blockers = !empty_squares;
@@ -525,11 +517,7 @@ fn generate_rook_moves(
         return moves;
     }
 
-    let opposing_pieces = if color == PieceColor::White {
-        board_state.board.all_black_pieces
-    } else {
-        board_state.board.all_white_pieces
-    };
+    let opposing_pieces = board_state.board.get_opposing_pieces(color);
 
     let blockers = board_state.board.all_white_pieces | board_state.board.all_black_pieces;
     let empty_squares = board_state.board.empty_squares();
@@ -569,11 +557,7 @@ fn generate_bishop_moves(
         return moves;
     }
 
-    let opposing_pieces = if color == PieceColor::White {
-        board_state.board.all_black_pieces
-    } else {
-        board_state.board.all_white_pieces
-    };
+    let opposing_pieces = board_state.board.get_opposing_pieces(color);
 
     let blockers = board_state.board.all_white_pieces | board_state.board.all_black_pieces;
     let empty_squares = board_state.board.empty_squares();
@@ -617,11 +601,7 @@ fn generate_queen_moves(
         return moves;
     }
 
-    let opposing_pieces = if color == PieceColor::White {
-        board_state.board.all_black_pieces
-    } else {
-        board_state.board.all_white_pieces
-    };
+    let opposing_pieces = board_state.board.get_opposing_pieces(color);
     let blockers = board_state.board.all_white_pieces | board_state.board.all_black_pieces;
     let empty_squares = board_state.board.empty_squares();
 
