@@ -380,7 +380,7 @@ impl ChessBoardState {
             (
                 PieceColor::White,
                 &mut self.castling_rights.white_king_side,
-                Square::H8,
+                Square::H1,
             ),
             (
                 PieceColor::Black,

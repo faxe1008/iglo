@@ -741,14 +741,15 @@ pub fn generate_pinned_piece_mask(
         let king_bishop_attack = ChessBoard::bishop_attacks(king_pos, blockers);
 
         let pinned_by_bishop = king_bishop_attack & bishop_attacks & side_pieces;
-        let blockers_without_pin = blockers & !pinned_by_bishop;
 
         for pinned in pinned_by_bishop {
+            let blockers_without_pin = blockers & !BitBoard(1 << pinned);
+
             let bishop_attacks = ChessBoard::bishop_attacks(opp_bishop, blockers_without_pin);
             if !bishop_attacks.get_bit(king_pos) {
                 continue;
             }
-            pinned_move_masks[pinned] = (bishop_attacks
+            pinned_move_masks[pinned] = pinned_move_masks[pinned] & (bishop_attacks
                 & ChessBoard::bishop_attacks(king_pos, blockers_without_pin))
             .set_bit(opp_bishop);
         }
@@ -759,14 +760,15 @@ pub fn generate_pinned_piece_mask(
         let king_rook_atack = ChessBoard::rook_attacks(king_pos, blockers);
 
         let pinned_by_rook = rook_attack & king_rook_atack & side_pieces;
-        let blockers_without_pin = blockers & !pinned_by_rook;
 
         for pinned in pinned_by_rook {
+            let blockers_without_pin = blockers & !BitBoard(1 << pinned);
+
             let rook_attack = ChessBoard::rook_attacks(opp_rook, blockers_without_pin);
             if !rook_attack.get_bit(king_pos) {
                 continue;
             }
-            pinned_move_masks[pinned] = (rook_attack
+            pinned_move_masks[pinned] = pinned_move_masks[pinned]  & (rook_attack
                 & ChessBoard::rook_attacks(king_pos, blockers_without_pin)).set_bit(opp_rook);
         }
     }
@@ -798,7 +800,7 @@ pub fn generate_pinned_piece_mask(
                 king_attack_without = king_attack_without | king_as_bishop;
             }
 
-            pinned_move_masks[pinned] = (queen_attack_without & king_attack_without).set_bit(opp_queen);
+            pinned_move_masks[pinned] = pinned_move_masks[pinned]  & (queen_attack_without & king_attack_without).set_bit(opp_queen);
         }
     }
 
