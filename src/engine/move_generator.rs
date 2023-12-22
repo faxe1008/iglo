@@ -74,13 +74,11 @@ impl ChessBoard {
         let mut attacked_map = BitBoard::EMPTY;
 
         let side_pieces = if color == PieceColor::White {
-            attacked_map = attacked_map
-                | self.white_pieces[ChessPiece::Pawn as usize].s_no_we()
+            attacked_map |= self.white_pieces[ChessPiece::Pawn as usize].s_no_we()
                 | self.white_pieces[ChessPiece::Pawn as usize].s_no_ea();
             &self.white_pieces
         } else {
-            attacked_map = attacked_map
-                | self.black_pieces[ChessPiece::Pawn as usize].s_so_we()
+            attacked_map |= self.black_pieces[ChessPiece::Pawn as usize].s_so_we()
                 | self.black_pieces[ChessPiece::Pawn as usize].s_so_ea();
             &self.black_pieces
         };
@@ -97,20 +95,19 @@ impl ChessBoard {
         }
 
         for knight_pos in side_pieces[ChessPiece::Knight as usize] {
-            attacked_map = attacked_map | KNIGHT_MOVE_LOOKUP[knight_pos];
+            attacked_map |= KNIGHT_MOVE_LOOKUP[knight_pos];
         }
         for bishop in side_pieces[ChessPiece::Bishop as usize] {
-            attacked_map = attacked_map | Self::bishop_attacks(bishop, blockers);
+            attacked_map |= Self::bishop_attacks(bishop, blockers);
         }
         for rook in side_pieces[ChessPiece::Rook as usize] {
-            attacked_map = attacked_map | Self::rook_attacks(rook, blockers);
+            attacked_map |= Self::rook_attacks(rook, blockers);
         }
         for queen in side_pieces[ChessPiece::Queen as usize] {
-            attacked_map = attacked_map | Self::rook_attacks(queen, blockers);
-            attacked_map = attacked_map | Self::bishop_attacks(queen, blockers);
+            attacked_map |= Self::queen_attack(queen, blockers);
         }
         for king in side_pieces[ChessPiece::King as usize] {
-            attacked_map = attacked_map | KING_MOVE_LOOKUP[king];
+            attacked_map |= KING_MOVE_LOOKUP[king];
         }
 
         attacked_map
@@ -765,14 +762,12 @@ pub fn generate_pinned_piece_mask(
         let king_rook_atack = ChessBoard::rook_attacks(king_pos, blockers);
 
         let pinned_by_rook = rook_attack & king_rook_atack & side_pieces;
-
+        let blockers_without_pin = blockers & !pinned_by_rook;
+        let rook_attack = ChessBoard::rook_attacks(opp_rook, blockers_without_pin);
+        if !rook_attack.get_bit(king_pos) {
+            continue;
+        }
         for pinned in pinned_by_rook {
-            let blockers_without_pin = blockers & !BitBoard(1 << pinned);
-
-            let rook_attack = ChessBoard::rook_attacks(opp_rook, blockers_without_pin);
-            if !rook_attack.get_bit(king_pos) {
-                continue;
-            }
             pinned_move_masks[pinned] &= (rook_attack
                 & ChessBoard::rook_attacks(king_pos, blockers_without_pin))
             .set_bit(opp_rook);

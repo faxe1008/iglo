@@ -164,6 +164,12 @@ impl std::ops::BitAndAssign<BitBoard> for BitBoard {
     }
 }
 
+impl std::ops::BitOrAssign<BitBoard> for BitBoard {
+    fn bitor_assign(&mut self, rhs: BitBoard) {
+        *self = *self | rhs;
+    }
+}
+
 impl std::ops::BitOr<BitBoard> for BitBoard {
     type Output = BitBoard;
 
