@@ -224,7 +224,7 @@ fn generate_pawn_moves(
         .board
         .get_piece_bitboard(ChessPiece::Pawn, color);
 
-    if side_pawn_board == BitBoard::EMPTY {
+    if side_pawn_board.is_empty() {
         return moves;
     }
 
@@ -371,7 +371,7 @@ fn generate_knight_moves(
         .board
         .get_piece_bitboard(ChessPiece::Knight, color);
 
-    if side_knight_board == BitBoard::EMPTY {
+    if side_knight_board.is_empty() {
         return moves;
     }
 
@@ -413,7 +413,7 @@ fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
         .board
         .get_piece_bitboard(ChessPiece::King, color);
 
-    if side_king_board == BitBoard::EMPTY {
+    if side_king_board.is_empty() {
         return moves;
     }
 
@@ -442,7 +442,7 @@ fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
         ));
     }
 
-    let in_check = (attacked_by_enemy & side_king_board) != BitBoard::EMPTY;
+    let in_check = !(attacked_by_enemy & side_king_board).is_empty();
 
     if !in_check {
         // Check for Castling Rights
@@ -477,8 +477,8 @@ fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
             ),
         ];
         for (right, attacked_squares, occupied_squares, mv_type, target_square) in &combinations {
-            let squares_not_attacked = (attacked_by_enemy & *attacked_squares) == BitBoard::EMPTY;
-            let squares_not_occupied = (blockers & *occupied_squares) == BitBoard::EMPTY;
+            let squares_not_attacked = (attacked_by_enemy & *attacked_squares).is_empty();
+            let squares_not_occupied = (blockers & *occupied_squares).is_empty();
             if *right && squares_not_occupied && squares_not_attacked {
                 moves.push(Move::new(king_pos as u16, *target_square, *mv_type));
             }
@@ -505,7 +505,7 @@ fn generate_rook_moves(
         .board
         .get_piece_bitboard(ChessPiece::Rook, color);
 
-    if side_rook_board == BitBoard::EMPTY {
+    if side_rook_board.is_empty() {
         return moves;
     }
 
@@ -545,7 +545,7 @@ fn generate_bishop_moves(
         .board
         .get_piece_bitboard(ChessPiece::Bishop, color);
 
-    if side_bishop_board == BitBoard::EMPTY {
+    if side_bishop_board.is_empty() {
         return moves;
     }
 
@@ -589,7 +589,7 @@ fn generate_queen_moves(
         .board
         .get_piece_bitboard(ChessPiece::Queen, color);
 
-    if side_queen_board == BitBoard::EMPTY {
+    if side_queen_board.is_empty() {
         return moves;
     }
 
@@ -633,7 +633,7 @@ fn generate_legal_move_mask(
 
     let checking_piece_type: ChessPiece = king_attackers
         .iter()
-        .position(|bb| *bb != BitBoard::EMPTY)
+        .position(|bb| !bb.is_empty())
         .unwrap()
         .into();
     let checking_piece_pos = king_attackers[checking_piece_type as usize]

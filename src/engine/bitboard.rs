@@ -50,6 +50,10 @@ impl BitBoard {
         self.0.count_ones()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+
     pub fn iter_subsets(self) -> BitBoardSubsetIter {
         BitBoardSubsetIter {
             set: self,
