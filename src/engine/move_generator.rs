@@ -203,11 +203,13 @@ fn does_enpassant_reveal_friendly_check(
     } else {
         en_passant_target - 8
     };
+
     let pawn_board = BitBoard::EMPTY
         .set_bit(en_passanted_victim)
-        .set_bit(en_passant_attacker);
+        .set_bit(en_passant_attacker); 
+    let mut board_without_pawns = board_state.board.remove_any_piece_by_mask(pawn_board);
+    board_without_pawns.place_piece_of_color(ChessPiece::Pawn, color, en_passant_target);
 
-    let board_without_pawns = board_state.board.remove_any_piece_by_mask(pawn_board);
     board_without_pawns.king_attackers(color)[6] != BitBoard::EMPTY
 }
 
@@ -1070,6 +1072,7 @@ mod move_gen_tests {
             ),
             ("8/8/8/3k4/2pP4/8/B7/4K3 b - - 0 3", 5),
             ("8/8/8/8/k1pP3Q/8/8/5K2 b - d3 0 3", 6),
+            ("8/8/k7/8/2pP4/8/8/K4Q2 b - d3 0 3", 6)
         ];
 
         for (fen, expected_move_count) in &test_set {
