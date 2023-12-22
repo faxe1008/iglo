@@ -157,18 +157,16 @@ impl ChessBoard {
         // Check for bishops and queens attack as bishops
         let bishop_attackers = &mut attacker_maps[ChessPiece::Bishop as usize];
         let bishop_attacks = Self::bishop_attacks(king_pos, blockers);
-        *bishop_attackers = *bishop_attackers
-            | (bishop_attacks
-                & (opposing_pieces[ChessPiece::Bishop as usize]
-                    | opposing_pieces[ChessPiece::Queen as usize]));
+        *bishop_attackers |= bishop_attacks
+            & (opposing_pieces[ChessPiece::Bishop as usize]
+                | opposing_pieces[ChessPiece::Queen as usize]);
 
         // Check for rooks and queens attack as rooks
         let rook_attackers = &mut attacker_maps[ChessPiece::Rook as usize];
         let rook_attacks = Self::rook_attacks(king_pos, blockers);
-        *rook_attackers = *rook_attackers
-            | (rook_attacks
-                & (opposing_pieces[ChessPiece::Rook as usize]
-                    | opposing_pieces[ChessPiece::Queen as usize]));
+        *rook_attackers |= rook_attacks
+            & (opposing_pieces[ChessPiece::Rook as usize]
+                | opposing_pieces[ChessPiece::Queen as usize]);
 
         // Check for pawns
         let pawn_attackers = &mut attacker_maps[ChessPiece::Pawn as usize];
@@ -180,7 +178,7 @@ impl ChessBoard {
             (king_board.s_so_we() | king_board.s_so_ea())
                 & opposing_pieces[ChessPiece::Pawn as usize]
         };
-        *pawn_attackers = *pawn_attackers | attackers;
+        *pawn_attackers |= attackers;
 
         attacker_maps[6] = attacker_maps[0]
             | attacker_maps[1]
@@ -230,11 +228,9 @@ fn generate_pawn_moves(
 ) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
 
-    let side_pawn_board = if color == PieceColor::White {
-        board_state.board.white_pieces[ChessPiece::Pawn as usize]
-    } else {
-        board_state.board.black_pieces[ChessPiece::Pawn as usize]
-    };
+    let side_pawn_board = board_state
+        .board
+        .get_piece_bitboard(ChessPiece::Pawn, color);
 
     if side_pawn_board == BitBoard::EMPTY {
         return moves;
@@ -379,11 +375,9 @@ fn generate_knight_moves(
     pinned_move_masks: &[BitBoard; Square::NUM as usize],
 ) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
-    let side_knight_board = if color == PieceColor::White {
-        board_state.board.white_pieces[ChessPiece::Knight as usize]
-    } else {
-        board_state.board.black_pieces[ChessPiece::Knight as usize]
-    };
+    let side_knight_board = board_state
+        .board
+        .get_piece_bitboard(ChessPiece::Knight, color);
 
     if side_knight_board == BitBoard::EMPTY {
         return moves;
@@ -426,11 +420,10 @@ const KING_MOVE_LOOKUP: [BitBoard; 64] =
 #[inline(always)]
 fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
-    let side_king_board = if color == PieceColor::White {
-        board_state.board.white_pieces[ChessPiece::King as usize]
-    } else {
-        board_state.board.black_pieces[ChessPiece::King as usize]
-    };
+
+    let side_king_board = board_state
+        .board
+        .get_piece_bitboard(ChessPiece::King, color);
 
     if side_king_board == BitBoard::EMPTY {
         return moves;
@@ -524,11 +517,9 @@ fn generate_rook_moves(
     pinned_move_masks: &[BitBoard; Square::NUM as usize],
 ) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
-    let side_rook_board = if color == PieceColor::White {
-        board_state.board.white_pieces[ChessPiece::Rook as usize]
-    } else {
-        board_state.board.black_pieces[ChessPiece::Rook as usize]
-    };
+    let side_rook_board = board_state
+        .board
+        .get_piece_bitboard(ChessPiece::Rook, color);
 
     if side_rook_board == BitBoard::EMPTY {
         return moves;
@@ -570,11 +561,9 @@ fn generate_bishop_moves(
     pinned_move_masks: &[BitBoard; Square::NUM as usize],
 ) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
-    let side_bishop_board = if color == PieceColor::White {
-        board_state.board.white_pieces[ChessPiece::Bishop as usize]
-    } else {
-        board_state.board.black_pieces[ChessPiece::Bishop as usize]
-    };
+    let side_bishop_board = board_state
+        .board
+        .get_piece_bitboard(ChessPiece::Bishop, color);
 
     if side_bishop_board == BitBoard::EMPTY {
         return moves;
@@ -620,11 +609,9 @@ fn generate_queen_moves(
 ) -> Vec<Move> {
     let mut moves = Vec::with_capacity(16);
 
-    let side_queen_board = if color == PieceColor::White {
-        board_state.board.white_pieces[ChessPiece::Queen as usize]
-    } else {
-        board_state.board.black_pieces[ChessPiece::Queen as usize]
-    };
+    let side_queen_board = board_state
+        .board
+        .get_piece_bitboard(ChessPiece::Queen, color);
 
     if side_queen_board == BitBoard::EMPTY {
         return moves;
