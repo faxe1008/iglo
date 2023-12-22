@@ -25,3 +25,7 @@ path = "src/ui/main.rs"
 [[example]]
 name = "lookup_gen"
 path = "src/engine/lookup_gens/main.rs"
+
+[[example]]
+name = "perft_debugger"
+path = "src/dbg/perft_debugger.rs"
