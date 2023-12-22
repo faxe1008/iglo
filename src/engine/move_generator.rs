@@ -766,8 +766,8 @@ pub fn generate_pinned_piece_mask(
             if !rook_attack.get_bit(king_pos) {
                 continue;
             }
-            pinned_move_masks[pinned] = rook_attack
-                & ChessBoard::rook_attacks(king_pos, blockers_without_pin).set_bit(opp_rook);
+            pinned_move_masks[pinned] = (rook_attack
+                & ChessBoard::rook_attacks(king_pos, blockers_without_pin)).set_bit(opp_rook);
         }
     }
 
@@ -784,8 +784,9 @@ pub fn generate_pinned_piece_mask(
             if !queen_attack_without.get_bit(king_pos) {
                 continue;
             }
-            println!("Pinner: {}, blockers_without_pin: {:?}, queen_attack_without: {:?}", pinned, blockers_without_pin, queen_attack_without);
 
+            /* When intersecting the rays form the king
+            Only factor in a rook,bishop ray if then queen is in it*/
             let mut king_attack_without = BitBoard::EMPTY;
             let king_as_rook = ChessBoard::rook_attacks(king_pos, blockers_without_pin);
             if king_as_rook.get_bit(opp_queen) {
@@ -1093,7 +1094,8 @@ mod move_gen_tests {
             ("r3k2r/Pppp1ppp/1b3nbN/nPP5/BB2P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 0 2", 43),
             ("r3k2r/Pppp1ppp/1b3nbN/nP6/BBPPP3/q4N2/Pp4PP/R2Q1RK1 b kq d3 0 2", 43),
             ("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P1RPP/R2Q2K1 b kq - 1 2", 45),
-            ("r3k2r/Pppp1ppp/1b3nbN/nPB5/B1P1P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 1 2", 42)
+            ("r3k2r/Pppp1ppp/1b3nbN/nPB5/B1P1P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 1 2", 42),
+            ("7k/6pp/5Q2/8/8/8/8/4K3 b - - 0 3", 4)
         ];
 
         for (fen, expected_move_count) in &test_set {
