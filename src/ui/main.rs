@@ -7,6 +7,7 @@ use chessica::engine::{
 };
 use core::time::Duration;
 use sdl2::{
+    audio::{AudioCVT, AudioCallback, AudioDevice, AudioSpecDesired, AudioSpecWAV, AudioStatus},
     event::Event,
     image::{self, InitFlag, LoadTexture},
     keyboard::Keycode,
@@ -16,8 +17,9 @@ use sdl2::{
     render::{BlendMode, Canvas, Texture, TextureCreator},
     ttf::Font,
     video::{Window, WindowContext},
+    AudioSubsystem,
 };
-use std::env;
+use std::{env, os::unix::thread};
 
 const SQUARE_SIZE: i32 = 100;
 const MIN_MARGIN: i32 = 20;
@@ -46,6 +48,8 @@ const CAPTURE_INDICATOR_SIDE_LEN: u32 = SQUARE_SIZE as u32 / 5;
 struct AssetPack<'a> {
     sprite_texture: Texture<'a>,
     font: Font<'a, 'a>,
+    capture_sound: AudioDevice<Sound>,
+    move_sound: AudioDevice<Sound>
 }
 
 #[derive(Default, Debug)]
@@ -57,6 +61,36 @@ struct GameUIState {
     promotion_prompt: Option<(PieceColor, Vec<Move>)>,
     white_in_check: bool,
     black_in_check: bool,
+}
+
+struct Sound {
+    data: Vec<u8>,
+    volume: f32,
+    pos: usize,
+}
+
+impl AudioCallback for Sound {
+    type Channel = u8;
+
+    fn callback(&mut self, out: &mut [u8]) {
+        for dst in out.iter_mut() {
+            // With channel type u8 the "silence" value is 128 (middle of the 0-2^8 range) so we need
+            // to both fill in the silence and scale the wav data accordingly. Filling the silence
+            // once the wav is finished is trivial, applying the volume is more tricky. We need to:
+            // * Change the range of the values from [0, 255] to [-128, 127] so we can multiply
+            // * Apply the volume by multiplying, this gives us range [-128*volume, 127*volume]
+            // * Move the resulting range to a range centered around the value 128, the final range
+            //   is [128 - 128*volume, 128 + 127*volume] – scaled and correctly positioned
+            //
+            // Using value 0 instead of 128 would result in clicking. Scaling by simply multiplying
+            // would not give correct results.
+            let pre_scale = *self.data.get(self.pos).unwrap_or(&128);
+            let scaled_signed_float = (pre_scale as f32 - 128.0) * self.volume;
+            let scaled = (scaled_signed_float + 128.0) as u8;
+            *dst = scaled;
+            self.pos += 1;
+        }
+    }
 }
 
 fn get_square_by_pos(x: i32, mut y: i32, ui_state: &GameUIState) -> Rect {
@@ -461,6 +495,7 @@ fn get_square_from_cursor_pos(x: i32, y: i32, ui_state: &GameUIState) -> Option<
 fn execute_move_with_src_and_dst(
     board_state: &mut ChessBoardState,
     ui_state: &mut GameUIState,
+    asset_pack: &mut AssetPack,
     src: u16,
     dst: u16,
 ) {
@@ -473,7 +508,16 @@ fn execute_move_with_src_and_dst(
 
     if moves.is_empty() {
     } else if moves.len() == 1 {
-        *board_state = board_state.exec_move(moves[0]);
+        let move_to_play = moves[0];
+
+        *board_state = board_state.exec_move(move_to_play);
+
+        if move_to_play.is_capture() {
+            play_sound(&mut asset_pack.capture_sound);
+        } else {
+            play_sound(&mut asset_pack.move_sound);
+        }
+
     } else {
         ui_state.promotion_prompt = Some((board_state.side, moves))
     }
@@ -491,6 +535,48 @@ fn generate_possible_moves_for_piece(board_state: &ChessBoardState, pos: u16) ->
         .filter(|mv| mv.get_src() == pos)
         .map(|&x| x)
         .collect()
+}
+
+fn play_sound(audio_device: &mut AudioDevice<Sound>) {
+    {
+        let mut lock = audio_device.lock();
+        (*lock).pos = 0;
+    }
+    audio_device.resume()
+}
+
+fn create_audio_device_sound(path: &str, audio_subsystem: &AudioSubsystem) -> AudioDevice<Sound> {
+    let audio_spec = AudioSpecDesired {
+        freq: Some(48_000),
+        channels: Some(1), // mono
+        samples: None,     // default
+    };
+    let sound_wav =
+        AudioSpecWAV::load_wav(path).expect("Could not load capture WAV file");
+
+     audio_subsystem
+        .open_playback(None, &audio_spec, |spec| {
+            let cvt = AudioCVT::new(
+                sound_wav.format,
+                sound_wav.channels,
+                sound_wav.freq,
+                spec.format,
+                spec.channels,
+                spec.freq,
+            )
+            .expect("Could not convert WAV file");
+
+            let data = cvt.convert(sound_wav.buffer().to_vec());
+
+            // initialize the audio callback
+            Sound {
+                data: data,
+                volume: 1.0,
+                pos: 0,
+            }
+        })
+        .expect("Audio device not openable to playback")
+
 }
 
 fn main() {
@@ -536,26 +622,31 @@ fn main() {
         .load_font("font.ttf", 18)
         .expect("Error loading ttf");
     font.set_style(sdl2::ttf::FontStyle::BOLD);
-    let asset_pack = AssetPack {
+
+    let audio_subsystem = sdl_context.audio().expect("Error creating audio context");
+  
+    let mut asset_pack = AssetPack {
         sprite_texture,
         font,
+        capture_sound: create_audio_device_sound("capture.wav", &audio_subsystem),
+        move_sound: create_audio_device_sound("move.wav", &audio_subsystem),
     };
 
     let mut game_ui_state = GameUIState::default();
 
     let mut redraw_board =
-        |board_state: &ChessBoardState, game_ui_state: &GameUIState| -> Result<(), String> {
-            draw_grid(&mut canvas, &asset_pack, &texture_creator, game_ui_state)?;
-            draw_chess_board(&mut canvas, &board_state, &asset_pack, game_ui_state)?;
+        |board_state: &ChessBoardState, game_ui_state: &GameUIState, asset_pack: &AssetPack| -> Result<(), String> {
+            draw_grid(&mut canvas, asset_pack, &texture_creator, game_ui_state)?;
+            draw_chess_board(&mut canvas, &board_state, asset_pack, game_ui_state)?;
             draw_moves_indicator(&mut canvas, game_ui_state)?;
-            draw_dragged_piece(&mut canvas, &asset_pack, board_state, game_ui_state)?;
-            draw_promotion_prompt(&mut canvas, &asset_pack, board_state, game_ui_state)?;
-            draw_stats_bar(&mut canvas, &board_state, &asset_pack, &texture_creator)?;
+            draw_dragged_piece(&mut canvas, asset_pack, board_state, game_ui_state)?;
+            draw_promotion_prompt(&mut canvas, asset_pack, board_state, game_ui_state)?;
+            draw_stats_bar(&mut canvas, &board_state, asset_pack, &texture_creator)?;
             canvas.present();
             Ok(())
         };
 
-    redraw_board(&board_state, &game_ui_state);
+    redraw_board(&board_state, &game_ui_state, &asset_pack);
     let mut event_pump = sdl_context.event_pump().unwrap();
 
     'running: loop {
@@ -572,7 +663,7 @@ fn main() {
                     ..
                 } => {
                     game_ui_state.flipped = !game_ui_state.flipped;
-                    redraw_board(&board_state, &game_ui_state);
+                    redraw_board(&board_state, &game_ui_state, &asset_pack);
                 }
                 Event::MouseButtonDown { x, y, .. } => {
                     if game_ui_state.promotion_prompt.is_none() {
@@ -581,6 +672,7 @@ fn main() {
                             (Some(src), Some(dst)) => execute_move_with_src_and_dst(
                                 &mut board_state,
                                 &mut game_ui_state,
+                                &mut asset_pack,
                                 src,
                                 dst,
                             ),
@@ -620,7 +712,7 @@ fn main() {
                         game_ui_state.promotion_prompt = None;
                     }
 
-                    redraw_board(&board_state, &game_ui_state);
+                    redraw_board(&board_state, &game_ui_state, &asset_pack);
                 }
                 Event::MouseMotion {
                     x, y, mousestate, ..
@@ -630,7 +722,7 @@ fn main() {
                         && game_ui_state.promotion_prompt.is_none()
                     {
                         game_ui_state.dragging_piece_pos = Some((x, y));
-                        redraw_board(&board_state, &game_ui_state);
+                        redraw_board(&board_state, &game_ui_state, &asset_pack);
                     }
                 }
                 Event::MouseButtonUp {
@@ -646,6 +738,7 @@ fn main() {
                             execute_move_with_src_and_dst(
                                 &mut board_state,
                                 &mut game_ui_state,
+                                &mut asset_pack,
                                 mv_src,
                                 dst_square,
                             );
@@ -653,7 +746,7 @@ fn main() {
                         game_ui_state.dragging_piece_pos = None;
                         game_ui_state.last_clicked_square = None;
                         game_ui_state.moves_for_selected_piece.clear();
-                        redraw_board(&board_state, &game_ui_state);
+                        redraw_board(&board_state, &game_ui_state, &asset_pack);
                     }
                 }
 
@@ -661,7 +754,7 @@ fn main() {
             }
         }
 
-        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 240));
         // The rest of the game loop goes here...
     }
 }

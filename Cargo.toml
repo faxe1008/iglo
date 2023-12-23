@@ -9,7 +9,7 @@ edition = "2021"
 [dev-dependencies.sdl2]
 sdl2 = "0.36.0"
 default-features = false
-features = ["image", "ttf"]
+features = ["image", "ttf", "mixer"]
 
 [dev-dependencies.rand]
 rand = "0.8.5"
