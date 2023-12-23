@@ -1,4 +1,4 @@
-use iglo::engine::{
+use iglo::chess::{
     board::{ChessBoardState, ChessPiece, PieceColor},
     board_eval::{EvaluationEngine, EvaluationFunction},
     chess_move::Move,

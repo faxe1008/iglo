@@ -827,7 +827,7 @@ pub fn generate_legal_moves(board_state: &ChessBoardState, color: PieceColor) ->
 
 #[cfg(test)]
 mod move_gen_tests {
-    use crate::engine::{
+    use crate::chess::{
         bitboard::BitBoard,
         board::{ChessBoardState, PieceColor},
         chess_move::{Move, MoveType},

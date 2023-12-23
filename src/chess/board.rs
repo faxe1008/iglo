@@ -1,6 +1,6 @@
 use std::ops::Not;
 
-use crate::engine::{chess_move::MoveType, square::Square};
+use crate::chess::{chess_move::MoveType, square::Square};
 
 use super::{bitboard::BitBoard, chess_move::Move};
 
@@ -585,10 +585,10 @@ impl ChessBoardState {
 mod board_tests {
 
     use crate::bb;
-    use crate::engine::board::BitBoard;
-    use crate::engine::board::{CastlingRights, ChessBoard, ChessBoardState, PieceColor};
-    use crate::engine::chess_move::{Move, MoveType};
-    use crate::engine::square::Square;
+    use crate::chess::board::BitBoard;
+    use crate::chess::board::{CastlingRights, ChessBoard, ChessBoardState, PieceColor};
+    use crate::chess::chess_move::{Move, MoveType};
+    use crate::chess::square::Square;
 
     fn check_board_equality(state: &ChessBoardState, state_expected: &ChessBoardState) {
         for piece_type in 0..=5 {

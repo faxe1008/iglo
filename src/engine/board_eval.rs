@@ -1,4 +1,5 @@
-use super::{board::{ChessBoardState, ChessPiece, PieceColor}, bitboard::BitBoard};
+use crate::chess::{board::{ChessBoardState, ChessPiece, PieceColor}, bitboard::BitBoard};
+
 
 pub trait EvaluationFunction {
     fn eval(board_state: &ChessBoardState) -> i32;
@@ -120,11 +121,9 @@ impl EvaluationFunction for EvaluationEngine {
 
 #[cfg(test)]
 mod eval_tests {
-    use crate::engine::{
-        board::ChessBoardState,
-        board_eval::{EvaluationEngine, EvaluationFunction},
-    };
+    use crate::{chess::board::ChessBoardState, engine::board_eval::{EvaluationEngine, EvaluationFunction}};
 
+   
     #[test]
     fn eval_start_pos() {
         let start_board =
