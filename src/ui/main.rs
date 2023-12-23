@@ -55,6 +55,8 @@ struct GameUIState {
     last_clicked_square: Option<u16>,
     dragging_piece_pos: Option<(i32, i32)>,
     promotion_prompt: Option<(PieceColor, Vec<Move>)>,
+    white_in_check: bool,
+    black_in_check: bool,
 }
 
 fn get_square_by_pos(x: i32, mut y: i32, ui_state: &GameUIState) -> Rect {
@@ -132,8 +134,10 @@ fn draw_stats_bar(
             "King Attackers: {}",
             board_state.board.king_attackers(board_state.side)[6].0
         ),
-        format!("Legal Move Count: {}", 
-        generate_legal_moves(board_state, board_state.side).len())
+        format!(
+            "Legal Move Count: {}",
+            generate_legal_moves(board_state, board_state.side).len()
+        ),
     ];
 
     let mut y_offset = 0;
@@ -282,6 +286,16 @@ fn draw_chess_board(
                     {
                         continue;
                     }
+
+                    if piece == ChessPiece::King
+                        && ((*piece_color == PieceColor::White && ui_state.white_in_check)
+                            || (*piece_color == PieceColor::Black && ui_state.black_in_check))
+                    {
+                        canvas.set_blend_mode(BlendMode::Blend);
+                        canvas.set_draw_color(COLOR_CHECK_BACKGROUND);
+                        canvas.fill_rect(dst_rct)?;
+                    }
+
                     draw_piece_at_location(canvas, asset_pack, piece, *piece_color, dst_rct)?;
                 }
             }
@@ -464,9 +478,11 @@ fn execute_move_with_src_and_dst(
         ui_state.promotion_prompt = Some((board_state.side, moves))
     }
 
+    ui_state.black_in_check = !board_state.board.king_attackers(PieceColor::Black)[6].is_empty();
+    ui_state.white_in_check = !board_state.board.king_attackers(PieceColor::White)[6].is_empty();
+
     ui_state.last_clicked_square = None;
     ui_state.moves_for_selected_piece.clear();
-  
 }
 
 fn generate_possible_moves_for_piece(board_state: &ChessBoardState, pos: u16) -> Vec<Move> {
