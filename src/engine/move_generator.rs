@@ -1,6 +1,6 @@
 use super::{
     bitboard::{BitBoard, MagicEntry},
-    board::{self, ChessBoard, ChessBoardState, ChessPiece, PieceColor},
+    board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor},
     chess_move::{Move, MoveType, PROMOTION_CAPTURE_TARGETS, PROMOTION_TARGETS},
     square::Square,
 };
@@ -829,10 +829,10 @@ pub fn generate_legal_moves(board_state: &ChessBoardState, color: PieceColor) ->
 mod move_gen_tests {
     use crate::engine::{
         bitboard::BitBoard,
-        board::{self, ChessBoardState, PieceColor},
+        board::{ChessBoardState, PieceColor},
         chess_move::{Move, MoveType},
         move_generator::{
-            generate_knight_moves, generate_legal_moves, generate_pawn_moves, KNIGHT_MOVE_LOOKUP,
+            generate_knight_moves, generate_legal_moves, generate_pawn_moves,
         },
         square::Square,
     };

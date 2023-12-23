@@ -1,4 +1,4 @@
-use std::{env, fs::File, io::Write};
+use std::{fs::File, io::Write};
 
 use chessica::engine::{
     bitboard::{BitBoard, MagicEntry},
@@ -59,7 +59,7 @@ fn generate_jump_piece_lookup(offset: &[(i32, i32)]) -> Vec<BitBoard> {
 
 fn generate_sliding_piece_moves(
     square: u16,
-    mut blockers: BitBoard,
+    blockers: BitBoard,
     offsets: &[(i32, i32)],
 ) -> BitBoard {
     let mut moves = BitBoard::EMPTY;

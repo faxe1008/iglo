@@ -131,9 +131,9 @@ impl Debug for Move {
             "{}{}",
             &Square::to_square_name(Some(self.get_src() as u8)),
             &Square::to_square_name(Some(self.get_dst() as u8)),
-        )).unwrap();
+        ))?;
         if self.is_promotion() {
-            f.write_char(ChessBoardState::piece_to_fen_notation(self.promotion_target(), PieceColor::Black));
+            f.write_char(ChessBoardState::piece_to_fen_notation(self.promotion_target(), PieceColor::Black))?;
         }
         Ok(())
     }
