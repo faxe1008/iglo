@@ -13,6 +13,22 @@ const WHITE_QUEEN_SIDE_CASTLE_OCCUPIED_SQUARES: BitBoard = BitBoard(0xe000000000
 const BLACK_QUEEN_SIDE_CASTLE_ATTACKED_SQUARES: BitBoard = BitBoard(0xc);
 const BLACK_QUEEN_SIDE_CASTLE_OCCUPIED_SQUARES: BitBoard = BitBoard(0xe);
 
+const KNIGHT_MOVE_LOOKUP: [BitBoard; 64] =
+    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/knight_lookup.bin")) };
+
+const KING_MOVE_LOOKUP: [BitBoard; 64] =
+    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/king_lookup.bin")) };
+
+const ROOK_MAGICS: [MagicEntry; 64] =
+    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/rook_magics.bin")) };
+const ROOK_MOVES: [[BitBoard; 4096]; 64] =
+    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/rook_moves.bin")) };
+
+const BISHOP_MAGICS: [MagicEntry; 64] =
+    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/bishop_magics.bin")) };
+const BISHOP_MOVES: [[BitBoard; 4096]; 64] =
+    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/bishop_moves.bin")) };
+
 impl ChessBoard {
     #[inline(always)]
     fn pawns_able_to_push(&self, color: PieceColor) -> BitBoard {
@@ -66,6 +82,7 @@ impl ChessBoard {
         }
     }
 
+    #[inline(always)]
     pub fn squares_attacked_by_side(
         &self,
         color: PieceColor,
@@ -357,8 +374,6 @@ fn generate_pawn_moves(
     moves
 }
 
-const KNIGHT_MOVE_LOOKUP: [BitBoard; 64] =
-    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/knight_lookup.bin")) };
 #[inline(always)]
 fn generate_knight_moves(
     board_state: &ChessBoardState,
@@ -401,9 +416,6 @@ fn generate_knight_moves(
 
     moves
 }
-
-const KING_MOVE_LOOKUP: [BitBoard; 64] =
-    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/king_lookup.bin")) };
 
 #[inline(always)]
 fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
@@ -488,11 +500,6 @@ fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
     moves
 }
 
-const ROOK_MAGICS: [MagicEntry; 64] =
-    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/rook_magics.bin")) };
-const ROOK_MOVES: [[BitBoard; 4096]; 64] =
-    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/rook_moves.bin")) };
-
 #[inline(always)]
 fn generate_rook_moves(
     board_state: &ChessBoardState,
@@ -527,11 +534,6 @@ fn generate_rook_moves(
 
     moves
 }
-
-const BISHOP_MAGICS: [MagicEntry; 64] =
-    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/bishop_magics.bin")) };
-const BISHOP_MOVES: [[BitBoard; 4096]; 64] =
-    unsafe { std::mem::transmute(*include_bytes!("lookup_gens/bishop_moves.bin")) };
 
 #[inline(always)]
 fn generate_bishop_moves(
