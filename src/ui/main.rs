@@ -1,10 +1,9 @@
-use iglo::chess::{
+use iglo::{chess::{
     board::{ChessBoardState, ChessPiece, PieceColor},
-    board_eval::{EvaluationEngine, EvaluationFunction},
     chess_move::Move,
     move_generator::generate_legal_moves,
     square::Square,
-};
+}, engine::board_eval::{EvaluationEngine, EvaluationFunction}};
 use core::time::Duration;
 use sdl2::{
     audio::{AudioCVT, AudioCallback, AudioDevice, AudioSpecDesired, AudioSpecWAV, AudioStatus},

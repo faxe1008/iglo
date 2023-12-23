@@ -24,7 +24,7 @@ path = "src/ui/main.rs"
 
 [[example]]
 name = "lookup_gen"
-path = "src/engine/lookup_gens/main.rs"
+path = "src/chess/lookup_gens/main.rs"
 
 [[example]]
 name = "perft_debugger"

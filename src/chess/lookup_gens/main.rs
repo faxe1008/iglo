@@ -1,6 +1,6 @@
 use std::{fs::File, io::Write};
 
-use chessica::engine::{
+use iglo::chess::{
     bitboard::{BitBoard, MagicEntry},
     square::Square,
 };

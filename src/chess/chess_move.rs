@@ -96,15 +96,15 @@ impl Move {
     }
 
     pub fn is_silent(&self) -> bool {
-        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) == MoveType::Silent as u16
+        self.get_type() == MoveType::Silent
     }
 
     pub fn is_double_push(&self) -> bool {
-        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) == MoveType::DoublePush as u16
+        self.get_type() == MoveType::DoublePush
     }
 
     pub fn is_en_passant(&self) -> bool {
-        ((self.0 & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT) == MoveType::EnPassant as u16
+        self.get_type() == MoveType::EnPassant
     }
 
     pub fn is_promotion(&self) -> bool {
