@@ -9,7 +9,7 @@ use core::time::Duration;
 use sdl2::{
     audio::{AudioCVT, AudioCallback, AudioDevice, AudioSpecDesired, AudioSpecWAV, AudioStatus},
     event::Event,
-    image::{self, InitFlag, LoadTexture},
+    image::{self, InitFlag, LoadTexture, LoadSurface},
     keyboard::Keycode,
     mouse::MouseButton,
     pixels::Color,
@@ -17,9 +17,9 @@ use sdl2::{
     render::{BlendMode, Canvas, Texture, TextureCreator},
     ttf::Font,
     video::{Window, WindowContext},
-    AudioSubsystem,
+    AudioSubsystem, surface::Surface,
 };
-use std::{env, os::unix::thread};
+use std::{env};
 
 const SQUARE_SIZE: i32 = 100;
 const MIN_MARGIN: i32 = 20;
@@ -592,13 +592,15 @@ fn main() {
     let sdl_context = sdl2::init().expect("Error creating context");
     let video_subsystem = sdl_context.video().expect("Error creating video subsystem");
 
-    let window = video_subsystem
+    let mut window = video_subsystem
         .window("Iglo UI", WINDOW_WIDTH, WINDOW_HEIGHT)
         .position_centered()
         .opengl()
         .build()
         .map_err(|e| e.to_string())
         .expect("Error building Window");
+
+    window.set_icon(Surface::from_file("iglo.png").unwrap());
 
     let mut canvas = window
         .into_canvas()
