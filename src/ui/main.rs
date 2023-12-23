@@ -1,4 +1,4 @@
-use chessica::engine::{
+use iglo::engine::{
     board::{ChessBoardState, ChessPiece, PieceColor},
     board_eval::{EvaluationEngine, EvaluationFunction},
     chess_move::Move,
@@ -593,7 +593,7 @@ fn main() {
     let video_subsystem = sdl_context.video().expect("Error creating video subsystem");
 
     let window = video_subsystem
-        .window("Chessica UI", WINDOW_WIDTH, WINDOW_HEIGHT)
+        .window("Iglo UI", WINDOW_WIDTH, WINDOW_HEIGHT)
         .position_centered()
         .opengl()
         .build()

@@ -1,5 +1,5 @@
 [package]
-name = "chessica"
+name = "iglo"
 version = "0.1.0"
 edition = "2021"
 
@@ -15,11 +15,11 @@ features = ["image", "ttf", "mixer"]
 rand = "0.8.5"
 
 [lib]
-name = "chessica"
+name = "iglo"
 path = "src/lib.rs"
 
 [[example]]        
-name = "chessica_ui"
+name = "iglo_ui"
 path = "src/ui/main.rs"
 
 [[example]]
