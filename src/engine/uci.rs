@@ -1,6 +1,8 @@
-use std::{sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc}, thread, io::{stdin, BufRead}};
+use std::{sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc}, thread, io::{stdin, BufRead}, marker::PhantomData};
 
 use crate::chess::{board::ChessBoardState, chess_move::Move, perft::perft};
+
+use super::{bot::{ChessBot, TimeControl}};
 
 const ENGINE_NAME: &str = env!("CARGO_PKG_NAME");
 const ENGINE_AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -15,6 +17,7 @@ enum UCICommand {
     UCINewGame,
     Position(ChessBoardState),
     Peft(u32),
+    Go,
     Quit,
     Stop
 }
@@ -83,33 +86,41 @@ impl TryFrom<&str> for UCICommand {
                 } else {
                     Err(())
                 }
-            }
+            },
+            Some("go") => {
+                Ok(UCICommand::Go)
+            },
             _ => Err(()),
         }
     }
 }
 
-struct UCIController();
-pub struct UCIReader {
-    stop: Arc<AtomicBool>,
-    controller_tx: mpsc::Sender<UCICommand>,
+struct UCIController<B> where B: ChessBot {
+    phantom: PhantomData<B>,
 }
 
-impl Default for UCIReader {
+pub struct UCIReader<B: ChessBot> {
+    stop: Arc<AtomicBool>,
+    controller_tx: mpsc::Sender<UCICommand>,
+    phantom: PhantomData<B>,
+}
+
+impl<B: ChessBot> Default for UCIReader<B> {
     fn default() -> Self {
         let (tx, rx) = mpsc::channel::<UCICommand>();
         let stop = Arc::new(AtomicBool::new(false));
         let thread_stop = stop.clone();
-        thread::spawn(move || UCIController::run(rx, thread_stop));
+        thread::spawn(move || UCIController::<B>::run(rx, thread_stop));
 
         Self {
             stop,
             controller_tx: tx,
+            phantom: PhantomData
         }
     }
 }
 
-impl UCIReader {
+impl<B: ChessBot> UCIReader<B> {
     /// Start UCI I/O loop
     pub fn run(&self) {
         println!("{ENGINE_NAME} v{ENGINE_VERSION} by {ENGINE_AUTHOR}");
@@ -139,9 +150,10 @@ impl UCIReader {
     }
 }
 
-impl UCIController {
+impl<B : ChessBot> UCIController<B> {
     fn run(rx: mpsc::Receiver<UCICommand>, stop: Arc<AtomicBool>) {
         let mut board_state = ChessBoardState::starting_state();
+        let mut chessbot = B::default();
 
         for command in &rx {
             match command {
@@ -157,6 +169,10 @@ impl UCIController {
                 UCICommand::Peft(depth) => {
                     let nodes = perft(&board_state, depth);
                     println!("Nodes searched: {}", nodes);
+                },
+                UCICommand::Go => {
+                    let best_move = chessbot.search_best_move(&mut board_state, TimeControl::Infinite, stop.clone());
+                    println!("bestmove {:?}", best_move);
                 }
                 _ => eprintln!("Unexpected UCI command!"),
             }

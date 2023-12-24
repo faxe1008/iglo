@@ -3,10 +3,10 @@ use iglo::{chess::{
     chess_move::Move,
     move_generator::generate_legal_moves,
     square::Square,
-}, engine::board_eval::{EvaluationEngine, EvaluationFunction}};
+}, engine::board_eval::{EvaluationFunction, PieceCountEvaluation, PieceSquareTableEvaluation}};
 use core::time::Duration;
 use sdl2::{
-    audio::{AudioCVT, AudioCallback, AudioDevice, AudioSpecDesired, AudioSpecWAV, AudioStatus},
+    audio::{AudioCVT, AudioCallback, AudioDevice, AudioSpecDesired, AudioSpecWAV},
     event::Event,
     image::{self, InitFlag, LoadTexture, LoadSurface},
     keyboard::Keycode,
@@ -43,6 +43,13 @@ const PROMOTION_PIECE_SIZE: u32 = 120;
 const CAPTURE_INDICATOR_THICKNESS: u32 = 5;
 const CAPTURE_INDICATOR_MARGIN: i32 = 3;
 const CAPTURE_INDICATOR_SIDE_LEN: u32 = SQUARE_SIZE as u32 / 5;
+
+pub struct EvaluationEngine;
+impl EvaluationFunction for EvaluationEngine {
+    fn eval(board_state: &ChessBoardState) -> i32 {
+        PieceCountEvaluation::eval(&board_state) + PieceSquareTableEvaluation::eval(&board_state)
+    }
+}
 
 struct AssetPack<'a> {
     sprite_texture: Texture<'a>,

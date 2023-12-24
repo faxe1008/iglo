@@ -6,7 +6,7 @@ pub trait EvaluationFunction {
 }
 
 // Strategy: Value per Piece on either side
-struct PieceCountEvaluation;
+pub struct PieceCountEvaluation;
 impl EvaluationFunction for PieceCountEvaluation {
     fn eval(board_state: &ChessBoardState) -> i32 {
         let calc_piece_val_sum = |bitboards: &[BitBoard]| -> i32 {
@@ -79,7 +79,7 @@ const GLOBAL_PIECE_SQUARE_TABLE : [PieceSquareTable; 6] = [
     ]
 ];
 
-struct PieceSquareTableEvaluation;
+pub struct PieceSquareTableEvaluation;
 impl EvaluationFunction for PieceSquareTableEvaluation {
     fn eval(board_state: &ChessBoardState) -> i32 {
         let eval_sqt = |bitboards: &[BitBoard], color: PieceColor| {
@@ -111,17 +111,9 @@ impl EvaluationFunction for PieceSquareTableEvaluation {
     }
 }
 
-// Overall evaluation function
-pub struct EvaluationEngine;
-impl EvaluationFunction for EvaluationEngine {
-    fn eval(board_state: &ChessBoardState) -> i32 {
-        PieceCountEvaluation::eval(&board_state) + PieceSquareTableEvaluation::eval(&board_state)
-    }
-}
-
 #[cfg(test)]
 mod eval_tests {
-    use crate::{chess::board::ChessBoardState, engine::board_eval::{EvaluationEngine, EvaluationFunction}};
+    use crate::{chess::board::ChessBoardState, engine::board_eval::{PieceCountEvaluation, EvaluationFunction}};
 
    
     #[test]
@@ -130,6 +122,6 @@ mod eval_tests {
             ChessBoardState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0");
         assert!(start_board.is_ok());
         let start_board = start_board.unwrap();
-        assert_eq!(EvaluationEngine::eval(&start_board), 0);
+        assert_eq!(PieceCountEvaluation::eval(&start_board), 0);
     }
 }
