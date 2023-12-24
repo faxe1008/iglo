@@ -2,7 +2,7 @@
 name = "iglo"
 version = "0.1.0"
 edition = "2021"
-
+authors = ["Fabian Blatz"]
 
 [dependencies]
 
@@ -29,3 +29,7 @@ path = "src/chess/lookup_gens/main.rs"
 [[example]]
 name = "perft_debugger"
 path = "src/dbg/perft_debugger.rs"
+
+[[example]]
+name = "iglo"
+path = "src/engine/main.rs"

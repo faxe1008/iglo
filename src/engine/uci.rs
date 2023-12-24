@@ -1,4 +1,6 @@
-use crate::chess::{board::ChessBoardState, chess_move::Move};
+use std::{sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc}, thread, io::{stdin, BufRead}};
+
+use crate::chess::{board::ChessBoardState, chess_move::Move, perft::perft};
 
 const ENGINE_NAME: &str = env!("CARGO_PKG_NAME");
 const ENGINE_AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -12,6 +14,7 @@ enum UCICommand {
     SetOption(String, String),
     UCINewGame,
     Position(ChessBoardState),
+    Peft(u32),
     Quit,
     Stop
 }
@@ -73,10 +76,94 @@ impl TryFrom<&str> for UCICommand {
             },
             Some("quit") => Ok(UCICommand::Quit),
             Some("stop") => Ok(UCICommand::Stop),
+            Some("perft") => {
+                let depth = tokens.next().unwrap_or("1").parse::<u32>();
+                if let Ok(d) = depth {
+                    Ok(UCICommand::Peft(d))
+                } else {
+                    Err(())
+                }
+            }
             _ => Err(()),
         }
     }
 }
+
+struct UCIController();
+pub struct UCIReader {
+    stop: Arc<AtomicBool>,
+    controller_tx: mpsc::Sender<UCICommand>,
+}
+
+impl Default for UCIReader {
+    fn default() -> Self {
+        let (tx, rx) = mpsc::channel::<UCICommand>();
+        let stop = Arc::new(AtomicBool::new(false));
+        let thread_stop = stop.clone();
+        thread::spawn(move || UCIController::run(rx, thread_stop));
+
+        Self {
+            stop,
+            controller_tx: tx,
+        }
+    }
+}
+
+impl UCIReader {
+    /// Start UCI I/O loop
+    pub fn run(&self) {
+        println!("{ENGINE_NAME} v{ENGINE_VERSION} by {ENGINE_AUTHOR}");
+
+        let stream = stdin().lock();
+
+        for line in stream.lines().map(|l| l.expect("Parsing error!")) {
+            match UCICommand::try_from(line.as_ref()) {
+                Ok(command) => {
+                    match command {
+                        UCICommand::UCI => {
+                            println!("id name {ENGINE_NAME} {ENGINE_VERSION}");
+                            println!("id author {ENGINE_AUTHOR}");
+                            println!("uciok");
+                        }
+                        UCICommand::IsReady => {
+                            println!("readyok");
+                        }
+                        UCICommand::Stop => self.stop.store(true, Ordering::SeqCst), // strict ordering
+                        UCICommand::Quit => return,
+                        _ => self.controller_tx.send(command).unwrap(),
+                    }
+                }
+                Err(e) => println!("Error parsing {line}"),
+            };
+        }
+    }
+}
+
+impl UCIController {
+    fn run(rx: mpsc::Receiver<UCICommand>, stop: Arc<AtomicBool>) {
+        let mut board_state = ChessBoardState::starting_state();
+
+        for command in &rx {
+            match command {
+                UCICommand::UCINewGame => {
+                    board_state = ChessBoardState::starting_state();
+                },
+                UCICommand::SetOption(name, value) => {
+                },
+
+                UCICommand::Position(new_state) => {
+                    board_state = new_state;
+                },
+                UCICommand::Peft(depth) => {
+                    let nodes = perft(&board_state, depth);
+                    println!("Nodes searched: {}", nodes);
+                }
+                _ => eprintln!("Unexpected UCI command!"),
+            }
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod uci_tests {
