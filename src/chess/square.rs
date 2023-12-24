@@ -68,6 +68,11 @@ impl Square {
 
     pub const NUM: u16 = 64;
 
+    pub const WHITE_KING_SIDE_CASTLE_SQUARE : u16 = Self::G1;
+    pub const WHITE_QUEEN_SIDE_CASTLE_SQUARE : u16 = Self::C1;
+
+    pub const BLACK_KING_SIDE_CASTLE_SQAURE: u16 = Self::G8;
+    pub const BLACK_QUEEN_SIDE_CASTLE_SQAURE : u16 = Self::C8;
 
     pub fn designator_str_from_index(index: u16) -> String {
         let file = index % 8;

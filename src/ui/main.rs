@@ -508,7 +508,7 @@ fn execute_move_with_src_and_dst(
     if moves.is_empty() {
     } else if moves.len() == 1 {
         let move_to_play = moves[0];
-
+        println!("{:?}", &move_to_play);
         *board_state = board_state.exec_move(move_to_play);
 
         if move_to_play.is_capture() {
@@ -521,6 +521,7 @@ fn execute_move_with_src_and_dst(
         ui_state.promotion_prompt = Some((board_state.side, moves))
     }
 
+    println!("{}", board_state.to_fen());
     ui_state.black_in_check = !board_state.board.king_attackers(PieceColor::Black)[6].is_empty();
     ui_state.white_in_check = !board_state.board.king_attackers(PieceColor::White)[6].is_empty();
 
