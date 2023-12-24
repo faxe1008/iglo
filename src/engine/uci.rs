@@ -17,6 +17,8 @@ enum UCICommand {
     UCINewGame,
     Position(ChessBoardState),
     Peft(u32),
+    Eval,
+    Print,
     Go,
     Quit,
     Stop
@@ -90,6 +92,8 @@ impl TryFrom<&str> for UCICommand {
             Some("go") => {
                 Ok(UCICommand::Go)
             },
+            Some("eval") => Ok(UCICommand::Eval),
+            Some("print") => Ok(UCICommand::Print),
             _ => Err(()),
         }
     }
@@ -173,6 +177,12 @@ impl<B : ChessBot> UCIController<B> {
                 UCICommand::Go => {
                     let best_move = chessbot.search_best_move(&mut board_state, TimeControl::Infinite, stop.clone());
                     println!("bestmove {:?}", best_move);
+                },
+                UCICommand::Eval => {
+                    println!("Static evaluation: {}", B::eval(&board_state));
+                },
+                UCICommand::Print => {
+                    println!("{}", board_state.to_fen());
                 }
                 _ => eprintln!("Unexpected UCI command!"),
             }
