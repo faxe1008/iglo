@@ -12,6 +12,8 @@ enum UCICommand {
     SetOption(String, String),
     UCINewGame,
     Position(ChessBoardState),
+    Quit,
+    Stop
 }
 
 fn board_exec_movelist(board_state: &mut ChessBoardState, moves: &Vec<&str>)  {
@@ -68,7 +70,9 @@ impl TryFrom<&str> for UCICommand {
                 board_exec_movelist(&mut chessboard_state, &move_list);
 
                 Ok(UCICommand::Position(chessboard_state))
-            }
+            },
+            Some("quit") => Ok(UCICommand::Quit),
+            Some("stop") => Ok(UCICommand::Stop),
             _ => Err(()),
         }
     }
