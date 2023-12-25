@@ -8,7 +8,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() == 1 {
-        UCIReader::<OnePlyBot>::default().run();
+        UCIReader::<NPlyBot>::default().run();
     } else {
         match &args[1] as &str {
             "random" => UCIReader::<RandomBot>::default().run(),

@@ -1,3 +1,5 @@
+use std::cmp::{max, min};
+
 use crate::{
     chess::{
         board::{self, ChessBoardState, PieceColor},
@@ -9,8 +11,16 @@ use crate::{
     },
 };
 
-#[derive(Default)]
-pub struct NPlyBot();
+pub struct NPlyBot {
+    search_depth: u32,
+}
+
+impl Default for NPlyBot {
+    fn default() -> Self {
+        Self { search_depth: 4 }
+    }
+}
+
 impl ChessBot for NPlyBot {
     fn search_best_move(
         &mut self,
@@ -21,14 +31,15 @@ impl ChessBot for NPlyBot {
         let mut moves = board_state.generate_legal_moves_for_current_player();
 
         moves.sort_by(|a, b| {
-
             let board_a = board_state.exec_move(*a);
             let board_b = board_state.exec_move(*b);
 
             if board_state.side == PieceColor::White {
-                Self::minimax(&board_b, 2).cmp(&Self::minimax(&board_a, 2))
+                Self::minimax_alpha_beta(&board_b, self.search_depth, i32::MIN, i32::MAX)
+                    .cmp(&Self::minimax_alpha_beta(&board_a, self.search_depth,  i32::MIN, i32::MAX))
             } else {
-                Self::minimax(&board_a, 2).cmp(&Self::minimax(&board_b, 2))
+                Self::minimax_alpha_beta(&board_a, self.search_depth, i32::MIN, i32::MAX)
+                    .cmp(&Self::minimax_alpha_beta(&board_b, self.search_depth,  i32::MIN, i32::MAX))
             }
         });
 
@@ -36,9 +47,61 @@ impl ChessBot for NPlyBot {
         board_state.exec_move(best_move);
         best_move
     }
+    fn set_option(&mut self, _name: String, _value: String) {}
+    fn get_options() -> &'static str {
+        ""
+    }
 }
 
 impl NPlyBot {
+    fn minimax_alpha_beta(board_state: &ChessBoardState, depth: u32, mut alpha: i32, mut beta: i32) -> i32 {
+        if depth == 0 {
+            return Self::eval(board_state);
+        }
+
+        let moves = board_state.generate_legal_moves_for_current_player();
+        if moves.len() == 0 {
+            if board_state.side == PieceColor::White {
+                return i32::MIN;
+            } else {
+                return i32::MAX;
+            }
+        }
+
+        if board_state.side == PieceColor::White {
+            let mut value = i32::MIN;
+
+            for mv in &moves {
+                let new_board = board_state.exec_move(*mv);
+
+                value = max(
+                    value,
+                    Self::minimax_alpha_beta(&new_board, depth - 1, alpha, beta),
+                );
+                alpha = max(alpha, value);
+
+                if value >= beta {
+                    break;
+                }
+            }
+            value
+        } else {
+            let mut value = i32::MAX;
+            for mv in &moves {
+                let new_board = board_state.exec_move(*mv);
+                value = min(
+                    value,
+                    Self::minimax_alpha_beta(&new_board, depth - 1, alpha, beta),
+                );
+                beta = min(beta, value);
+                if value <= alpha {
+                    break;
+                }
+            }
+            value
+        }
+    }
+
     #[inline(always)]
     fn minimax(board_state: &ChessBoardState, depth: u32) -> i32 {
         if depth == 0 {

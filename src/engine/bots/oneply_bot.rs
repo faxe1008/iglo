@@ -30,6 +30,10 @@ impl ChessBot for OnePlyBot {
         *board_state = board_state.exec_move(selected_move);
         selected_move
     }
+    fn set_option(&mut self, _name: String, _value: String){}
+    fn get_options() -> &'static str {
+        ""
+    }
 }
 
 impl EvaluationFunction for OnePlyBot {

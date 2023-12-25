@@ -141,6 +141,9 @@ impl<B: ChessBot> UCIReader<B> {
                         UCICommand::UCI => {
                             println!("id name {ENGINE_NAME} {ENGINE_VERSION}");
                             println!("id author {ENGINE_AUTHOR}");
+                            if !B::get_options().is_empty(){
+                                println!("{}", B::get_options());
+                            }
                             println!("uciok");
                         }
                         UCICommand::IsReady => {
@@ -168,8 +171,8 @@ impl<B : ChessBot> UCIController<B> {
                     board_state = ChessBoardState::starting_state();
                 },
                 UCICommand::SetOption(name, value) => {
+                    chessbot.set_option(name, value);
                 },
-
                 UCICommand::Position(new_state) => {
                     board_state = new_state;
                 },
