@@ -69,9 +69,12 @@ impl ChessBot for NPlyTranspoBot {
             TimeControl::Infinite => 6,
         };
 
+
+        let cur_board_eval = self.get_eval(board_state);
+        println!("info score cp {}", cur_board_eval as f32 / 100.0);
+
         if board_state.full_moves % 20 == 0 {
             self.transposition_table.clear();
-            println!("info string clearning transposition table");
         }
 
         let mut ratings = if board_state.side == PieceColor::White {
@@ -133,7 +136,7 @@ impl NPlyTranspoBot {
         }
 
         let mut moves = board_state.generate_legal_moves_for_current_player();
-        
+
         // Sort moves by expected value
         moves.sort_by(|a,b| b.get_type().cmp(&a.get_type()));
 
@@ -188,8 +191,6 @@ impl EvaluationFunction for NPlyTranspoBot {
 
 #[cfg(test)]
 mod nplytranspo_tests {
-    use std::cmp::Ordering;
-
     use crate::chess::chess_move::MoveType;
 
     #[test]
