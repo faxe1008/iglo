@@ -22,7 +22,7 @@ impl ChessBot for NPlyBot {
         let mut moves = board_state.generate_legal_moves_for_current_player();
         let depth = match tc {
             TimeControl::FixedDepth(d) => d,
-            TimeControl::Infinite => 4,
+            TimeControl::Infinite => 6,
         };
 
         moves.sort_by(|a, b| {

@@ -1,5 +1,3 @@
-use std::cmp::min;
-
 use lerp::Lerp;
 
 use crate::chess::{

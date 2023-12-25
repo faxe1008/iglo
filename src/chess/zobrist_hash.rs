@@ -856,16 +856,16 @@ impl ZHash {
 
     pub fn toggle_piece_at_pos(&mut self, piece: ChessPiece, color: PieceColor, pos: usize) {
         let hash_pos = piece as usize * color as usize + pos;
-        self.0 ^= ZHASH_TABLE[hash_pos];
+        self.0 ^= &ZHASH_TABLE[hash_pos];
     }
 
     pub fn toggle_enpassant(&mut self, pos: usize) {
-        self.0 ^= EN_PASSANT_TABLE[pos];
+        self.0 ^= &EN_PASSANT_TABLE[pos];
     }
 
     pub fn swap_castling_rights(&mut self, old: &CastlingRights, new: &CastlingRights) {
-        self.0 ^= CASTLING_HASHES[old.index()];
-        self.0 ^= CASTLING_HASHES[new.index()];
+        self.0 ^= &CASTLING_HASHES[old.index()];
+        self.0 ^= &CASTLING_HASHES[new.index()];
     }
 
     pub fn toggle_side(&mut self) {

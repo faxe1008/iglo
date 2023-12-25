@@ -625,6 +625,7 @@ mod board_tests {
     use crate::chess::board::{CastlingRights, ChessBoard, ChessBoardState, PieceColor};
     use crate::chess::chess_move::{Move, MoveType};
     use crate::chess::square::Square;
+    use crate::chess::zobrist_hash::ZHash;
 
     fn check_board_equality(state: &ChessBoardState, state_expected: &ChessBoardState) {
         for piece_type in 0..=5 {
@@ -691,6 +692,7 @@ mod board_tests {
             en_passant_target: None,
             half_moves: 0,
             full_moves: 0,
+            zhash: ZHash::default()
         };
 
         check_board_equality(&board.unwrap(), &expected);
@@ -733,6 +735,7 @@ mod board_tests {
             en_passant_target: None,
             half_moves: 0,
             full_moves: 21,
+            zhash: ZHash::default()
         };
 
         check_board_equality(&board.unwrap(), &expected);
