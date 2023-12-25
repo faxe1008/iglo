@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-pub const TABLE_SIZE : usize = 128 * 1024;
+pub const TABLE_SIZE : usize = 128 * 1024 * 1024;
 pub const TABLE_ENTRY_SIZE : usize = std::mem::size_of::<TranspositionEntry>();
 pub const TABLE_ENTRY_COUNT: usize = TABLE_SIZE / TABLE_ENTRY_SIZE;
 
@@ -21,7 +21,12 @@ pub struct NPlyTranspoBot {
 
 impl Default for NPlyTranspoBot {
     fn default() -> Self {
-        Self { transposition_table: Box::new(TranspositionTable::<TABLE_ENTRY_COUNT>::default()) }
+        let transposition_table = unsafe {
+            let layout = std::alloc::Layout::new::<TranspositionTable::<TABLE_ENTRY_COUNT>>();
+            let ptr = std::alloc::alloc_zeroed(layout) as *mut TranspositionTable::<TABLE_ENTRY_COUNT>;
+            Box::from_raw(ptr)
+        };
+        Self { transposition_table: transposition_table }
     }
 }
 
@@ -64,7 +69,7 @@ impl ChessBot for NPlyTranspoBot {
             TimeControl::Infinite => 6,
         };
 
-        if board_state.full_moves % 5 == 0 {
+        if board_state.full_moves % 20 == 0 {
             self.transposition_table.clear();
             println!("info string clearning transposition table");
         }
