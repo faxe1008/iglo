@@ -1,6 +1,18 @@
-use iglo::engine::{uci::UCIReader, bots::random_bot::RandomBot};
+use std::env;
 
-fn main () {
-    let uci_reader = UCIReader::<RandomBot>::default();
-    uci_reader.run();
+use iglo::engine::{bots::oneply_bot::OnePlyBot, bots::random_bot::RandomBot, uci::UCIReader};
+use iglo::engine::bot::ChessBot;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() == 1 {
+        UCIReader::<OnePlyBot>::default().run();
+    } else {
+        match &args[1] as &str {
+            "random" => UCIReader::<RandomBot>::default().run(),
+            "oneply" => UCIReader::<OnePlyBot>::default().run(),
+            _ => return,
+        }
+    };
 }

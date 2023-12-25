@@ -242,7 +242,9 @@ impl TryFrom<(&str, &ChessBoardState)> for Move {
                             return Err(())
                         }
                     },
-                    _ => return Err(())
+                    _ => {
+                        // TODO: check king moves
+                    }
                 }
             }
 

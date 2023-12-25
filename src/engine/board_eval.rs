@@ -1,5 +1,11 @@
-use crate::chess::{board::{ChessBoardState, ChessPiece, PieceColor}, bitboard::BitBoard};
+use std::cmp::min;
 
+use lerp::Lerp;
+
+use crate::chess::{
+    bitboard::BitBoard,
+    board::{ChessBoardState, ChessPiece, PieceColor},
+};
 
 pub trait EvaluationFunction {
     fn eval(board_state: &ChessBoardState) -> i32;
@@ -22,11 +28,38 @@ impl EvaluationFunction for PieceCountEvaluation {
     }
 }
 
+fn endgame_lerp_value(board_state: &ChessBoardState) -> f32 {
+    let piece_count: u32 = [
+        ChessPiece::Bishop,
+        ChessPiece::Knight,
+        ChessPiece::Rook,
+        ChessPiece::Queen,
+    ]
+    .iter()
+    .map(|&p| {
+        board_state.board.white_pieces[p as usize].bit_count()
+            + board_state.board.black_pieces[p as usize].bit_count()
+    })
+    .sum();
+
+    1.0 - piece_count as f32 / 14.0
+}
+
 // Strategy: Piece Square Table
 type PieceSquareTable = [i32; 64];
 #[rustfmt::skip]
 const GLOBAL_PIECE_SQUARE_TABLE : [PieceSquareTable; 6] = [
-    [0; 64],
+    [ 
+        // Pawn
+        0,   0,   0,   0,   0,   0,   0,   0,
+        50,  50,  50,  50,  50,  50,  50,  50,
+        10,  10,  20,  30,  30,  20,  10,  10,
+         5,   5,  10,  25,  25,  10,   5,   5,
+         0,   0,   0,  20,  20,   0,   0,   0,
+         5,  -5, -10,   0,   0, -10,  -5,   5,
+         5,  10,  10, -20, -20,  10,  10,   5,
+         0,   0,   0,   0,   0,   0,   0,   0
+    ],
     [   // Knight
         -50,-40,-30,-30,-30,-30,-40,-50, 
         -40,-20,  0,  0,  0,  0,-20,-40,
@@ -79,9 +112,38 @@ const GLOBAL_PIECE_SQUARE_TABLE : [PieceSquareTable; 6] = [
     ]
 ];
 
+#[rustfmt::skip]
+const PAWN_END_GAME_TABLE : PieceSquareTable = 
+[ 
+    // Pawn
+    0,   0,   0,   0,   0,   0,   0,   0,
+    80,  80,  80,  80,  80,  80,  80,  80,
+    50,  50,  50,  50,  50,  50,  50,  50,
+    30,  30,  30,  30,  30,  30,  30,  30,
+    20,  20,  20,  20,  20,  20,  20,  20,
+    10,  10,  10,  10,  10,  10,  10,  10,
+    10,  10,  10,  10,  10,  10,  10,  10,
+     0,   0,   0,   0,   0,   0,   0,   0
+];
+
+#[rustfmt::skip]
+const KING_END_GAME_TABLE : PieceSquareTable = 
+ [
+    // king end game
+    -50,-40,-30,-20,-20,-30,-40,-50,
+    -30,-20,-10,  0,  0,-10,-20,-30,
+    -30,-10, 20, 30, 30, 20,-10,-30,
+    -30,-10, 30, 40, 40, 30,-10,-30,
+    -30,-10, 30, 40, 40, 30,-10,-30,
+    -30,-10, 20, 30, 30, 20,-10,-30,
+    -30,-30,  0,  0,  0,  0,-30,-30,
+    -50,-30,-30,-30,-30,-30,-30,-50
+];
+
 pub struct PieceSquareTableEvaluation;
 impl EvaluationFunction for PieceSquareTableEvaluation {
     fn eval(board_state: &ChessBoardState) -> i32 {
+        let endgame_factor = endgame_lerp_value(board_state);
         let eval_sqt = |bitboards: &[BitBoard], color: PieceColor| {
             let mut sum = 0;
             for (piece, board) in bitboards.iter().enumerate() {
@@ -91,16 +153,24 @@ impl EvaluationFunction for PieceSquareTableEvaluation {
 
                 let square_table = &GLOBAL_PIECE_SQUARE_TABLE[piece];
 
-                for i in 0..64 {
+                for i in board.into_iter() {
                     let table_pos = if color == PieceColor::White {
                         i
                     } else {
                         63 - i
                     };
 
-                    if board.get_bit(i) {
-                        sum = sum + square_table[table_pos];
-                    }
+                    let piece_value = match ChessPiece::from(piece) {
+                        ChessPiece::King => (square_table[table_pos] as f32)
+                            .lerp(KING_END_GAME_TABLE[table_pos] as f32, endgame_factor)
+                            as i32,
+                        ChessPiece::Pawn => (square_table[table_pos] as f32)
+                            .lerp(PAWN_END_GAME_TABLE[table_pos] as f32, endgame_factor)
+                            as i32,
+                        _ => square_table[table_pos],
+                    };
+
+                    sum = sum + piece_value;
                 }
             }
             sum
@@ -113,9 +183,11 @@ impl EvaluationFunction for PieceSquareTableEvaluation {
 
 #[cfg(test)]
 mod eval_tests {
-    use crate::{chess::board::ChessBoardState, engine::board_eval::{PieceCountEvaluation, EvaluationFunction}};
+    use crate::{
+        chess::board::ChessBoardState,
+        engine::board_eval::{EvaluationFunction, PieceCountEvaluation},
+    };
 
-   
     #[test]
     fn eval_start_pos() {
         let start_board =

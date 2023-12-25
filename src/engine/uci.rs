@@ -27,7 +27,10 @@ enum UCICommand {
 fn board_exec_movelist(board_state: &mut ChessBoardState, moves: &Vec<&str>)  {
     for move_str in moves {
         if let Ok(mv) = Move::try_from(((*move_str).trim(), &*board_state)) {
+            eprintln!("Got: '{}', Executed: {:?}", move_str, &mv);
             *board_state = board_state.exec_move(mv);
+        } else {
+            eprintln!("Illegal move: '{}'", move_str);
         }
     }
 }
