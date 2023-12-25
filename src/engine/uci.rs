@@ -19,7 +19,7 @@ enum UCICommand {
     Peft(u32),
     Eval,
     Print,
-    Go,
+    Go(TimeControl),
     Quit,
     Stop
 }
@@ -93,7 +93,18 @@ impl TryFrom<&str> for UCICommand {
                 }
             },
             Some("go") => {
-                Ok(UCICommand::Go)
+                let timecontrol = match tokens.next() {
+                    Some("depth") => {
+                        if let Some(tk) = tokens.next() {
+                            TimeControl::FixedDepth(tk.parse::<u32>().unwrap_or(4))
+                        } else {
+                            TimeControl::Infinite
+                        }
+                    }
+                    _ => TimeControl::Infinite
+                };
+
+                Ok(UCICommand::Go(timecontrol))
             },
             Some("eval") => Ok(UCICommand::Eval),
             Some("print") => Ok(UCICommand::Print),
@@ -180,8 +191,8 @@ impl<B : ChessBot> UCIController<B> {
                     let nodes = perft(&board_state, depth);
                     println!("Nodes searched: {}", nodes);
                 },
-                UCICommand::Go => {
-                    let best_move = chessbot.search_best_move(&mut board_state, TimeControl::Infinite, stop.clone());
+                UCICommand::Go(tc) => {
+                    let best_move = chessbot.search_best_move(&mut board_state, tc, stop.clone());
                     println!("bestmove {:?}", best_move);
                 },
                 UCICommand::Eval => {

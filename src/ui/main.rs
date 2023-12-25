@@ -523,12 +523,12 @@ fn execute_move_with_src_and_dst(
         } else {
             play_sound(&mut asset_pack.move_sound);
         }
+        println!("{:x}", board_state.zhash.0);
 
     } else {
         ui_state.promotion_prompt = Some((board_state.side, moves))
     }
 
-    println!("{}", board_state.to_fen());
     ui_state.black_in_check = !board_state.board.king_attackers(PieceColor::Black)[6].is_empty();
     ui_state.white_in_check = !board_state.board.king_attackers(PieceColor::White)[6].is_empty();
 

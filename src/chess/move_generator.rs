@@ -2,7 +2,7 @@ use super::{
     bitboard::{BitBoard, MagicEntry},
     board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor},
     chess_move::{Move, MoveType, PROMOTION_CAPTURE_TARGETS, PROMOTION_TARGETS},
-    square::Square,
+    square::Square, zobrist_hash::ZHash,
 };
 
 const BLACK_KING_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0x60);
@@ -221,8 +221,9 @@ fn does_enpassant_reveal_friendly_check(
     let pawn_board = BitBoard::EMPTY
         .set_bit(en_passanted_victim)
         .set_bit(en_passant_attacker);
+    let mut hash = ZHash::default();
     let mut board_without_pawns = board_state.board.remove_any_piece_by_mask(pawn_board);
-    board_without_pawns.place_piece_of_color(ChessPiece::Pawn, color, en_passant_target);
+    board_without_pawns.place_piece_of_color(ChessPiece::Pawn, color, en_passant_target, &mut hash);
 
     board_without_pawns.king_attackers(color)[6] != BitBoard::EMPTY
 }

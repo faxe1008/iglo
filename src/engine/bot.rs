@@ -2,9 +2,10 @@ use std::sync::{Arc, atomic::AtomicBool};
 use crate::chess::{board::ChessBoardState, chess_move::Move};
 use super::board_eval::EvaluationFunction;
 
-
+#[derive(PartialEq, Debug)]
 pub enum TimeControl {
-    Infinite
+    Infinite,
+    FixedDepth(u32)
 }
 
 pub trait ChessBot : EvaluationFunction + Default {
