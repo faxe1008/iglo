@@ -80,6 +80,8 @@ impl MoveType {
 }
 
 impl Move {
+    pub const NULL_MOVE : Move = Move(0);
+
     pub fn new(src: u16, dst: u16, ty: MoveType) -> Self {
         Self(src | (dst << MOVE_DST_SHIFT) | ((ty as u16) << MOVE_TYPE_SHIFT))
     }

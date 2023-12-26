@@ -1,10 +1,10 @@
-use crate::chess::{zobrist_hash::ZHash, chess_move::Move};
+use crate::chess::{zobrist_hash::ZHash};
 
 
 #[derive(Default, Copy, Clone)]
 pub struct TranspositionEntry {
     pub zhash: ZHash,
-    pub eval: i32
+    pub eval: i32,
 }
 
 pub struct TranspositionTable<const T: usize> {

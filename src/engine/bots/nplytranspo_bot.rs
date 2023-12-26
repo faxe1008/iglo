@@ -7,26 +7,31 @@ use crate::{
     },
     engine::{
         board_eval::{EvaluationFunction, PieceCountEvaluation, PieceSquareTableEvaluation},
-        bot::{ChessBot, TimeControl}, transposition_table::{TranspositionEntry, TranspositionTable},
+        bot::{ChessBot, TimeControl},
+        opening::opening_book::OpeningBook,
+        transposition_table::{TranspositionEntry, TranspositionTable},
     },
 };
 
-pub const TABLE_SIZE : usize = 128 * 1024 * 1024;
-pub const TABLE_ENTRY_SIZE : usize = std::mem::size_of::<TranspositionEntry>();
+pub const TABLE_SIZE: usize = 512 * 1024 * 1024;
+pub const TABLE_ENTRY_SIZE: usize = std::mem::size_of::<TranspositionEntry>();
 pub const TABLE_ENTRY_COUNT: usize = TABLE_SIZE / TABLE_ENTRY_SIZE;
 
 pub struct NPlyTranspoBot {
-    transposition_table: Box<TranspositionTable<TABLE_ENTRY_COUNT>>
+    pub transposition_table: Box<TranspositionTable<TABLE_ENTRY_COUNT>>,
 }
 
 impl Default for NPlyTranspoBot {
     fn default() -> Self {
         let transposition_table = unsafe {
-            let layout = std::alloc::Layout::new::<TranspositionTable::<TABLE_ENTRY_COUNT>>();
-            let ptr = std::alloc::alloc_zeroed(layout) as *mut TranspositionTable::<TABLE_ENTRY_COUNT>;
+            let layout = std::alloc::Layout::new::<TranspositionTable<TABLE_ENTRY_COUNT>>();
+            let ptr =
+                std::alloc::alloc_zeroed(layout) as *mut TranspositionTable<TABLE_ENTRY_COUNT>;
             Box::from_raw(ptr)
         };
-        Self { transposition_table: transposition_table }
+        Self {
+            transposition_table: transposition_table,
+        }
     }
 }
 
@@ -38,7 +43,7 @@ impl Ord for MoveType {
 
         if self.is_capture() && !other.is_capture() {
             return Ordering::Greater;
-        }else if !self.is_capture() && other.is_capture() {
+        } else if !self.is_capture() && other.is_capture() {
             return Ordering::Less;
         }
 
@@ -46,8 +51,12 @@ impl Ord for MoveType {
             (MoveType::QueenPromotion, MoveType::KnightPromotion) => return Ordering::Greater,
             (MoveType::QueenPromotion, MoveType::BishopPromotion) => return Ordering::Greater,
             (MoveType::QueenPromotion, MoveType::RookPromotion) => return Ordering::Greater,
-            (MoveType::QueenCapPromotion, MoveType::KnightCapPromotion) => return Ordering::Greater,
-            (MoveType::QueenCapPromotion, MoveType::BishopCapPromotion) => return Ordering::Greater,
+            (MoveType::QueenCapPromotion, MoveType::KnightCapPromotion) => {
+                return Ordering::Greater
+            }
+            (MoveType::QueenCapPromotion, MoveType::BishopCapPromotion) => {
+                return Ordering::Greater
+            }
             (MoveType::QueenCapPromotion, MoveType::RookCapPromotion) => return Ordering::Greater,
             _ => {}
         };
@@ -63,48 +72,27 @@ impl ChessBot for NPlyTranspoBot {
         tc: TimeControl,
         _stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Move {
-        let mut moves = board_state.generate_legal_moves_for_current_player();
         let depth = match tc {
             TimeControl::FixedDepth(d) => d,
             TimeControl::Infinite => 6,
         };
 
-
-        let cur_board_eval = self.get_eval(board_state);
-        println!("info score cp {}", cur_board_eval as f32 / 100.0);
-
+        // Purge transpo table if needed
         if board_state.full_moves % 20 == 0 {
             self.transposition_table.clear();
         }
 
-        let mut ratings = if board_state.side == PieceColor::White {
-            vec![i32::MIN;moves.len()]
-        } else {
-            vec![i32::MAX;moves.len()]
-        };
+        // Print current board eval
+        let cur_board_eval = self.get_eval(board_state);
+        println!("info score cp {}", cur_board_eval as f32 / 100.0);
 
-        // Sort moves by expected value
-        moves.sort_by(|a,b| b.get_type().cmp(&a.get_type()));
-
-        // Evaluate moves
-        for (mv_index, mv) in moves.iter().enumerate() {
-            let board_new = board_state.exec_move(*mv);
-            ratings[mv_index] = self.minimax_alpha_beta(&board_new, depth, i32::MIN, i32::MAX);
-        }
-
-        let mut zipped : Vec<_> =  moves.drain(..).zip(ratings.drain(..)).collect();
-
-        if board_state.side == PieceColor::White {
-            zipped.sort_by(|(_, a_rt), (_, b_rt)| b_rt.cmp(a_rt));
-        } else {
-            zipped.sort_by(|(_, a_rt), (_, b_rt)| a_rt.cmp(b_rt));
-        }
+        let mut moves = board_state.generate_legal_moves_for_current_player();
+        let zipped = self.eval_moves(depth, board_state, &mut moves);
 
         let best_move = zipped[0].0;
         board_state.exec_move(best_move);
         best_move
     }
-
 
     fn set_option(&mut self, _name: String, _value: String) {}
     fn get_options() -> &'static str {
@@ -113,13 +101,44 @@ impl ChessBot for NPlyTranspoBot {
 }
 
 impl NPlyTranspoBot {
+    pub fn eval_moves(
+        &mut self,
+        depth: u32,
+        board_state: &ChessBoardState,
+        moves: &mut Vec<Move>,
+    ) -> Vec<(Move, i32)> {
+        let mut ratings = if board_state.side == PieceColor::White {
+            vec![i32::MIN; moves.len()]
+        } else {
+            vec![i32::MAX; moves.len()]
+        };
 
-    fn get_eval(&mut self, board_state: &ChessBoardState)  -> i32 {
+        // Sort moves by expected value
+        moves.sort_by(|a, b| b.get_type().cmp(&a.get_type()));
+
+        // Evaluate moves
+        for (mv_index, mv) in moves.iter().enumerate() {
+            let board_new = board_state.exec_move(*mv);
+            ratings[mv_index] = self.minimax_alpha_beta(&board_new, depth, i32::MIN, i32::MAX);
+        }
+
+        let mut zipped: Vec<_> = moves.drain(..).zip(ratings.drain(..)).collect();
+
+        if board_state.side == PieceColor::White {
+            zipped.sort_by(|(_, a_rt), (_, b_rt)| b_rt.cmp(a_rt));
+        } else {
+            zipped.sort_by(|(_, a_rt), (_, b_rt)| a_rt.cmp(b_rt));
+        }
+        zipped
+    }
+
+    fn get_eval(&mut self, board_state: &ChessBoardState) -> i32 {
         if let Some(entry) = self.transposition_table.lookup(board_state.zhash) {
             entry.eval
         } else {
             let ev_value = Self::eval(board_state);
-            self.transposition_table.add_entry(board_state.zhash, ev_value);
+            self.transposition_table
+                .add_entry(board_state.zhash, ev_value);
             ev_value
         }
     }
@@ -138,7 +157,7 @@ impl NPlyTranspoBot {
         let mut moves = board_state.generate_legal_moves_for_current_player();
 
         // Sort moves by expected value
-        moves.sort_by(|a,b| b.get_type().cmp(&a.get_type()));
+        moves.sort_by(|a, b| b.get_type().cmp(&a.get_type()));
 
         if moves.len() == 0 {
             if board_state.side == PieceColor::White {
