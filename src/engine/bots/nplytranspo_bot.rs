@@ -6,7 +6,7 @@ use crate::{
         chess_move::{Move, MoveType},
     },
     engine::{
-        board_eval::{EvaluationFunction, PieceCountEvaluation, PieceSquareTableEvaluation},
+        board_eval::{EvaluationFunction, PieceCountEvaluation, PieceSquareTableEvaluation, PassedPawnEvaluation},
         bot::{ChessBot, TimeControl},
         transposition_table::{TranspositionEntry, TranspositionTable},
     },
@@ -203,7 +203,7 @@ impl NPlyTranspoBot {
 
 impl EvaluationFunction for NPlyTranspoBot {
     fn eval(board_state: &crate::chess::board::ChessBoardState) -> i32 {
-        PieceCountEvaluation::eval(board_state) + PieceSquareTableEvaluation::eval(board_state)
+        PieceCountEvaluation::eval(board_state) + PieceSquareTableEvaluation::eval(board_state) + PassedPawnEvaluation::eval(board_state)
     }
 }
 

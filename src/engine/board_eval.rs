@@ -179,11 +179,73 @@ impl EvaluationFunction for PieceSquareTableEvaluation {
     }
 }
 
+pub struct PassedPawnEvaluation;
+impl EvaluationFunction for PassedPawnEvaluation {
+    fn eval(board_state: &ChessBoardState) -> i32 {
+        let eval_passed_pawns = |color: PieceColor| -> i32 {
+            let own_pawns = board_state
+                .board
+                .get_piece_bitboard(ChessPiece::Pawn, color);
+            let opposing_pawns = board_state
+                .board
+                .get_piece_bitboard(ChessPiece::Pawn, !color);
+
+            let mut bonus = 0;
+
+            for pawn in own_pawns {
+                let pp_mask = Self::mask_infront_of_pawn(pawn as u64, color)
+                    & Self::mask_neighbor_file_of_pawn(pawn as u64);
+                if opposing_pawns & pp_mask == BitBoard::EMPTY {
+                    bonus += Self::bonus_for_passed_pawn(pawn, color);
+                }
+            }
+            bonus
+        };
+
+        eval_passed_pawns(PieceColor::White) - eval_passed_pawns(PieceColor::Black)
+    }
+}
+
+impl PassedPawnEvaluation {
+    fn mask_infront_of_pawn(pos: u64, color: PieceColor) -> BitBoard {
+        let rank_index = pos / 8;
+        if color == PieceColor::White {
+            BitBoard(0xFFFFFFFFFFFFFFFF >> (8 * (7 - rank_index + 1)))
+        } else {
+            BitBoard(0xFFFFFFFFFFFFFFFF << (8 * (rank_index + 1)))
+        }
+    }
+
+    pub fn mask_neighbor_file_of_pawn(pos: u64) -> BitBoard {
+        let file_index = pos % 8;
+        const A_FILE_MASK: u64 = 0x101010101010101;
+
+        let mut mask = A_FILE_MASK << file_index;
+        if file_index > 0 {
+            mask |= A_FILE_MASK << (file_index - 1);
+        }
+        if file_index < 7 {
+            mask |= A_FILE_MASK << (file_index + 1);
+        }
+        BitBoard(mask)
+    }
+
+    pub fn bonus_for_passed_pawn(pos: usize, color: PieceColor) -> i32 {
+        const BONUS_FOR_PASSED_PAWN: [i32; 8] = [0, 90, 70, 45, 30, 15, 0, 0];
+        let rank = pos / 8;
+        if color == PieceColor::White {
+            BONUS_FOR_PASSED_PAWN[rank]
+        } else {
+            BONUS_FOR_PASSED_PAWN[7 - rank]
+        }
+    }
+}
+
 #[cfg(test)]
 mod eval_tests {
     use crate::{
         chess::board::ChessBoardState,
-        engine::board_eval::{EvaluationFunction, PieceCountEvaluation},
+        engine::board_eval::{EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation},
     };
 
     #[test]
@@ -193,5 +255,20 @@ mod eval_tests {
         assert!(start_board.is_ok());
         let start_board = start_board.unwrap();
         assert_eq!(PieceCountEvaluation::eval(&start_board), 0);
+    }
+
+    #[test]
+    fn eval_passed_pawn() {
+        let board_state_passer =
+            ChessBoardState::from_fen("4k3/8/6P1/8/8/8/8/4K3 w - - 0 1").unwrap();
+        assert!(PassedPawnEvaluation::eval(&board_state_passer) > 0);
+
+        let board_state_no_passer =
+            ChessBoardState::from_fen("4k3/6p1/6P1/8/8/8/8/4K3 w - - 0 1").unwrap();
+        assert!(PassedPawnEvaluation::eval(&board_state_no_passer) == 0);
+
+        let board_opposing_passer =
+            ChessBoardState::from_fen("4k3/8/8/8/6p1/8/8/4K3 w - - 0 1").unwrap();
+        assert!(PassedPawnEvaluation::eval(&board_opposing_passer) < 0);
     }
 }
