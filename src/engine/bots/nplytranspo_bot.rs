@@ -8,12 +8,11 @@ use crate::{
     engine::{
         board_eval::{EvaluationFunction, PieceCountEvaluation, PieceSquareTableEvaluation},
         bot::{ChessBot, TimeControl},
-        opening::opening_book::OpeningBook,
         transposition_table::{TranspositionEntry, TranspositionTable},
     },
 };
 
-pub const TABLE_SIZE: usize = 512 * 1024 * 1024;
+pub const TABLE_SIZE: usize = 64 * 1024 * 1024;
 pub const TABLE_ENTRY_SIZE: usize = std::mem::size_of::<TranspositionEntry>();
 pub const TABLE_ENTRY_COUNT: usize = TABLE_SIZE / TABLE_ENTRY_SIZE;
 
