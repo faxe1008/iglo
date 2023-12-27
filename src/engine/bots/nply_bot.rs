@@ -48,6 +48,9 @@ impl ChessBot for NPlyBot {
     fn get_options() -> &'static str {
         ""
     }
+    fn append_to_history(&mut self, board_state: &mut ChessBoardState) {}
+    fn clear_history(&mut self) {}
+
 }
 
 impl NPlyBot {

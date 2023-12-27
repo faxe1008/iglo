@@ -1,7 +1,7 @@
 use rand::random;
 
 use crate::{
-    chess::chess_move::Move,
+    chess::{chess_move::Move, board::ChessBoardState},
     engine::{
         board_eval::EvaluationFunction,
         bot::{ChessBot, TimeControl},
@@ -28,6 +28,8 @@ impl ChessBot for RandomBot {
     fn get_options() -> &'static str {
         ""
     }
+    fn append_to_history(&mut self, board_state: &mut ChessBoardState) {}
+    fn clear_history(&mut self) {}
 }
 
 impl EvaluationFunction for RandomBot {

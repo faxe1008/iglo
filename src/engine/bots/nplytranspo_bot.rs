@@ -5,7 +5,7 @@ use rand::random;
 use crate::{
     chess::{
         board::{ChessBoardState, PieceColor},
-        chess_move::{Move, MoveType},
+        chess_move::{Move, MoveType}, zobrist_hash::ZHash,
     },
     engine::{
         board_eval::{
@@ -25,6 +25,7 @@ const INFINITY: i32 = 50000;
 
 pub struct NPlyTranspoBot {
     pub transposition_table: Box<TranspositionTable<TABLE_ENTRY_COUNT>>,
+    history: Vec<ZHash>
 }
 
 impl Default for NPlyTranspoBot {
@@ -37,6 +38,7 @@ impl Default for NPlyTranspoBot {
         };
         Self {
             transposition_table: transposition_table,
+            history: vec![]
         }
     }
 }
@@ -83,11 +85,6 @@ impl ChessBot for NPlyTranspoBot {
             TimeControl::Infinite => 6,
         };
 
-        // Purge transpo table if needed
-        if board_state.full_moves % 20 == 0 {
-            self.transposition_table.clear();
-        }
-
         // Print current board eval
         let cur_board_eval = self.get_eval(board_state, 1);
         println!("info score cp {}", cur_board_eval as f32 / 100.0);
@@ -97,6 +94,7 @@ impl ChessBot for NPlyTranspoBot {
 
         let best_move = zipped[0].0;
         board_state.exec_move(best_move);
+        self.history.push(board_state.zhash);
         best_move
     }
 
@@ -104,6 +102,13 @@ impl ChessBot for NPlyTranspoBot {
     fn get_options() -> &'static str {
         ""
     }
+    fn append_to_history(&mut self, board_state: &mut ChessBoardState) {
+        self.history.push(board_state.zhash);
+    }
+    fn clear_history(&mut self) {
+        self.history.clear();
+    }
+
 }
 
 impl NPlyTranspoBot {
@@ -149,6 +154,27 @@ impl NPlyTranspoBot {
         }
     }
 
+    fn is_draw(&self, board_state: &ChessBoardState, depth: u32) -> bool {
+        board_state.half_moves >= 100 || self.is_repetition(board_state, depth)
+    }
+
+    fn is_repetition(&self, board_state: &ChessBoardState, depth: u32) -> bool {
+        let rollback = 1 + (depth as usize).min(board_state.half_moves as usize);
+
+        // Rollback == 1 implies we only look at the opponent's position.
+        if rollback == 1 {
+            return false;
+        }
+
+        self.history
+            .iter()
+            .rev() // step through history in reverse
+            .take(rollback) // only check elements within rollback
+            .skip(1) // first element is opponent, skip.
+            .step_by(2) // don't check opponent moves
+            .any(|b| *b == board_state.zhash) // stop at first repetition
+    }
+
     fn minimax_alpha_beta(
         &mut self,
         board_state: &ChessBoardState,
@@ -162,6 +188,7 @@ impl NPlyTranspoBot {
 
         let mut moves = board_state.generate_legal_moves_for_current_player();
 
+        // No moves, either draw or checkmate
         if moves.len() == 0 {
             let score = match (board_state.side, board_state.is_in_check()) {
                 (PieceColor::White, true) => -INFINITY * depth as i32,

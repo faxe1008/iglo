@@ -15,24 +15,13 @@ enum UCICommand {
     IsReady,
     SetOption(String, String),
     UCINewGame,
-    Position(ChessBoardState),
+    Position(ChessBoardState, Vec<String>),
     Peft(u32),
     Eval,
     Print,
     Go(TimeControl),
     Quit,
     Stop
-}
-
-fn board_exec_movelist(board_state: &mut ChessBoardState, moves: &Vec<&str>)  {
-    for move_str in moves {
-        if let Ok(mv) = Move::try_from(((*move_str).trim(), &*board_state)) {
-            eprintln!("Got: '{}', Executed: {:?}", move_str, &mv);
-            *board_state = board_state.exec_move(mv);
-        } else {
-            eprintln!("Illegal move: '{}'", move_str);
-        }
-    }
 }
 
 impl TryFrom<&str> for UCICommand {
@@ -72,15 +61,13 @@ impl TryFrom<&str> for UCICommand {
                     Some(_) | None => return Err(()),
                 };
 
-                let move_list = if let Some("moves") = tokens.next() {
-                    tokens.collect()
+                let move_list : Vec<String> = if let Some("moves") = tokens.next() {
+                    tokens.map(|x| x.to_string()).collect()
                 } else {
                     vec![]
                 };
 
-                board_exec_movelist(&mut chessboard_state, &move_list);
-
-                Ok(UCICommand::Position(chessboard_state))
+                Ok(UCICommand::Position(chessboard_state, move_list))
             },
             Some("quit") => Ok(UCICommand::Quit),
             Some("stop") => Ok(UCICommand::Stop),
@@ -184,8 +171,9 @@ impl<B : ChessBot> UCIController<B> {
                 UCICommand::SetOption(name, value) => {
                     chessbot.set_option(name, value);
                 },
-                UCICommand::Position(new_state) => {
+                UCICommand::Position(new_state, move_list) => {
                     board_state = new_state;
+                    chessbot.execute_move_list(&mut board_state, &move_list);
                 },
                 UCICommand::Peft(depth) => {
                     let nodes = perft(&board_state, depth);

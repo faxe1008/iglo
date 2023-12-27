@@ -1,5 +1,5 @@
 use crate::{
-    chess::{chess_move::Move, board::PieceColor},
+    chess::{chess_move::Move, board::{PieceColor, ChessBoardState}},
     engine::{
         board_eval::{EvaluationFunction, PieceCountEvaluation, PieceSquareTableEvaluation},
         bot::{ChessBot, TimeControl},
@@ -34,6 +34,8 @@ impl ChessBot for OnePlyBot {
     fn get_options() -> &'static str {
         ""
     }
+    fn append_to_history(&mut self, board_state: &mut ChessBoardState) {}
+    fn clear_history(&mut self) {}
 }
 
 impl EvaluationFunction for OnePlyBot {
