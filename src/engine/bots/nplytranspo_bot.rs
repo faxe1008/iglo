@@ -5,7 +5,8 @@ use rand::random;
 use crate::{
     chess::{
         board::{ChessBoardState, PieceColor},
-        chess_move::{Move, MoveType}, zobrist_hash::ZHash,
+        chess_move::{Move, MoveType},
+        zobrist_hash::ZHash,
     },
     engine::{
         board_eval::{
@@ -25,7 +26,7 @@ const INFINITY: i32 = 50000;
 
 pub struct NPlyTranspoBot {
     pub transposition_table: Box<TranspositionTable<TABLE_ENTRY_COUNT>>,
-    history: Vec<ZHash>
+    history: Vec<ZHash>,
 }
 
 impl Default for NPlyTranspoBot {
@@ -38,7 +39,7 @@ impl Default for NPlyTranspoBot {
         };
         Self {
             transposition_table: transposition_table,
-            history: vec![]
+            history: vec![],
         }
     }
 }
@@ -90,9 +91,20 @@ impl ChessBot for NPlyTranspoBot {
         println!("info score cp {}", cur_board_eval as f32 / 100.0);
 
         let mut moves = board_state.generate_legal_moves_for_current_player();
-        let zipped = self.eval_moves(depth, board_state, &mut moves);
 
-        let best_move = zipped[0].0;
+        // Sort moves by expected value
+        moves.sort_by(|a, b| b.get_type().cmp(&a.get_type()));
+
+        if board_state.full_moves == 0 {
+            return moves[random::<usize>() % moves.len()];
+        }
+
+        // Iterative deepening
+        for d in 1..=depth {
+            self.eval_moves(d, board_state, &mut moves);
+        }
+
+        let best_move = moves[0];
         board_state.exec_move(best_move);
         self.history.push(board_state.zhash);
         best_move
@@ -108,39 +120,34 @@ impl ChessBot for NPlyTranspoBot {
     fn clear_history(&mut self) {
         self.history.clear();
     }
-
 }
 
 impl NPlyTranspoBot {
-    pub fn eval_moves(
-        &mut self,
-        depth: u32,
-        board_state: &ChessBoardState,
-        moves: &mut Vec<Move>,
-    ) -> Vec<(Move, i32)> {
+    pub fn eval_moves(&mut self, depth: u32, board_state: &ChessBoardState, moves: &mut Vec<Move>) {
         let mut ratings = if board_state.side == PieceColor::White {
             vec![i32::MIN; moves.len()]
         } else {
             vec![i32::MAX; moves.len()]
         };
 
-        // Sort moves by expected value
-        moves.sort_by(|a, b| b.get_type().cmp(&a.get_type()));
-
         // Evaluate moves
         for (mv_index, mv) in moves.iter().enumerate() {
             let board_new = board_state.exec_move(*mv);
-            ratings[mv_index] = self.minimax_alpha_beta(&board_new, depth, i32::MIN, i32::MAX);
+            ratings[mv_index] = self.minimax_alpha_beta(&board_new, depth, 0, i32::MIN, i32::MAX);
         }
 
-        let mut zipped: Vec<_> = moves.drain(..).zip(ratings.drain(..)).collect();
+        // TODO if aborted do not sort
 
+        // Sort moves by their rating
+        let mut zipped: Vec<_> = moves.drain(..).zip(ratings.drain(..)).collect();
         if board_state.side == PieceColor::White {
             zipped.sort_by(|(_, a_rt), (_, b_rt)| b_rt.cmp(a_rt));
         } else {
             zipped.sort_by(|(_, a_rt), (_, b_rt)| a_rt.cmp(b_rt));
         }
-        zipped
+
+        // Push sorted moves back to caller
+        *moves = zipped.drain(..).map(|(mv, _)| mv).collect();
     }
 
     fn get_eval(&mut self, board_state: &ChessBoardState, depth: u32) -> i32 {
@@ -178,31 +185,33 @@ impl NPlyTranspoBot {
     fn minimax_alpha_beta(
         &mut self,
         board_state: &ChessBoardState,
-        depth: u32,
+        mut ply_remaining: u32,
+        ply_from_root: u32,
         mut alpha: i32,
         mut beta: i32,
     ) -> i32 {
-        if depth == 0 {
-            return self.get_eval(board_state, depth);
+        if ply_remaining == 0 {
+            return self.get_eval(board_state, ply_remaining);
         }
 
         let mut moves = board_state.generate_legal_moves_for_current_player();
 
         // No moves, either draw or checkmate
         if moves.len() == 0 {
-            let score = match (board_state.side, board_state.is_in_check()) {
-                (PieceColor::White, true) => -INFINITY * depth as i32,
-                (PieceColor::White, false) => -INFINITY,
-                (PieceColor::Black, true) => INFINITY * depth as i32,
-                (PieceColor::Black, false) => INFINITY,
+            let is_in_check = board_state.is_in_check();
+            let score = match (board_state.side, is_in_check) {
+                (PieceColor::White, true) => -INFINITY * ply_remaining as i32,
+                (PieceColor::White, false) => 0,
+                (PieceColor::Black, true) => INFINITY * ply_remaining as i32,
+                (PieceColor::Black, false) => 0,
             };
             self.transposition_table
-                .add_entry(board_state.zhash, score, depth);
+                .add_entry(board_state.zhash, score, ply_remaining);
             return score;
         }
 
         // Check for drawing moves
-        if self.is_draw(board_state, depth) {
+        if self.is_draw(board_state, ply_remaining) {
             return 0;
         }
 
@@ -217,14 +226,21 @@ impl NPlyTranspoBot {
 
                 value = max(
                     value,
-                    self.minimax_alpha_beta(&new_board, depth - 1, alpha, beta),
+                    self.minimax_alpha_beta(
+                        &new_board,
+                        ply_remaining - 1,
+                        ply_from_root + 1,
+                        alpha,
+                        beta,
+                    ),
                 );
                 alpha = max(alpha, value);
                 if value >= beta {
                     break;
                 }
             }
-            self.transposition_table.add_entry(board_state.zhash, value, depth);
+            self.transposition_table
+                .add_entry(board_state.zhash, value, ply_from_root);
             value
         } else {
             let mut value = i32::MAX;
@@ -232,7 +248,13 @@ impl NPlyTranspoBot {
                 let new_board = board_state.exec_move(*mv);
                 value = min(
                     value,
-                    self.minimax_alpha_beta(&new_board, depth - 1, alpha, beta),
+                    self.minimax_alpha_beta(
+                        &new_board,
+                        ply_remaining - 1,
+                        ply_from_root + 1,
+                        alpha,
+                        beta,
+                    ),
                 );
 
                 beta = min(beta, value);
@@ -240,7 +262,8 @@ impl NPlyTranspoBot {
                     break;
                 }
             }
-            self.transposition_table.add_entry(board_state.zhash, value, depth);
+            self.transposition_table
+                .add_entry(board_state.zhash, value, ply_from_root);
             value
         }
     }
