@@ -231,7 +231,7 @@ impl PassedPawnEvaluation {
     }
 
     pub fn bonus_for_passed_pawn(pos: usize, color: PieceColor) -> i32 {
-        const BONUS_FOR_PASSED_PAWN: [i32; 8] = [0, 90, 70, 45, 30, 15, 0, 0];
+        const BONUS_FOR_PASSED_PAWN: [i32; 8] = [0, 120, 80, 50, 30, 15, 15, 0];
         let rank = pos / 8;
         if color == PieceColor::White {
             BONUS_FOR_PASSED_PAWN[rank]

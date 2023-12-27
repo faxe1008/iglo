@@ -1,12 +1,17 @@
 use std::cmp::{max, min, Ordering};
 
+use rand::random;
+
 use crate::{
     chess::{
         board::{ChessBoardState, PieceColor},
         chess_move::{Move, MoveType},
     },
     engine::{
-        board_eval::{EvaluationFunction, PieceCountEvaluation, PieceSquareTableEvaluation, PassedPawnEvaluation},
+        board_eval::{
+            EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation,
+            PieceSquareTableEvaluation,
+        },
         bot::{ChessBot, TimeControl},
         transposition_table::{TranspositionEntry, TranspositionTable},
     },
@@ -15,6 +20,8 @@ use crate::{
 pub const TABLE_SIZE: usize = 64 * 1024 * 1024;
 pub const TABLE_ENTRY_SIZE: usize = std::mem::size_of::<TranspositionEntry>();
 pub const TABLE_ENTRY_COUNT: usize = TABLE_SIZE / TABLE_ENTRY_SIZE;
+
+const INFINITY: i32 = 50000;
 
 pub struct NPlyTranspoBot {
     pub transposition_table: Box<TranspositionTable<TABLE_ENTRY_COUNT>>,
@@ -82,7 +89,7 @@ impl ChessBot for NPlyTranspoBot {
         }
 
         // Print current board eval
-        let cur_board_eval = self.get_eval(board_state);
+        let cur_board_eval = self.get_eval(board_state, 1);
         println!("info score cp {}", cur_board_eval as f32 / 100.0);
 
         let mut moves = board_state.generate_legal_moves_for_current_player();
@@ -131,13 +138,13 @@ impl NPlyTranspoBot {
         zipped
     }
 
-    fn get_eval(&mut self, board_state: &ChessBoardState) -> i32 {
-        if let Some(entry) = self.transposition_table.lookup(board_state.zhash) {
+    fn get_eval(&mut self, board_state: &ChessBoardState, depth: u32) -> i32 {
+        if let Some(entry) = self.transposition_table.lookup(board_state.zhash, depth) {
             entry.eval
         } else {
             let ev_value = Self::eval(board_state);
             self.transposition_table
-                .add_entry(board_state.zhash, ev_value);
+                .add_entry(board_state.zhash, ev_value, depth);
             ev_value
         }
     }
@@ -150,21 +157,25 @@ impl NPlyTranspoBot {
         mut beta: i32,
     ) -> i32 {
         if depth == 0 {
-            return self.get_eval(board_state);
+            return self.get_eval(board_state, depth);
         }
 
         let mut moves = board_state.generate_legal_moves_for_current_player();
 
+        if moves.len() == 0 {
+            let score = match (board_state.side, board_state.is_in_check()) {
+                (PieceColor::White, true) => -INFINITY * depth as i32,
+                (PieceColor::White, false) => -INFINITY,
+                (PieceColor::Black, true) => INFINITY * depth as i32,
+                (PieceColor::Black, false) => INFINITY,
+            };
+            self.transposition_table
+                .add_entry(board_state.zhash, score, depth);
+            return score;
+        }
+
         // Sort moves by expected value
         moves.sort_by(|a, b| b.get_type().cmp(&a.get_type()));
-
-        if moves.len() == 0 {
-            if board_state.side == PieceColor::White {
-                return i32::MIN;
-            } else {
-                return i32::MAX;
-            }
-        }
 
         if board_state.side == PieceColor::White {
             let mut value = i32::MIN;
@@ -177,7 +188,6 @@ impl NPlyTranspoBot {
                     self.minimax_alpha_beta(&new_board, depth - 1, alpha, beta),
                 );
                 alpha = max(alpha, value);
-
                 if value >= beta {
                     break;
                 }
@@ -191,6 +201,7 @@ impl NPlyTranspoBot {
                     value,
                     self.minimax_alpha_beta(&new_board, depth - 1, alpha, beta),
                 );
+
                 beta = min(beta, value);
                 if value <= alpha {
                     break;
@@ -203,7 +214,9 @@ impl NPlyTranspoBot {
 
 impl EvaluationFunction for NPlyTranspoBot {
     fn eval(board_state: &crate::chess::board::ChessBoardState) -> i32 {
-        PieceCountEvaluation::eval(board_state) + PieceSquareTableEvaluation::eval(board_state) + PassedPawnEvaluation::eval(board_state)
+        PieceCountEvaluation::eval(board_state)
+            + PieceSquareTableEvaluation::eval(board_state)
+            + PassedPawnEvaluation::eval(board_state)
     }
 }
 

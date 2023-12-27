@@ -596,6 +596,11 @@ impl ChessBoardState {
         new.zhash.toggle_side();
         new
     }
+
+    pub fn is_in_check(&self) -> bool {
+        let attacked_squares = self.board.squares_attacked_by_side(!self.side, false);
+        attacked_squares.get_bit(self.board.get_king_pos(self.side))
+    }
 }
 
 impl CastlingRights {
