@@ -1,4 +1,4 @@
-use lerp::Lerp;
+use lerp::{Lerp, num_traits::clamp};
 
 use crate::chess::{
     bitboard::BitBoard,
@@ -27,7 +27,7 @@ impl EvaluationFunction for PieceCountEvaluation {
 }
 
 fn endgame_lerp_value(board_state: &ChessBoardState) -> f32 {
-    let piece_count: u32 = [
+    let piece_count: f32 = [
         ChessPiece::Bishop,
         ChessPiece::Knight,
         ChessPiece::Rook,
@@ -38,9 +38,9 @@ fn endgame_lerp_value(board_state: &ChessBoardState) -> f32 {
         board_state.board.white_pieces[p as usize].bit_count()
             + board_state.board.black_pieces[p as usize].bit_count()
     })
-    .sum();
+    .sum::<u32>() as f32;
 
-    1.0 - piece_count as f32 / 14.0
+    clamp(-0.1 * piece_count + 1.4, 0.0, 1.0)
 }
 
 // Strategy: Piece Square Table
@@ -182,6 +182,7 @@ impl EvaluationFunction for PieceSquareTableEvaluation {
 pub struct PassedPawnEvaluation;
 impl EvaluationFunction for PassedPawnEvaluation {
     fn eval(board_state: &ChessBoardState) -> i32 {
+        let endgame_factor = endgame_lerp_value(board_state);
         let eval_passed_pawns = |color: PieceColor| -> i32 {
             let own_pawns = board_state
                 .board
@@ -196,7 +197,7 @@ impl EvaluationFunction for PassedPawnEvaluation {
                 let pp_mask = Self::mask_infront_of_pawn(pawn as u64, color)
                     & Self::mask_neighbor_file_of_pawn(pawn as u64);
                 if opposing_pawns & pp_mask == BitBoard::EMPTY {
-                    bonus += Self::bonus_for_passed_pawn(pawn, color);
+                    bonus +=  (endgame_factor * Self::bonus_for_passed_pawn(pawn, color) as f32) as i32;
                 }
             }
             bonus

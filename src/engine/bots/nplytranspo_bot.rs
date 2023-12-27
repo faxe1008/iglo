@@ -174,6 +174,11 @@ impl NPlyTranspoBot {
             return score;
         }
 
+        // Check for drawing moves
+        if self.is_draw(board_state, depth) {
+            return 0;
+        }
+
         // Sort moves by expected value
         moves.sort_by(|a, b| b.get_type().cmp(&a.get_type()));
 
@@ -192,6 +197,7 @@ impl NPlyTranspoBot {
                     break;
                 }
             }
+            self.transposition_table.add_entry(board_state.zhash, value, depth);
             value
         } else {
             let mut value = i32::MAX;
@@ -207,6 +213,7 @@ impl NPlyTranspoBot {
                     break;
                 }
             }
+            self.transposition_table.add_entry(board_state.zhash, value, depth);
             value
         }
     }
