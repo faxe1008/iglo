@@ -180,7 +180,7 @@ impl<B : ChessBot> UCIController<B> {
                     println!("Nodes searched: {}", nodes);
                 },
                 UCICommand::Go(tc) => {
-                    let best_move = chessbot.search_best_move(&mut board_state, tc, stop.clone());
+                    let best_move = chessbot.search_best_move(&mut board_state, tc, &stop);
                     println!("bestmove {:?}", best_move);
                 },
                 UCICommand::Eval => {

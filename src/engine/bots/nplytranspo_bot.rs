@@ -1,4 +1,4 @@
-use std::cmp::{max, min, Ordering};
+use std::{cmp::{max, min, Ordering}, sync::{atomic::AtomicBool, Arc}};
 
 use rand::random;
 
@@ -79,7 +79,7 @@ impl ChessBot for NPlyTranspoBot {
         &mut self,
         board_state: &mut ChessBoardState,
         tc: TimeControl,
-        _stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        stop: &Arc<AtomicBool>,
     ) -> Move {
         let depth = match tc {
             TimeControl::FixedDepth(d) => d,
@@ -101,7 +101,7 @@ impl ChessBot for NPlyTranspoBot {
 
         // Iterative deepening
         for d in 1..=depth {
-            self.eval_moves(d, board_state, &mut moves);
+            self.eval_moves(d, board_state, &mut moves, stop);
         }
 
         let best_move = moves[0];
@@ -123,7 +123,7 @@ impl ChessBot for NPlyTranspoBot {
 }
 
 impl NPlyTranspoBot {
-    pub fn eval_moves(&mut self, depth: u32, board_state: &ChessBoardState, moves: &mut Vec<Move>) {
+    pub fn eval_moves(&mut self, depth: u32, board_state: &ChessBoardState, moves: &mut Vec<Move>, stop: &Arc<AtomicBool>) {
         let mut ratings = if board_state.side == PieceColor::White {
             vec![i32::MIN; moves.len()]
         } else {
@@ -133,10 +133,12 @@ impl NPlyTranspoBot {
         // Evaluate moves
         for (mv_index, mv) in moves.iter().enumerate() {
             let board_new = board_state.exec_move(*mv);
-            ratings[mv_index] = self.minimax_alpha_beta(&board_new, depth, 0, i32::MIN, i32::MAX);
+            ratings[mv_index] = self.minimax_alpha_beta(&board_new, depth, 0, i32::MIN, i32::MAX, &stop);
         }
 
-        // TODO if aborted do not sort
+        if stop.load(std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
 
         // Sort moves by their rating
         let mut zipped: Vec<_> = moves.drain(..).zip(ratings.drain(..)).collect();
@@ -185,11 +187,17 @@ impl NPlyTranspoBot {
     fn minimax_alpha_beta(
         &mut self,
         board_state: &ChessBoardState,
-        mut ply_remaining: u32,
+        ply_remaining: u32,
         ply_from_root: u32,
         mut alpha: i32,
-        mut beta: i32,
+        mut beta: i32, 
+        stop: &Arc<AtomicBool>
     ) -> i32 {
+
+        if stop.load(std::sync::atomic::Ordering::SeqCst) {
+            return 0;
+        }
+
         if ply_remaining == 0 {
             return self.get_eval(board_state, ply_remaining);
         }
@@ -232,6 +240,7 @@ impl NPlyTranspoBot {
                         ply_from_root + 1,
                         alpha,
                         beta,
+                        stop
                     ),
                 );
                 alpha = max(alpha, value);
@@ -254,6 +263,7 @@ impl NPlyTranspoBot {
                         ply_from_root + 1,
                         alpha,
                         beta,
+                        stop
                     ),
                 );
 

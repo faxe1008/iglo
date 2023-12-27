@@ -17,7 +17,7 @@ impl ChessBot for NPlyBot {
         &mut self,
         board_state: &mut crate::chess::board::ChessBoardState,
         tc: TimeControl,
-        _stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        _stop: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Move {
         let mut moves = board_state.generate_legal_moves_for_current_player();
         let depth = match tc {
@@ -50,7 +50,6 @@ impl ChessBot for NPlyBot {
     }
     fn append_to_history(&mut self, board_state: &mut ChessBoardState) {}
     fn clear_history(&mut self) {}
-
 }
 
 impl NPlyBot {

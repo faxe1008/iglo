@@ -13,7 +13,7 @@ impl ChessBot for OnePlyBot {
         &mut self,
         board_state: &mut crate::chess::board::ChessBoardState,
         _tc: TimeControl,
-        _stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        stop: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Move {
         let mut moves = board_state.generate_legal_moves_for_current_player();
         
