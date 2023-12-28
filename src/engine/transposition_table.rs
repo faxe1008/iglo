@@ -19,7 +19,7 @@ impl Default for NodeType {
 pub struct TranspositionEntry {
     pub zhash: ZHash,
     pub eval: i32,
-    pub depth: u32,
+    pub depth: u16,
     pub node_type: NodeType
 }
 
@@ -36,7 +36,7 @@ impl<const T: usize>  Default for TranspositionTable<T> {
 
 impl<const T: usize> TranspositionTable<T> {
 
-    pub fn lookup(&self, hash: ZHash, depth: u32, alpha: i32, beta: i32) -> Option<i32> {
+    pub fn lookup(&self, hash: ZHash, depth: u16, alpha: i32, beta: i32) -> Option<i32> {
         let entry = &self.entries[hash.0 as usize % T];
         if entry.zhash == hash && entry.depth >= depth{
             if entry.node_type == NodeType::Exact {
@@ -66,7 +66,7 @@ impl<const T: usize> TranspositionTable<T> {
         self.occupancy
     }
 
-    pub fn add_entry(&mut self, hash: ZHash,  eval: i32, depth: u32, node_type: NodeType) {
+    pub fn add_entry(&mut self, hash: ZHash,  eval: i32, depth: u16, node_type: NodeType) {
         let entry = &mut self.entries[hash.0 as usize % T];
         if entry.zhash.0 == 0 {
             entry.zhash = hash;

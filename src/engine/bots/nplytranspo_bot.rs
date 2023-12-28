@@ -1,4 +1,7 @@
-use std::{cmp::{max, min, Ordering}, sync::{atomic::AtomicBool, Arc}};
+use std::{
+    cmp::{max, min, Ordering},
+    sync::{atomic::AtomicBool, Arc},
+};
 
 use rand::random;
 
@@ -14,7 +17,7 @@ use crate::{
             PieceSquareTableEvaluation,
         },
         bot::{ChessBot, TimeControl},
-        transposition_table::{TranspositionEntry, TranspositionTable, NodeType},
+        transposition_table::{NodeType, TranspositionEntry, TranspositionTable},
     },
 };
 
@@ -84,7 +87,7 @@ impl ChessBot for NPlyTranspoBot {
         let depth = match tc {
             TimeControl::FixedDepth(d) => d,
             TimeControl::Infinite => 6,
-        };
+        } as u16;
 
         // Print current board eval
         let cur_board_eval = Self::eval(board_state);
@@ -123,7 +126,13 @@ impl ChessBot for NPlyTranspoBot {
 }
 
 impl NPlyTranspoBot {
-    pub fn eval_moves(&mut self, depth: u32, board_state: &ChessBoardState, moves: &mut Vec<Move>, stop: &Arc<AtomicBool>) {
+    pub fn eval_moves(
+        &mut self,
+        depth: u16,
+        board_state: &ChessBoardState,
+        moves: &mut Vec<Move>,
+        stop: &Arc<AtomicBool>,
+    ) {
         let mut ratings = if board_state.side == PieceColor::White {
             vec![i32::MIN; moves.len()]
         } else {
@@ -133,7 +142,8 @@ impl NPlyTranspoBot {
         // Evaluate moves
         for (mv_index, mv) in moves.iter().enumerate() {
             let board_new = board_state.exec_move(*mv);
-            ratings[mv_index] = self.minimax_alpha_beta(&board_new, depth, 0, i32::MIN, i32::MAX, &stop);
+            ratings[mv_index] =
+                self.minimax_alpha_beta(&board_new, depth, 0, i32::MIN, i32::MAX, &stop);
         }
 
         if stop.load(std::sync::atomic::Ordering::SeqCst) {
@@ -152,11 +162,11 @@ impl NPlyTranspoBot {
         *moves = zipped.drain(..).map(|(mv, _)| mv).collect();
     }
 
-    fn is_draw(&self, board_state: &ChessBoardState, depth: u32) -> bool {
+    fn is_draw(&self, board_state: &ChessBoardState, depth: u16) -> bool {
         board_state.half_moves >= 100 || self.is_repetition(board_state, depth)
     }
 
-    fn is_repetition(&self, board_state: &ChessBoardState, depth: u32) -> bool {
+    fn is_repetition(&self, board_state: &ChessBoardState, depth: u16) -> bool {
         let rollback = 1 + (depth as usize).min(board_state.half_moves as usize);
 
         // Rollback == 1 implies we only look at the opponent's position.
@@ -173,21 +183,24 @@ impl NPlyTranspoBot {
             .any(|b| *b == board_state.zhash) // stop at first repetition
     }
 
+
     fn minimax_alpha_beta(
         &mut self,
         board_state: &ChessBoardState,
-        ply_remaining: u32,
-        ply_from_root: u32,
+        ply_remaining: u16,
+        ply_from_root: u16,
         mut alpha: i32,
-        mut beta: i32, 
-        stop: &Arc<AtomicBool>
+        mut beta: i32,
+        stop: &Arc<AtomicBool>,
     ) -> i32 {
-
         if stop.load(std::sync::atomic::Ordering::SeqCst) {
             return 0;
         }
 
-        if let Some(eval) = self.transposition_table.lookup(board_state.zhash, ply_remaining, alpha, beta) {
+        if let Some(eval) =
+            self.transposition_table
+                .lookup(board_state.zhash, ply_remaining, alpha, beta)
+        {
             return eval;
         }
 
@@ -206,13 +219,23 @@ impl NPlyTranspoBot {
                 (PieceColor::Black, true) => INFINITY * ply_remaining as i32,
                 (PieceColor::Black, false) => 0,
             };
-            self.transposition_table.add_entry(board_state.zhash, score, ply_remaining, NodeType::Exact);
+            self.transposition_table.add_entry(
+                board_state.zhash,
+                score,
+                ply_remaining,
+                NodeType::Exact,
+            );
             return score;
         }
 
         // Check for drawing moves
         if self.is_draw(board_state, ply_remaining) {
-            self.transposition_table.add_entry(board_state.zhash, 0, ply_remaining, NodeType::Exact);
+            self.transposition_table.add_entry(
+                board_state.zhash,
+                0,
+                ply_remaining,
+                NodeType::Exact,
+            );
             return 0;
         }
 
@@ -233,12 +256,17 @@ impl NPlyTranspoBot {
                         ply_from_root + 1,
                         alpha,
                         beta,
-                        stop
+                        stop,
                     ),
                 );
                 alpha = max(alpha, value);
                 if value >= beta {
-                    self.transposition_table.add_entry(board_state.zhash, beta, ply_remaining, NodeType::LowerBound);
+                    self.transposition_table.add_entry(
+                        board_state.zhash,
+                        beta,
+                        ply_remaining,
+                        NodeType::LowerBound,
+                    );
                     break;
                 }
             }
@@ -256,7 +284,7 @@ impl NPlyTranspoBot {
                         ply_from_root + 1,
                         alpha,
                         beta,
-                        stop
+                        stop,
                     ),
                 );
 
@@ -266,7 +294,8 @@ impl NPlyTranspoBot {
                     break;
                 }
             }
-            self.transposition_table.add_entry(board_state.zhash, alpha, ply_remaining, node_type);
+            self.transposition_table
+                .add_entry(board_state.zhash, alpha, ply_remaining, node_type);
             value
         }
     }
