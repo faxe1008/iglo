@@ -87,7 +87,7 @@ impl ChessBot for NPlyTranspoBot {
         };
 
         // Print current board eval
-        let cur_board_eval = self.get_eval(board_state, 1);
+        let cur_board_eval = Self::eval(board_state);
         println!("info score cp {}", cur_board_eval as f32 / 100.0);
 
         let mut moves = board_state.generate_legal_moves_for_current_player();
@@ -152,17 +152,6 @@ impl NPlyTranspoBot {
         *moves = zipped.drain(..).map(|(mv, _)| mv).collect();
     }
 
-    fn get_eval(&mut self, board_state: &ChessBoardState, depth: u32) -> i32 {
-        if let Some(entry) = self.transposition_table.lookup(board_state.zhash, depth) {
-            entry.eval
-        } else {
-            let ev_value = Self::eval(board_state);
-            self.transposition_table
-                .add_entry(board_state.zhash, ev_value, depth);
-            ev_value
-        }
-    }
-
     fn is_draw(&self, board_state: &ChessBoardState, depth: u32) -> bool {
         board_state.half_moves >= 100 || self.is_repetition(board_state, depth)
     }
@@ -199,7 +188,7 @@ impl NPlyTranspoBot {
         }
 
         if ply_remaining == 0 {
-            return self.get_eval(board_state, ply_remaining);
+            return Self::eval(board_state);
         }
 
         let mut moves = board_state.generate_legal_moves_for_current_player();
@@ -213,8 +202,6 @@ impl NPlyTranspoBot {
                 (PieceColor::Black, true) => INFINITY * ply_remaining as i32,
                 (PieceColor::Black, false) => 0,
             };
-            self.transposition_table
-                .add_entry(board_state.zhash, score, ply_remaining);
             return score;
         }
 
@@ -248,8 +235,6 @@ impl NPlyTranspoBot {
                     break;
                 }
             }
-            self.transposition_table
-                .add_entry(board_state.zhash, value, ply_from_root);
             value
         } else {
             let mut value = i32::MAX;
@@ -272,8 +257,6 @@ impl NPlyTranspoBot {
                     break;
                 }
             }
-            self.transposition_table
-                .add_entry(board_state.zhash, value, ply_from_root);
             value
         }
     }
