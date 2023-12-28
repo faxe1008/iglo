@@ -14,7 +14,7 @@ use crate::{
             PieceSquareTableEvaluation,
         },
         bot::{ChessBot, TimeControl},
-        transposition_table::{TranspositionEntry, TranspositionTable},
+        transposition_table::{TranspositionEntry, TranspositionTable, NodeType},
     },
 };
 
@@ -187,6 +187,10 @@ impl NPlyTranspoBot {
             return 0;
         }
 
+        if let Some(eval) = self.transposition_table.lookup(board_state.zhash, ply_remaining, alpha, beta) {
+            return eval;
+        }
+
         if ply_remaining == 0 {
             return Self::eval(board_state);
         }
@@ -202,11 +206,13 @@ impl NPlyTranspoBot {
                 (PieceColor::Black, true) => INFINITY * ply_remaining as i32,
                 (PieceColor::Black, false) => 0,
             };
+            self.transposition_table.add_entry(board_state.zhash, score, ply_remaining, NodeType::Exact);
             return score;
         }
 
         // Check for drawing moves
         if self.is_draw(board_state, ply_remaining) {
+            self.transposition_table.add_entry(board_state.zhash, 0, ply_remaining, NodeType::Exact);
             return 0;
         }
 
@@ -232,12 +238,14 @@ impl NPlyTranspoBot {
                 );
                 alpha = max(alpha, value);
                 if value >= beta {
+                    self.transposition_table.add_entry(board_state.zhash, beta, ply_remaining, NodeType::LowerBound);
                     break;
                 }
             }
             value
         } else {
             let mut value = i32::MAX;
+            let mut node_type = NodeType::Exact;
             for mv in &moves {
                 let new_board = board_state.exec_move(*mv);
                 value = min(
@@ -254,9 +262,11 @@ impl NPlyTranspoBot {
 
                 beta = min(beta, value);
                 if value <= alpha {
+                    node_type = NodeType::UpperBound;
                     break;
                 }
             }
+            self.transposition_table.add_entry(board_state.zhash, alpha, ply_remaining, node_type);
             value
         }
     }
