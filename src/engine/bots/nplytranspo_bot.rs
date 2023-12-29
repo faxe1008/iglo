@@ -17,7 +17,7 @@ use crate::{
             PieceSquareTableEvaluation,
         },
         bot::{ChessBot},
-        transposition_table::{NodeType, TranspositionEntry, TranspositionTable}, time_control::TimeControl,
+        transposition_table::{NodeType, TranspositionEntry, TranspositionTable}, time_control::TimeControl, move_ordering::order_moves,
     },
 };
 
@@ -27,9 +27,6 @@ pub const TABLE_ENTRY_COUNT: usize = TABLE_SIZE / TABLE_ENTRY_SIZE;
 
 const INFINITY: i32 = 50000;
 const MAX_EXTENSIONS: u16 = 3;
-const MAX_PLY: u16 = 64;
-const MAX_KILLER_MOVES: usize = 2;
-
 
 pub struct NPlyTranspoBot {
     pub transposition_table: Box<TranspositionTable<TABLE_ENTRY_COUNT>>,
@@ -104,7 +101,7 @@ impl ChessBot for NPlyTranspoBot {
         let mut moves = board_state.generate_legal_moves_for_current_player();
 
         // Sort moves by expected value
-        moves.sort_by(|a, b| b.get_type().cmp(&a.get_type()));
+        order_moves(&mut moves, board_state);
 
         if board_state.full_moves == 0 {
             return moves[random::<usize>() % moves.len()];
@@ -234,8 +231,8 @@ impl NPlyTranspoBot {
                 (PieceColor::Black, true) => INFINITY * ply_remaining as i32,
                 (PieceColor::Black, false) => 0,
             };
-            //self.transposition_table
-            //    .add_entry(board_state, score, ply_remaining, NodeType::Exact);
+            self.transposition_table
+                .add_entry(board_state, score, ply_remaining, NodeType::Exact);
             return score;
         }
 
@@ -247,7 +244,7 @@ impl NPlyTranspoBot {
         }
 
         // Sort moves by expected value
-        moves.sort_by(|a, b| b.get_type().cmp(&a.get_type()));
+        order_moves(&mut moves, board_state);
 
         if board_state.side == PieceColor::White {
             let mut value = i32::MIN;

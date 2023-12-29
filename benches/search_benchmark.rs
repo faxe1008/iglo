@@ -4,8 +4,8 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use iglo::{
     chess::{board::ChessBoardState, chess_move::Move},
     engine::{
-        bot::{ChessBot, TimeControl},
-        bots::nplytranspo_bot::NPlyTranspoBot,
+        bot::{ChessBot},
+        bots::nplytranspo_bot::NPlyTranspoBot, time_control::TimeControl,
     },
 };
 
