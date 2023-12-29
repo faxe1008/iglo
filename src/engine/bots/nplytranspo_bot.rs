@@ -143,7 +143,7 @@ impl NPlyTranspoBot {
         for (mv_index, mv) in moves.iter().enumerate() {
             let board_new = board_state.exec_move(*mv);
             ratings[mv_index] =
-                self.minimax_alpha_beta(&board_new, depth, 0, i32::MIN, i32::MAX, &stop);
+                self.minimax_alpha_beta(&board_new, depth, 0, i32::MIN, i32::MAX, 0, &stop);
         }
 
         if stop.load(std::sync::atomic::Ordering::SeqCst) {
@@ -187,10 +187,11 @@ impl NPlyTranspoBot {
     fn minimax_alpha_beta(
         &mut self,
         board_state: &ChessBoardState,
-        ply_remaining: u16,
+        mut ply_remaining: u16,
         ply_from_root: u16,
         mut alpha: i32,
         mut beta: i32,
+        mut extensions: u16,
         stop: &Arc<AtomicBool>,
     ) -> i32 {
         if stop.load(std::sync::atomic::Ordering::SeqCst) {
@@ -204,6 +205,13 @@ impl NPlyTranspoBot {
             return eval;
         }
 
+        // Extend the search
+        let is_in_check = board_state.is_in_check();
+        if is_in_check && extensions < MAX_EXTENSIONS {
+            ply_remaining += 1;
+            extensions += 1;
+        }
+
         if ply_remaining == 0 {
             return Self::eval(board_state);
         }
@@ -212,30 +220,21 @@ impl NPlyTranspoBot {
 
         // No moves, either draw or checkmate
         if moves.len() == 0 {
-            let is_in_check = board_state.is_in_check();
             let score = match (board_state.side, is_in_check) {
                 (PieceColor::White, true) => -INFINITY * ply_remaining as i32,
                 (PieceColor::White, false) => 0,
                 (PieceColor::Black, true) => INFINITY * ply_remaining as i32,
                 (PieceColor::Black, false) => 0,
             };
-            self.transposition_table.add_entry(
-                board_state.zhash,
-                score,
-                ply_remaining,
-                NodeType::Exact,
-            );
+            self.transposition_table
+                .add_entry(board_state, score, ply_remaining, NodeType::Exact);
             return score;
         }
 
         // Check for drawing moves
         if self.is_draw(board_state, ply_remaining) {
-            self.transposition_table.add_entry(
-                board_state.zhash,
-                0,
-                ply_remaining,
-                NodeType::Exact,
-            );
+            self.transposition_table
+                .add_entry(board_state, 0, ply_remaining, NodeType::Exact);
             return 0;
         }
 
@@ -256,13 +255,14 @@ impl NPlyTranspoBot {
                         ply_from_root + 1,
                         alpha,
                         beta,
+                        extensions,
                         stop,
                     ),
                 );
                 alpha = max(alpha, value);
                 if value >= beta {
                     self.transposition_table.add_entry(
-                        board_state.zhash,
+                        board_state,
                         beta,
                         ply_remaining,
                         NodeType::LowerBound,
@@ -284,6 +284,7 @@ impl NPlyTranspoBot {
                         ply_from_root + 1,
                         alpha,
                         beta,
+                        extensions,
                         stop,
                     ),
                 );
@@ -295,7 +296,7 @@ impl NPlyTranspoBot {
                 }
             }
             self.transposition_table
-                .add_entry(board_state.zhash, alpha, ply_remaining, node_type);
+                .add_entry(board_state, alpha, ply_remaining, node_type);
             value
         }
     }
