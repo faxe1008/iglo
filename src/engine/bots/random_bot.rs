@@ -4,7 +4,7 @@ use crate::{
     chess::{chess_move::Move, board::ChessBoardState},
     engine::{
         board_eval::EvaluationFunction,
-        bot::{ChessBot, TimeControl},
+        bot::{ChessBot}, time_control::TimeControl,
     },
 };
 

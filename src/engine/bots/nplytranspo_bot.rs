@@ -16,8 +16,8 @@ use crate::{
             EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation,
             PieceSquareTableEvaluation,
         },
-        bot::{ChessBot, TimeControl},
-        transposition_table::{NodeType, TranspositionEntry, TranspositionTable},
+        bot::{ChessBot},
+        transposition_table::{NodeType, TranspositionEntry, TranspositionTable}, time_control::TimeControl,
     },
 };
 
@@ -27,6 +27,9 @@ pub const TABLE_ENTRY_COUNT: usize = TABLE_SIZE / TABLE_ENTRY_SIZE;
 
 const INFINITY: i32 = 50000;
 const MAX_EXTENSIONS: u16 = 3;
+const MAX_PLY: u16 = 64;
+const MAX_KILLER_MOVES: usize = 2;
+
 
 pub struct NPlyTranspoBot {
     pub transposition_table: Box<TranspositionTable<TABLE_ENTRY_COUNT>>,

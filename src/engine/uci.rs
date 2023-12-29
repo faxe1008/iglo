@@ -10,7 +10,7 @@ use std::{
 
 use crate::chess::{board::ChessBoardState, perft::perft};
 
-use super::bot::{ChessBot, TimeControl};
+use super::{bot::{ChessBot}, time_control::TimeControl};
 
 const ENGINE_NAME: &str = env!("CARGO_PKG_NAME");
 const ENGINE_AUTHOR: &str = env!("CARGO_PKG_AUTHORS");

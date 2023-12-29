@@ -2,7 +2,7 @@ use crate::{
     chess::{chess_move::Move, board::{PieceColor, ChessBoardState}},
     engine::{
         board_eval::{EvaluationFunction, PieceCountEvaluation, PieceSquareTableEvaluation},
-        bot::{ChessBot, TimeControl},
+        bot::{ChessBot}, time_control::TimeControl,
     },
 };
 
