@@ -1,8 +1,16 @@
-use std::{sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc}, thread, io::{stdin, BufRead}, marker::PhantomData};
+use std::{
+    io::{stdin, BufRead},
+    marker::PhantomData,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc,
+    },
+    thread,
+};
 
 use crate::chess::{board::ChessBoardState, perft::perft};
 
-use super::{bot::{ChessBot, TimeControl}};
+use super::bot::{ChessBot, TimeControl};
 
 const ENGINE_NAME: &str = env!("CARGO_PKG_NAME");
 const ENGINE_AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -21,7 +29,7 @@ enum UCICommand {
     Print,
     Go(TimeControl),
     Quit,
-    Stop
+    Stop,
 }
 
 impl TryFrom<&str> for UCICommand {
@@ -61,14 +69,14 @@ impl TryFrom<&str> for UCICommand {
                     Some(_) | None => return Err(()),
                 };
 
-                let move_list : Vec<String> = if let Some("moves") = tokens.next() {
+                let move_list: Vec<String> = if let Some("moves") = tokens.next() {
                     tokens.map(|x| x.to_string()).collect()
                 } else {
                     vec![]
                 };
 
                 Ok(UCICommand::Position(chessboard_state, move_list))
-            },
+            }
             Some("quit") => Ok(UCICommand::Quit),
             Some("stop") => Ok(UCICommand::Stop),
             Some("perft") => {
@@ -78,7 +86,7 @@ impl TryFrom<&str> for UCICommand {
                 } else {
                     Err(())
                 }
-            },
+            }
             Some("go") => {
                 let timecontrol = match tokens.next() {
                     Some("depth") => {
@@ -88,11 +96,11 @@ impl TryFrom<&str> for UCICommand {
                             TimeControl::Infinite
                         }
                     }
-                    _ => TimeControl::Infinite
+                    _ => TimeControl::Infinite,
                 };
 
                 Ok(UCICommand::Go(timecontrol))
-            },
+            }
             Some("eval") => Ok(UCICommand::Eval),
             Some("print") => Ok(UCICommand::Print),
             _ => Err(()),
@@ -100,7 +108,10 @@ impl TryFrom<&str> for UCICommand {
     }
 }
 
-struct UCIController<B> where B: ChessBot {
+struct UCIController<B>
+where
+    B: ChessBot,
+{
     phantom: PhantomData<B>,
 }
 
@@ -120,7 +131,7 @@ impl<B: ChessBot> Default for UCIReader<B> {
         Self {
             stop,
             controller_tx: tx,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
@@ -139,7 +150,7 @@ impl<B: ChessBot> UCIReader<B> {
                         UCICommand::UCI => {
                             println!("id name {ENGINE_NAME} {ENGINE_VERSION}");
                             println!("id author {ENGINE_AUTHOR}");
-                            if !B::get_options().is_empty(){
+                            if !B::get_options().is_empty() {
                                 println!("{}", B::get_options());
                             }
                             println!("uciok");
@@ -158,7 +169,7 @@ impl<B: ChessBot> UCIReader<B> {
     }
 }
 
-impl<B : ChessBot> UCIController<B> {
+impl<B: ChessBot> UCIController<B> {
     fn run(rx: mpsc::Receiver<UCICommand>, stop: Arc<AtomicBool>) {
         let mut board_state = ChessBoardState::starting_state();
         let mut chessbot = B::default();
@@ -167,25 +178,25 @@ impl<B : ChessBot> UCIController<B> {
             match command {
                 UCICommand::UCINewGame => {
                     board_state = ChessBoardState::starting_state();
-                },
+                }
                 UCICommand::SetOption(name, value) => {
                     chessbot.set_option(name, value);
-                },
+                }
                 UCICommand::Position(new_state, move_list) => {
                     board_state = new_state;
                     chessbot.execute_move_list(&mut board_state, &move_list);
-                },
+                }
                 UCICommand::Peft(depth) => {
                     let nodes = perft(&board_state, depth);
                     println!("Nodes searched: {}", nodes);
-                },
+                }
                 UCICommand::Go(tc) => {
                     let best_move = chessbot.search_best_move(&mut board_state, tc, &stop);
                     println!("bestmove {:?}", best_move);
-                },
+                }
                 UCICommand::Eval => {
                     println!("Static evaluation: {}", B::eval(&board_state));
-                },
+                }
                 UCICommand::Print => {
                     println!("{}", board_state.to_fen());
                 }
@@ -195,10 +206,13 @@ impl<B : ChessBot> UCIController<B> {
     }
 }
 
-
 #[cfg(test)]
 mod uci_tests {
-    use crate::chess::{board::ChessBoardState, chess_move::{Move, MoveType}, square::Square};
+    use crate::chess::{
+        board::ChessBoardState,
+        chess_move::{Move, MoveType},
+        square::Square,
+    };
 
     use super::UCICommand;
 
@@ -231,14 +245,24 @@ mod uci_tests {
     fn test_position_start() {
         assert_eq!(
             UCICommand::try_from("position startpos").unwrap(),
-            UCICommand::Position(ChessBoardState::starting_state())
+            UCICommand::Position(ChessBoardState::starting_state(), Vec::new())
         )
     }
 
     #[test]
     fn test_position_start_moves() {
-        let board_after_moves = UCICommand::try_from("position startpos moves c2c4 g8f6 d1a4 g7g6 g1f3 f8h6 a4a3 e8g8").unwrap();
-        let expected_board = UCICommand::Position(ChessBoardState::from_fen("rnbq1rk1/pppppp1p/5npb/8/2P5/Q4N2/PP1PPPPP/RNB1KB1R w KQ - 4 8").unwrap());
+        let board_after_moves =
+            UCICommand::try_from("position startpos moves c2c4 g8f6 d1a4 g7g6 g1f3 f8h6 a4a3 e8g8")
+                .unwrap();
+        let expected_board = UCICommand::Position(
+            ChessBoardState::starting_state(),
+            vec![
+                "c2c4", "g8f6", "d1a4", "g7g6", "g1f3", "f8h6", "a4a3", "e8g8",
+            ]
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
+        );
         assert_eq!(board_after_moves, expected_board);
     }
 
@@ -250,13 +274,15 @@ mod uci_tests {
         .unwrap();
         assert_eq!(
             UCICommand::try_from("position fen r1bqk1nr/pp1p1ppp/2nb4/2p1p3/Q1P5/2N2P2/PP1PP1PP/R1B1KBNR w KQkq - 0 1").unwrap(),
-            UCICommand::Position(expected_state)
+            UCICommand::Position(expected_state, Vec::new())
         )
     }
 
     #[test]
-    fn check_move_deserialization(){
-        let board = ChessBoardState::from_fen("r3k2r/pPppp2p/8/2Rr1pP1/8/8/PPPPP1PP/R3K2R w KQkq f6 0 1").unwrap();
+    fn check_move_deserialization() {
+        let board =
+            ChessBoardState::from_fen("r3k2r/pPppp2p/8/2Rr1pP1/8/8/PPPPP1PP/R3K2R w KQkq f6 0 1")
+                .unwrap();
 
         let assert_mv = |str, src, dst, ty| {
             let mv = Move::try_from((str, &board)).unwrap();
@@ -276,10 +302,20 @@ mod uci_tests {
         assert_mv("b7b8b", Square::B7, Square::B8, MoveType::BishopPromotion);
         assert_mv("b7b8n", Square::B7, Square::B8, MoveType::KnightPromotion);
         assert_mv("b7b8q", Square::B7, Square::B8, MoveType::QueenPromotion);
-      
+
         assert_mv("b7a8r", Square::B7, Square::A8, MoveType::RookCapPromotion);
-        assert_mv("b7a8b", Square::B7, Square::A8, MoveType::BishopCapPromotion);
-        assert_mv("b7a8n", Square::B7, Square::A8, MoveType::KnightCapPromotion);
+        assert_mv(
+            "b7a8b",
+            Square::B7,
+            Square::A8,
+            MoveType::BishopCapPromotion,
+        );
+        assert_mv(
+            "b7a8n",
+            Square::B7,
+            Square::A8,
+            MoveType::KnightCapPromotion,
+        );
         assert_mv("b7a8q", Square::B7, Square::A8, MoveType::QueenCapPromotion);
     }
 }
