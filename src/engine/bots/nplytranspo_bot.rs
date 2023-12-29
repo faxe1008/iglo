@@ -231,8 +231,8 @@ impl NPlyTranspoBot {
                 (PieceColor::Black, true) => INFINITY * ply_remaining as i32,
                 (PieceColor::Black, false) => 0,
             };
-            self.transposition_table
-                .add_entry(board_state, score, ply_remaining, NodeType::Exact);
+            //self.transposition_table
+            //    .add_entry(board_state, score, ply_remaining, NodeType::Exact);
             return score;
         }
 
