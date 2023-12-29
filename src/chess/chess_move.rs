@@ -3,7 +3,7 @@ use super::board::{ChessBoardState, ChessPiece, PieceColor};
 use super::square::Square;
 use core::fmt::Debug;
 use std::fmt::Write;
-use std::result;
+
 
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Default, Hash)]
 pub struct Move(pub u16);

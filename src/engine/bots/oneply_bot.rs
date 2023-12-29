@@ -13,7 +13,7 @@ impl ChessBot for OnePlyBot {
         &mut self,
         board_state: &mut crate::chess::board::ChessBoardState,
         _tc: TimeControl,
-        stop: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+        _stop: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Move {
         let mut moves = board_state.generate_legal_moves_for_current_player();
         
@@ -34,7 +34,7 @@ impl ChessBot for OnePlyBot {
     fn get_options() -> &'static str {
         ""
     }
-    fn append_to_history(&mut self, board_state: &mut ChessBoardState) {}
+    fn append_to_history(&mut self, _board_state: &mut ChessBoardState) {}
     fn clear_history(&mut self) {}
 }
 

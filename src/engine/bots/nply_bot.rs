@@ -2,7 +2,7 @@ use std::cmp::{max, min};
 
 use crate::{
     chess::{
-        board::{self, ChessBoardState, PieceColor},
+        board::{ChessBoardState, PieceColor},
         chess_move::Move,
     },
     engine::{
@@ -48,7 +48,7 @@ impl ChessBot for NPlyBot {
     fn get_options() -> &'static str {
         ""
     }
-    fn append_to_history(&mut self, board_state: &mut ChessBoardState) {}
+    fn append_to_history(&mut self, _board_state: &mut ChessBoardState) {}
     fn clear_history(&mut self) {}
 }
 

@@ -1,6 +1,6 @@
 use std::{sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc}, thread, io::{stdin, BufRead}, marker::PhantomData};
 
-use crate::chess::{board::ChessBoardState, chess_move::Move, perft::perft};
+use crate::chess::{board::ChessBoardState, perft::perft};
 
 use super::{bot::{ChessBot, TimeControl}};
 
@@ -52,7 +52,7 @@ impl TryFrom<&str> for UCICommand {
             }
             Some("ucinewgame") => Ok(UCICommand::UCINewGame),
             Some("position") => {
-                let mut chessboard_state = match tokens.next() {
+                let chessboard_state = match tokens.next() {
                     Some("startpos") => ChessBoardState::starting_state(),
                     Some("fen") => {
                         let fen_str = tokens.by_ref().take(6).collect::<Vec<&str>>().join(" ");
@@ -152,7 +152,7 @@ impl<B: ChessBot> UCIReader<B> {
                         _ => self.controller_tx.send(command).unwrap(),
                     }
                 }
-                Err(e) => println!("Error parsing {line}"),
+                Err(_e) => println!("Error parsing {line}"),
             };
         }
     }

@@ -26,6 +26,7 @@ pub const TABLE_ENTRY_SIZE: usize = std::mem::size_of::<TranspositionEntry>();
 pub const TABLE_ENTRY_COUNT: usize = TABLE_SIZE / TABLE_ENTRY_SIZE;
 
 const INFINITY: i32 = 50000;
+const MAX_EXTENSIONS: u16 = 3;
 
 pub struct NPlyTranspoBot {
     pub transposition_table: Box<TranspositionTable<TABLE_ENTRY_COUNT>>,
@@ -92,6 +93,10 @@ impl ChessBot for NPlyTranspoBot {
         // Print current board eval
         let cur_board_eval = Self::eval(board_state);
         println!("info score cp {}", cur_board_eval as f32 / 100.0);
+
+        if board_state.full_moves % 3 == 0 {
+            self.transposition_table.clear();
+        }
 
         let mut moves = board_state.generate_legal_moves_for_current_player();
 
