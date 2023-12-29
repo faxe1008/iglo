@@ -457,6 +457,7 @@ impl ChessBoardState {
         if let Some(ep_target) = new.en_passant_target {
             new.zhash.toggle_enpassant(ep_target as usize);
         }
+        new.en_passant_target = None;
 
         let (src_piece, src_color) = match self.board.get_piece_at_pos(mv.get_src() as usize) {
             None => panic!("No piece at src pos!"),
@@ -472,10 +473,7 @@ impl ChessBoardState {
 
         // Move is a capture
         if mv.is_capture() && !mv.is_en_passant() {
-            let (dst_piece, dst_color) = match self.board.get_piece_at_pos(mv.get_dst() as usize) {
-                None => panic!("No piece to capture"),
-                Some(e) => e,
-            };
+            let (dst_piece, dst_color) = dst_piece_col.unwrap();
             assert!(dst_color != src_color, "Can not capture own pieces");
             new.board
                 .remove_piece_at_pos(dst_piece, dst_color, mv.get_dst() as usize, &mut new.zhash);
@@ -490,24 +488,20 @@ impl ChessBoardState {
 
             new.board
                 .place_piece_of_color(new_piece, src_color, mv.get_dst() as usize, &mut new.zhash);
-        }
-
-        if mv.is_promotion() && !mv.is_capture() {
+        }   else if mv.is_promotion() && !mv.is_capture() {
+            // Promotion, non capture
             new.board
                 .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
             new.board
                 .place_piece_of_color(mv.promotion_target(), src_color, mv.get_dst() as usize, &mut new.zhash);
-        }
-
-        // Move is silent
-        if mv.is_silent() {
+        } else if mv.is_silent() {
+            // Move is silent
             new.board
                 .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
             new.board
                 .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize, &mut new.zhash);
-        }
-
-        if mv.is_double_push() {
+        } else if mv.is_double_push() {
+            // Pawn double push
             new.board
                 .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
             new.board
@@ -519,12 +513,8 @@ impl ChessBoardState {
             };
             new.zhash.toggle_enpassant(new_ep_target.unwrap() as usize);
             new.en_passant_target = new_ep_target;
-        } else {
-            new.en_passant_target = None;
-        }
-
-        // En passant
-        if mv.is_en_passant() {
+        } else if mv.is_en_passant() {
+            // En passant
             let dst = if src_color == PieceColor::White {
                 mv.get_dst() + 8
             } else {
@@ -541,10 +531,9 @@ impl ChessBoardState {
                 .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
             new.board
                 .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize, &mut new.zhash);
-        }
+        } else if mv.get_type() == MoveType::CastleKingSide {
+            // Castling King Side
 
-        // Castling King Side
-        if mv.get_type() == MoveType::CastleKingSide {
             assert!(src_piece == ChessPiece::King);
             new.board
                 .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
@@ -561,10 +550,8 @@ impl ChessBoardState {
                 new.board
                     .place_piece_of_color(ChessPiece::Rook, src_color, Square::F8 as usize, &mut new.zhash);
             }
-        }
-
-        // Castling Queen Side
-        if mv.get_type() == MoveType::CastleQueenSide {
+        } else if mv.get_type() == MoveType::CastleQueenSide {
+            // Castling Queen Side
             assert!(src_piece == ChessPiece::King);
             new.board
                 .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
