@@ -264,21 +264,15 @@ impl NPlyTranspoBot {
                         stop,
                     ),
                 );
-                alpha = max(alpha, value);
                 if value >= beta {
-                    self.transposition_table.add_entry(
-                        board_state,
-                        beta,
-                        ply_remaining,
-                        NodeType::LowerBound,
-                    );
+                    self.transposition_table.add_entry(board_state, beta, ply_from_root, NodeType::LowerBound);
                     break;
                 }
+                alpha = max(alpha, value);
             }
             value
         } else {
             let mut value = i32::MAX;
-            let mut node_type = NodeType::Exact;
             for mv in &moves {
                 let new_board = board_state.exec_move(*mv);
                 value = min(
@@ -293,15 +287,12 @@ impl NPlyTranspoBot {
                         stop,
                     ),
                 );
-
-                beta = min(beta, value);
-                if value <= alpha {
-                    node_type = NodeType::UpperBound;
+                if value < alpha {
+                    self.transposition_table.add_entry(board_state, alpha, ply_from_root, NodeType::UpperBound);
                     break;
                 }
+                beta = min(beta, value);
             }
-            self.transposition_table
-                .add_entry(board_state, alpha, ply_remaining, node_type);
             value
         }
     }
