@@ -16,8 +16,10 @@ use crate::{
             EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation,
             PieceSquareTableEvaluation,
         },
-        bot::{ChessBot},
-        transposition_table::{NodeType, TranspositionEntry, TranspositionTable}, time_control::TimeControl, move_ordering::order_moves,
+        bot::ChessBot,
+        move_ordering::order_moves,
+        time_control::TimeControl,
+        transposition_table::{NodeType, TranspositionEntry, TranspositionTable},
     },
 };
 
@@ -28,25 +30,49 @@ pub const TABLE_ENTRY_COUNT: usize = TABLE_SIZE / TABLE_ENTRY_SIZE;
 const INFINITY: i32 = 50000;
 const MAX_EXTENSIONS: u16 = 3;
 
+#[derive(Default)]
+pub struct SearchInfo {
+    nodes_searched: usize,
+    num_extensions: u16,
+    pub history: Vec<ZHash>,
+}
+
+pub struct Searcher<const T: usize> {
+    transposition_table: Box<TranspositionTable<T>>,
+    pub info: SearchInfo,
+    eval_fn: fn(&ChessBoardState) -> i32,
+    pub stop: Arc<AtomicBool>,
+}
+
+impl<const T: usize> Searcher<T> {
+    pub fn new(
+        eval_fn: fn(&ChessBoardState) -> i32,
+    ) -> Self {
+        let transposition_table = unsafe {
+            let layout = std::alloc::Layout::new::<TranspositionTable<T>>();
+            let ptr = std::alloc::alloc_zeroed(layout) as *mut TranspositionTable<T>;
+            Box::from_raw(ptr)
+        };
+
+        Self {
+            transposition_table,
+            info: SearchInfo::default(),
+            eval_fn,
+            stop: Arc::new(false.into()),
+        }
+    }
+}
+
 pub struct NPlyTranspoBot {
-    pub transposition_table: Box<TranspositionTable<TABLE_ENTRY_COUNT>>,
-    history: Vec<ZHash>,
+    searcher: Searcher<TABLE_ENTRY_COUNT>
 }
 
 impl Default for NPlyTranspoBot {
     fn default() -> Self {
-        let transposition_table = unsafe {
-            let layout = std::alloc::Layout::new::<TranspositionTable<TABLE_ENTRY_COUNT>>();
-            let ptr =
-                std::alloc::alloc_zeroed(layout) as *mut TranspositionTable<TABLE_ENTRY_COUNT>;
-            Box::from_raw(ptr)
-        };
-        Self {
-            transposition_table: transposition_table,
-            history: vec![],
-        }
+        Self { searcher: Searcher::new(Self::eval) }
     }
 }
+
 
 impl ChessBot for NPlyTranspoBot {
     fn search_best_move(
@@ -75,12 +101,12 @@ impl ChessBot for NPlyTranspoBot {
 
         // Iterative deepening
         for d in 1..=depth {
-            self.eval_moves(d, board_state, &mut moves, stop);
+            self.minimax_root(d, board_state, &mut moves);
         }
 
         let best_move = moves[0];
         board_state.exec_move(best_move);
-        self.history.push(board_state.zhash);
+        self.searcher.info.history.push(board_state.zhash);
         best_move
     }
 
@@ -89,20 +115,19 @@ impl ChessBot for NPlyTranspoBot {
         ""
     }
     fn append_to_history(&mut self, board_state: &mut ChessBoardState) {
-        self.history.push(board_state.zhash);
+        self.searcher.info.history.push(board_state.zhash);
     }
     fn clear_history(&mut self) {
-        self.history.clear();
+        self.searcher.info.history.clear();
     }
 }
 
 impl NPlyTranspoBot {
-    pub fn eval_moves(
+    pub fn minimax_root(
         &mut self,
         depth: u16,
         board_state: &ChessBoardState,
         moves: &mut Vec<Move>,
-        stop: &Arc<AtomicBool>,
     ) {
         let mut ratings = if board_state.side == PieceColor::White {
             vec![i32::MIN; moves.len()]
@@ -114,10 +139,10 @@ impl NPlyTranspoBot {
         for (mv_index, mv) in moves.iter().enumerate() {
             let board_new = board_state.exec_move(*mv);
             ratings[mv_index] =
-                self.minimax_alpha_beta(&board_new, depth, 0, i32::MIN, i32::MAX, 0, &stop);
+                self.minimax(&board_new, depth, 0, i32::MIN, i32::MAX, 0);
         }
 
-        if stop.load(std::sync::atomic::Ordering::SeqCst) {
+        if self.searcher.stop.load(std::sync::atomic::Ordering::SeqCst) {
             return;
         }
 
@@ -145,7 +170,7 @@ impl NPlyTranspoBot {
             return false;
         }
 
-        self.history
+        self.searcher.info.history
             .iter()
             .rev() // step through history in reverse
             .take(rollback) // only check elements within rollback
@@ -154,8 +179,7 @@ impl NPlyTranspoBot {
             .any(|b| *b == board_state.zhash) // stop at first repetition
     }
 
-
-    fn minimax_alpha_beta(
+    fn minimax(
         &mut self,
         board_state: &ChessBoardState,
         mut ply_remaining: u16,
@@ -163,14 +187,13 @@ impl NPlyTranspoBot {
         mut alpha: i32,
         mut beta: i32,
         mut extensions: u16,
-        stop: &Arc<AtomicBool>,
     ) -> i32 {
-        if stop.load(std::sync::atomic::Ordering::SeqCst) {
+        if self.searcher.stop.load(std::sync::atomic::Ordering::SeqCst) {
             return 0;
         }
 
         if let Some(eval) =
-            self.transposition_table
+            self.searcher.transposition_table
                 .lookup(board_state.zhash, ply_remaining, alpha, beta)
         {
             return eval;
@@ -197,14 +220,14 @@ impl NPlyTranspoBot {
                 (PieceColor::Black, true) => INFINITY * ply_remaining as i32,
                 (PieceColor::Black, false) => 0,
             };
-            self.transposition_table
+            self.searcher.transposition_table
                 .add_entry(board_state, score, ply_remaining, NodeType::Exact);
             return score;
         }
 
         // Check for drawing moves
         if self.is_draw(board_state, ply_remaining) {
-            self.transposition_table
+            self.searcher.transposition_table
                 .add_entry(board_state, 0, ply_remaining, NodeType::Exact);
             return 0;
         }
@@ -220,18 +243,22 @@ impl NPlyTranspoBot {
 
                 value = max(
                     value,
-                    self.minimax_alpha_beta(
+                    self.minimax(
                         &new_board,
                         ply_remaining - 1,
                         ply_from_root + 1,
                         alpha,
                         beta,
                         extensions,
-                        stop,
                     ),
                 );
                 if value >= beta {
-                    self.transposition_table.add_entry(board_state, beta, ply_remaining, NodeType::LowerBound);
+                    self.searcher.transposition_table.add_entry(
+                        board_state,
+                        beta,
+                        ply_remaining,
+                        NodeType::LowerBound,
+                    );
                     break;
                 }
                 alpha = max(alpha, value);
@@ -243,18 +270,22 @@ impl NPlyTranspoBot {
                 let new_board = board_state.exec_move(*mv);
                 value = min(
                     value,
-                    self.minimax_alpha_beta(
+                    self.minimax(
                         &new_board,
                         ply_remaining - 1,
                         ply_from_root + 1,
                         alpha,
                         beta,
                         extensions,
-                        stop,
                     ),
                 );
                 if value < alpha {
-                    self.transposition_table.add_entry(board_state, alpha, ply_remaining, NodeType::UpperBound);
+                    self.searcher.transposition_table.add_entry(
+                        board_state,
+                        alpha,
+                        ply_remaining,
+                        NodeType::UpperBound,
+                    );
                     break;
                 }
                 beta = min(beta, value);
