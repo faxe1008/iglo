@@ -10,7 +10,7 @@ use crate::chess::{
 };
 use std::{
     cmp::{max, min},
-    sync::{atomic::AtomicBool, Arc},
+    sync::{atomic::AtomicBool, Arc}, time::Instant,
 };
 
 const INFINITY: i32 = 50000;
@@ -25,6 +25,7 @@ pub struct SearchInfo {
     sel_depth: usize,
     pub history: Vec<ZHash>,
     pub killer_moves: KillerMoves,
+    search_start_time: Instant
 }
 
 impl Default for SearchInfo {
@@ -32,6 +33,7 @@ impl Default for SearchInfo {
         Self {
             nodes_searched: 0,
             sel_depth: 0,
+            search_start_time: Instant::now(),
             history: Default::default(),
             killer_moves: [[Move::NULL_MOVE; MAX_PLY as usize]; MAX_KILLER_MOVES],
         }
@@ -42,6 +44,7 @@ impl SearchInfo {
     fn reset(&mut self) {
         self.nodes_searched = 0;
         self.sel_depth = 0;
+        self.search_start_time = Instant::now();
         self.killer_moves = [[Move::NULL_MOVE; MAX_PLY as usize]; MAX_KILLER_MOVES];
     }
 
@@ -111,6 +114,11 @@ impl<const T: usize> Searcher<T> {
         for d in 1..=search_depth {
             self.minimax_root(board_state, &mut moves, d);
         }
+        
+        let search_duration = Instant::now().duration_since(self.info.search_start_time);
+        let nps = (1000 * self.info.nodes_searched as u128) / (search_duration.as_millis() + 1);
+
+        println!("info time {} nodes {} nps {}", search_duration.as_millis(), self.info.nodes_searched, nps);
 
         let best_move = moves[0];
         board_state.exec_move(best_move);
