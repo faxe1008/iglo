@@ -3,6 +3,8 @@ use crate::chess::{
     chess_move::Move,
 };
 
+use super::search::{SearchInfo, MAX_KILLER_MOVES};
+
 // MVV_VLA[victim][attacker]
 pub const MVV_LVA: [[u8; ChessPiece::PIECE_TYPE_COUNT + 1]; ChessPiece::PIECE_TYPE_COUNT + 1] = [
     [15, 14, 13, 12, 11, 10, 0], // victim P, attacker K, Q, R, B, N, P, None
@@ -14,30 +16,58 @@ pub const MVV_LVA: [[u8; ChessPiece::PIECE_TYPE_COUNT + 1]; ChessPiece::PIECE_TY
     [0, 0, 0, 0, 0, 0, 0],       // victim None, attacker K, Q, R, B, N, P, None
 ];
 
-pub fn order_moves(moves: &mut Vec<Move>, board_state: &ChessBoardState) {
-    moves.sort_by(|a, b| {
-        let a_src = a.get_moved_piece(board_state) as usize;
-        let a_dst = a
-            .get_captured_piece(board_state)
-            .map(|c| c as usize)
-            .unwrap_or(ChessPiece::PIECE_TYPE_COUNT);
+const MVV_LVA_OFFSET: u32 = u32::MAX - 256;
+const KILLER_VALUE: u32 = 10;
 
-        let b_src = b.get_moved_piece(board_state) as usize;
-        let b_dst = b
-            .get_captured_piece(board_state)
-            .map(|c| c as usize)
-            .unwrap_or(ChessPiece::PIECE_TYPE_COUNT);
+fn move_order_eval(
+    mv: Move,
+    board_state: &ChessBoardState,
+    search_info: &SearchInfo,
+    ply_from_root: u16,
+) -> u32 {
+    let src_piece = mv.get_moved_piece(board_state) as usize;
+    if let Some(captured_piece) = mv.get_captured_piece(board_state) {
+        MVV_LVA_OFFSET + MVV_LVA[captured_piece as usize][src_piece] as u32
+    } else {
+        let ply = ply_from_root as usize;
+        let mut i = 0;
+        let mut value = 0;
+        while i < MAX_KILLER_MOVES && value == 0 {
+            let killer = search_info.killer_moves[i][ply];
+            if mv == killer {
+                value = MVV_LVA_OFFSET - ((i as u32 + 1) * KILLER_VALUE);
+            }
+            i += 1;
+        }
+        value
+    }
+}
 
-        MVV_LVA[b_dst][b_src].cmp(&MVV_LVA[a_dst][a_src])
+pub fn order_moves(
+    moves: &mut Vec<Move>,
+    board_state: &ChessBoardState,
+    search_info: &SearchInfo,
+    ply_from_root: u16,
+) {
+    moves.sort_by(|&a, &b| {
+        move_order_eval(b, board_state, search_info, ply_from_root).cmp(&move_order_eval(
+            a,
+            board_state,
+            search_info,
+            ply_from_root,
+        ))
     });
 }
 
 #[cfg(test)]
 mod move_ordering_tests {
-    use crate::chess::{
-        board::ChessBoardState,
-        chess_move::{Move, MoveType},
-        square::Square,
+    use crate::{
+        chess::{
+            board::ChessBoardState,
+            chess_move::{Move, MoveType},
+            square::Square,
+        },
+        engine::search::SearchInfo,
     };
 
     use super::order_moves;
@@ -56,7 +86,7 @@ mod move_ordering_tests {
             Move::new(Square::G1, Square::F3, MoveType::Capture),
         ];
 
-        order_moves(&mut moves, &board_state);
+        order_moves(&mut moves, &board_state, &SearchInfo::default(), 4);
 
         assert_eq!(
             moves[0],

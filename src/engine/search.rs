@@ -16,8 +16,8 @@ use std::{
 const INFINITY: i32 = 50000;
 const MAX_EXTENSIONS: usize = 3;
 
-const MAX_PLY: u16 = 64;
-const MAX_KILLER_MOVES: usize = 2;
+pub const MAX_PLY: u16 = 64;
+pub const MAX_KILLER_MOVES: usize = 2;
 type KillerMoves = [[Move; MAX_PLY as usize]; MAX_KILLER_MOVES];
 
 pub struct SearchInfo {
@@ -40,6 +40,24 @@ impl SearchInfo {
     fn reset(&mut self) {
         self.nodes_searched = 0;
         self.killer_moves = [[Move::NULL_MOVE; MAX_PLY as usize]; MAX_KILLER_MOVES];
+    }
+
+    fn store_killer_move(&mut self, current_move: Move, ply_from_root: u16) {
+        let ply = ply_from_root as usize;
+        let first_killer = self.killer_moves[0][ply];
+    
+        // First killer must not be the same as the move being stored.
+        if first_killer != current_move {
+            // Shift all the moves one index upward...
+            for i in (1..MAX_KILLER_MOVES).rev() {
+                let n = i as usize;
+                let previous = self.killer_moves[n - 1][ply];
+                self.killer_moves[n][ply] = previous;
+            }
+    
+            // and add the new killer move in the first spot.
+            self.killer_moves[0][ply] = current_move;
+        }
     }
 }
 
@@ -80,7 +98,7 @@ impl<const T: usize> Searcher<T> {
     ) -> Move {
         let mut moves = board_state.generate_legal_moves_for_current_player();
         // Sort moves by expected value
-        order_moves(&mut moves, board_state);
+        order_moves(&mut moves, board_state, &self.info, 0);
 
         let search_depth = self.depth_from_time_control(time_control);
         self.stop = stop.clone();
@@ -207,7 +225,7 @@ impl<const T: usize> Searcher<T> {
         }
 
         // Sort moves by expected value
-        order_moves(&mut moves, board_state);
+        order_moves(&mut moves, board_state, &self.info, ply_from_root);
 
         let value = if board_state.side == PieceColor::White {
             let mut value = i32::MIN;
@@ -227,6 +245,9 @@ impl<const T: usize> Searcher<T> {
                     ),
                 );
                 if value >= beta {
+                    if !mv.is_capture() {
+                        self.info.store_killer_move(*mv, ply_from_root);
+                    }
                     break;
                 }
                 alpha = max(alpha, value);
