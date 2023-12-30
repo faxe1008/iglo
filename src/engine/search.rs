@@ -22,6 +22,7 @@ type KillerMoves = [[Move; MAX_PLY as usize]; MAX_KILLER_MOVES];
 
 pub struct SearchInfo {
     nodes_searched: usize,
+    sel_depth: usize,
     pub history: Vec<ZHash>,
     pub killer_moves: KillerMoves,
 }
@@ -29,7 +30,8 @@ pub struct SearchInfo {
 impl Default for SearchInfo {
     fn default() -> Self {
         Self {
-            nodes_searched: Default::default(),
+            nodes_searched: 0,
+            sel_depth: 0,
             history: Default::default(),
             killer_moves: [[Move::NULL_MOVE; MAX_PLY as usize]; MAX_KILLER_MOVES],
         }
@@ -39,6 +41,7 @@ impl Default for SearchInfo {
 impl SearchInfo {
     fn reset(&mut self) {
         self.nodes_searched = 0;
+        self.sel_depth = 0;
         self.killer_moves = [[Move::NULL_MOVE; MAX_PLY as usize]; MAX_KILLER_MOVES];
     }
 
@@ -202,6 +205,8 @@ impl<const T: usize> Searcher<T> {
             return (self.eval_fn)(board_state);
         }
 
+        self.info.nodes_searched += 1;
+        self.info.sel_depth = self.info.sel_depth.max(ply_from_root as usize);
         let mut moves = board_state.generate_legal_moves_for_current_player();
 
         // No moves, either draw or checkmate
