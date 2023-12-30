@@ -48,36 +48,6 @@ impl Default for NPlyTranspoBot {
     }
 }
 
-impl Ord for MoveType {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self == other {
-            return Ordering::Equal;
-        }
-
-        if self.is_capture() && !other.is_capture() {
-            return Ordering::Greater;
-        } else if !self.is_capture() && other.is_capture() {
-            return Ordering::Less;
-        }
-
-        match (self, other) {
-            (MoveType::QueenPromotion, MoveType::KnightPromotion) => return Ordering::Greater,
-            (MoveType::QueenPromotion, MoveType::BishopPromotion) => return Ordering::Greater,
-            (MoveType::QueenPromotion, MoveType::RookPromotion) => return Ordering::Greater,
-            (MoveType::QueenCapPromotion, MoveType::KnightCapPromotion) => {
-                return Ordering::Greater
-            }
-            (MoveType::QueenCapPromotion, MoveType::BishopCapPromotion) => {
-                return Ordering::Greater
-            }
-            (MoveType::QueenCapPromotion, MoveType::RookCapPromotion) => return Ordering::Greater,
-            _ => {}
-        };
-
-        Ordering::Equal
-    }
-}
-
 impl ChessBot for NPlyTranspoBot {
     fn search_best_move(
         &mut self,
@@ -265,7 +235,7 @@ impl NPlyTranspoBot {
                     ),
                 );
                 if value >= beta {
-                    self.transposition_table.add_entry(board_state, beta, ply_from_root, NodeType::LowerBound);
+                    self.transposition_table.add_entry(board_state, beta, ply_remaining, NodeType::LowerBound);
                     break;
                 }
                 alpha = max(alpha, value);
@@ -288,7 +258,7 @@ impl NPlyTranspoBot {
                     ),
                 );
                 if value < alpha {
-                    self.transposition_table.add_entry(board_state, alpha, ply_from_root, NodeType::UpperBound);
+                    self.transposition_table.add_entry(board_state, alpha, ply_remaining, NodeType::UpperBound);
                     break;
                 }
                 beta = min(beta, value);
