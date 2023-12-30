@@ -246,7 +246,7 @@ impl NPlyTranspoBot {
         // Sort moves by expected value
         order_moves(&mut moves, board_state);
 
-        if board_state.side == PieceColor::White {
+        let value = if board_state.side == PieceColor::White {
             let mut value = i32::MIN;
 
             for mv in &moves {
@@ -294,7 +294,9 @@ impl NPlyTranspoBot {
                 beta = min(beta, value);
             }
             value
-        }
+        };
+
+        value
     }
 }
 

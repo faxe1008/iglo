@@ -2,7 +2,8 @@ use super::{
     bitboard::{BitBoard, MagicEntry},
     board::{ChessBoard, ChessBoardState, ChessPiece, PieceColor},
     chess_move::{Move, MoveType, PROMOTION_CAPTURE_TARGETS, PROMOTION_TARGETS},
-    square::Square, zobrist_hash::ZHash,
+    square::Square,
+    zobrist_hash::ZHash,
 };
 
 const BLACK_KING_SIDE_CASTLE_SQUARES: BitBoard = BitBoard(0x60);
@@ -232,18 +233,17 @@ fn does_enpassant_reveal_friendly_check(
 fn generate_pawn_moves(
     board_state: &ChessBoardState,
     color: PieceColor,
+    moves: &mut Vec<Move>,
     legal_move_mask: BitBoard,
     en_passant_capture_mask: BitBoard,
     pinned_move_masks: &[BitBoard; Square::NUM as usize],
-) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(16);
-
+) {
     let side_pawn_board = board_state
         .board
         .get_piece_bitboard(ChessPiece::Pawn, color);
 
     if side_pawn_board.is_empty() {
-        return moves;
+        return;
     }
 
     let push_dir: i32 = if color == PieceColor::White { -1 } else { 1 };
@@ -371,24 +371,22 @@ fn generate_pawn_moves(
             }
         }
     }
-
-    moves
 }
 
 #[inline(always)]
 fn generate_knight_moves(
     board_state: &ChessBoardState,
     color: PieceColor,
+    moves: &mut Vec<Move>,
     legal_move_mask: BitBoard,
     pinned_move_masks: &[BitBoard; Square::NUM as usize],
-) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(16);
+) {
     let side_knight_board = board_state
         .board
         .get_piece_bitboard(ChessPiece::Knight, color);
 
     if side_knight_board.is_empty() {
-        return moves;
+        return;
     }
 
     let empty_squares = board_state.board.empty_squares();
@@ -414,21 +412,13 @@ fn generate_knight_moves(
             ));
         }
     }
-
-    moves
 }
 
 #[inline(always)]
-fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(62);
-
+fn generate_king_moves(board_state: &ChessBoardState, moves: &mut Vec<Move>, color: PieceColor) {
     let side_king_board = board_state
         .board
         .get_piece_bitboard(ChessPiece::King, color);
-
-    if side_king_board.is_empty() {
-        return moves;
-    }
 
     let empty_squares = board_state.board.empty_squares();
     let opposite_board = board_state.board.get_opposing_pieces(color);
@@ -497,24 +487,22 @@ fn generate_king_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<
             }
         }
     }
-
-    moves
 }
 
 #[inline(always)]
 fn generate_rook_moves(
     board_state: &ChessBoardState,
     color: PieceColor,
+    moves: &mut Vec<Move>,
     legal_move_mask: BitBoard,
     pinned_move_masks: &[BitBoard; Square::NUM as usize],
-) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(16);
+) {
     let side_rook_board = board_state
         .board
         .get_piece_bitboard(ChessPiece::Rook, color);
 
     if side_rook_board.is_empty() {
-        return moves;
+        return;
     }
 
     let opposing_pieces = board_state.board.get_opposing_pieces(color);
@@ -532,24 +520,22 @@ fn generate_rook_moves(
             }
         }
     }
-
-    moves
 }
 
 #[inline(always)]
 fn generate_bishop_moves(
     board_state: &ChessBoardState,
     color: PieceColor,
+    moves: &mut Vec<Move>,
     legal_move_mask: BitBoard,
     pinned_move_masks: &[BitBoard; Square::NUM as usize],
-) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(16);
+) {
     let side_bishop_board = board_state
         .board
         .get_piece_bitboard(ChessPiece::Bishop, color);
 
     if side_bishop_board.is_empty() {
-        return moves;
+        return;
     }
 
     let opposing_pieces = board_state.board.get_opposing_pieces(color);
@@ -575,25 +561,22 @@ fn generate_bishop_moves(
             }
         }
     }
-
-    moves
 }
 
 #[inline(always)]
 fn generate_queen_moves(
     board_state: &ChessBoardState,
     color: PieceColor,
+    moves: &mut Vec<Move>,
     legal_move_mask: BitBoard,
     pinned_move_masks: &[BitBoard; Square::NUM as usize],
-) -> Vec<Move> {
-    let mut moves = Vec::with_capacity(16);
-
+) {
     let side_queen_board = board_state
         .board
         .get_piece_bitboard(ChessPiece::Queen, color);
 
     if side_queen_board.is_empty() {
-        return moves;
+        return;
     }
 
     let opposing_pieces = board_state.board.get_opposing_pieces(color);
@@ -618,8 +601,6 @@ fn generate_queen_moves(
             }
         }
     }
-
-    moves
 }
 
 #[inline(always)]
@@ -777,53 +758,60 @@ pub fn generate_pinned_piece_mask(
 }
 
 pub fn generate_legal_moves(board_state: &ChessBoardState, color: PieceColor) -> Vec<Move> {
+    let mut moves: Vec<Move> = Vec::with_capacity(128);
     let king_attackers = board_state.board.king_attackers(color);
     let checker_count = king_attackers[6].bit_count();
     let king_pos = board_state.board.get_king_pos(color);
 
+    generate_king_moves(board_state, &mut moves, color);
+
     // If there are two checking pieces, only king moves are legal
     if checker_count >= 2 {
-        return generate_king_moves(board_state, color);
+        return moves;
     }
-    let mut vec = generate_king_moves(board_state, color);
 
     let (legal_move_mask, en_passant_capture_mask) =
         generate_legal_move_mask(board_state, king_pos, &king_attackers);
 
     let pinned_move_masks = generate_pinned_piece_mask(board_state, king_pos, color);
 
-    vec.append(&mut generate_knight_moves(
+    generate_knight_moves(
         board_state,
         color,
+        &mut moves,
         legal_move_mask,
         &pinned_move_masks,
-    ));
-    vec.append(&mut generate_pawn_moves(
+    );
+    generate_pawn_moves(
         board_state,
         color,
+        &mut moves,
         legal_move_mask,
         en_passant_capture_mask,
         &pinned_move_masks,
-    ));
-    vec.append(&mut generate_rook_moves(
+    );
+    generate_rook_moves(
         board_state,
         color,
+        &mut moves,
         legal_move_mask,
         &pinned_move_masks,
-    ));
-    vec.append(&mut generate_bishop_moves(
+    );
+    generate_bishop_moves(
         board_state,
         color,
+        &mut moves,
         legal_move_mask,
         &pinned_move_masks,
-    ));
-    vec.append(&mut generate_queen_moves(
+    );
+    generate_queen_moves(
         board_state,
         color,
+        &mut moves,
         legal_move_mask,
         &pinned_move_masks,
-    ));
-    vec
+    );
+    moves
 }
 
 #[cfg(test)]
@@ -832,9 +820,7 @@ mod move_gen_tests {
         bitboard::BitBoard,
         board::{ChessBoardState, PieceColor},
         chess_move::{Move, MoveType},
-        move_generator::{
-            generate_knight_moves, generate_legal_moves, generate_pawn_moves,
-        },
+        move_generator::{generate_knight_moves, generate_legal_moves, generate_pawn_moves},
         square::Square,
     };
 
@@ -849,6 +835,8 @@ mod move_gen_tests {
     #[test]
     fn pawns_moves_from_fen_simple() {
         let board_state = ChessBoardState::starting_state();
+
+        let mut white_pawn_moves = Vec::new();
 
         let expected_moves_white = [
             Move::new(Square::H2, Square::H3, MoveType::Silent),
@@ -869,9 +857,10 @@ mod move_gen_tests {
             Move::new(Square::A2, Square::A4, MoveType::DoublePush),
         ];
 
-        let white_pawn_moves = generate_pawn_moves(
+        generate_pawn_moves(
             &board_state,
             PieceColor::White,
+            &mut white_pawn_moves,
             BitBoard::FULL,
             BitBoard::FULL,
             &[BitBoard::FULL; 64],
@@ -896,9 +885,11 @@ mod move_gen_tests {
             Move::new(Square::B7, Square::B5, MoveType::DoublePush),
             Move::new(Square::A7, Square::A5, MoveType::DoublePush),
         ];
-        let black_pawn_moves = generate_pawn_moves(
+        let mut black_pawn_moves = Vec::new();
+        generate_pawn_moves(
             &board_state,
             PieceColor::Black,
+            &mut black_pawn_moves,
             BitBoard::FULL,
             BitBoard::FULL,
             &[BitBoard::FULL; 64],
@@ -913,9 +904,11 @@ mod move_gen_tests {
         assert!(board_state.is_ok());
         let board_state = board_state.unwrap();
 
-        let white_pawn_moves = generate_pawn_moves(
+        let mut white_pawn_moves = Vec::new();
+        generate_pawn_moves(
             &board_state,
             PieceColor::White,
+            &mut white_pawn_moves,
             BitBoard::FULL,
             BitBoard::FULL,
             &[BitBoard::FULL; 64],
@@ -939,9 +932,11 @@ mod move_gen_tests {
         ];
         compare_moves(&white_pawn_moves, &expected_moves_white);
 
-        let black_pawn_moves = generate_pawn_moves(
+        let mut black_pawn_moves = Vec::new();
+         generate_pawn_moves(
             &board_state,
             PieceColor::Black,
+            &mut black_pawn_moves,
             BitBoard::FULL,
             BitBoard::FULL,
             &[BitBoard::FULL; 64],
@@ -965,9 +960,11 @@ mod move_gen_tests {
         assert!(board_state.is_ok());
         let board_state = board_state.unwrap();
 
-        let white_knight_moves = generate_knight_moves(
+        let mut white_knight_moves = Vec::new();
+        generate_knight_moves(
             &board_state,
             PieceColor::White,
+            &mut white_knight_moves,
             BitBoard::FULL,
             &[BitBoard::FULL; 64],
         );
@@ -984,9 +981,11 @@ mod move_gen_tests {
         ];
         compare_moves(&white_knight_moves, &expected_white_knight_moves);
 
-        let black_knight_moves = generate_knight_moves(
+        let mut black_knight_moves = Vec::new();
+        generate_knight_moves(
             &board_state,
             PieceColor::Black,
+            &mut black_knight_moves,
             BitBoard::FULL,
             &[BitBoard::FULL; 64],
         );
