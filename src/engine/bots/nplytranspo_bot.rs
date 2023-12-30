@@ -64,10 +64,6 @@ impl ChessBot for NPlyTranspoBot {
         let cur_board_eval = Self::eval(board_state);
         println!("info score cp {}", cur_board_eval as f32 / 100.0);
 
-        if board_state.full_moves % 3 == 0 {
-            self.transposition_table.clear();
-        }
-
         let mut moves = board_state.generate_legal_moves_for_current_player();
 
         // Sort moves by expected value
