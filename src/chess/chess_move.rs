@@ -138,6 +138,19 @@ impl Move {
             self.0 &= !(0b0100 << MOVE_TYPE_SHIFT);
         }
     }
+
+    pub fn get_moved_piece(&self, board_state: &ChessBoardState) -> ChessPiece {
+        board_state.board.get_piece_at_pos(self.get_src() as usize).unwrap().0
+    }
+
+    pub fn get_captured_piece(&self, board_state: &ChessBoardState) -> Option<ChessPiece> {
+        if self.is_en_passant() {
+            Some(ChessPiece::Pawn)
+        } else {
+            board_state.board.get_piece_at_pos(self.get_dst() as usize).map(|(p,_)| p)
+        }
+    }
+
 }
 
 impl TryFrom<(&str, &ChessBoardState)> for Move {

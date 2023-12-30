@@ -16,35 +16,17 @@ pub const MVV_LVA: [[u8; ChessPiece::PIECE_TYPE_COUNT + 1]; ChessPiece::PIECE_TY
 
 pub fn order_moves(moves: &mut Vec<Move>, board_state: &ChessBoardState) {
     moves.sort_by(|a, b| {
-        let a_src = board_state
-            .board
-            .get_piece_at_pos(a.get_src() as usize)
-            .unwrap()
-            .0 as usize;
-        let a_dst = if a.is_en_passant() {
-            ChessPiece::Pawn as usize
-        } else {
-            board_state
-                .board
-                .get_piece_at_pos(a.get_dst() as usize)
-                .map(|(p, _)| p as usize)
-                .unwrap_or(ChessPiece::PIECE_TYPE_COUNT)
-        };
+        let a_src = a.get_moved_piece(board_state) as usize;
+        let a_dst = a
+            .get_captured_piece(board_state)
+            .map(|c| c as usize)
+            .unwrap_or(ChessPiece::PIECE_TYPE_COUNT);
 
-        let b_src = board_state
-            .board
-            .get_piece_at_pos(b.get_src() as usize)
-            .unwrap()
-            .0 as usize;
-        let b_dst = if b.is_en_passant() {
-            ChessPiece::Pawn as usize
-        } else {
-            board_state
-                .board
-                .get_piece_at_pos(b.get_dst() as usize)
-                .map(|(p, _)| p as usize)
-                .unwrap_or(ChessPiece::PIECE_TYPE_COUNT)
-        };
+        let b_src = b.get_moved_piece(board_state) as usize;
+        let b_dst = b
+            .get_captured_piece(board_state)
+            .map(|c| c as usize)
+            .unwrap_or(ChessPiece::PIECE_TYPE_COUNT);
 
         MVV_LVA[b_dst][b_src].cmp(&MVV_LVA[a_dst][a_src])
     });
@@ -52,26 +34,49 @@ pub fn order_moves(moves: &mut Vec<Move>, board_state: &ChessBoardState) {
 
 #[cfg(test)]
 mod move_ordering_tests {
-    use crate::{chess::{board::{ChessBoardState}, square::Square, chess_move::{Move, MoveType}}};
+    use crate::chess::{
+        board::ChessBoardState,
+        chess_move::{Move, MoveType},
+        square::Square,
+    };
 
     use super::order_moves;
 
     #[test]
     fn check_mvv_lva() {
-        let board_state = ChessBoardState::from_fen("rnb1kbn1/pp1p1ppp/2p1p3/8/2q1P3/3P1r2/PPPN1PPP/R1BQKBNR b KQq - 1 5").unwrap();
+        let board_state = ChessBoardState::from_fen(
+            "rnb1kbn1/pp1p1ppp/2p1p3/8/2q1P3/3P1r2/PPPN1PPP/R1BQKBNR b KQq - 1 5",
+        )
+        .unwrap();
 
         let mut moves = vec![
             Move::new(Square::D2, Square::C4, MoveType::Capture),
-            Move::new(Square::D3, Square::C4, MoveType::Capture), 
-            Move::new(Square::E4, Square::E5, MoveType::Silent), 
-            Move::new(Square::G1, Square::F3, MoveType::Capture), 
+            Move::new(Square::D3, Square::C4, MoveType::Capture),
+            Move::new(Square::E4, Square::E5, MoveType::Silent),
+            Move::new(Square::G1, Square::F3, MoveType::Capture),
         ];
 
         order_moves(&mut moves, &board_state);
 
-        assert_eq!(moves[0], Move::new(Square::D3, Square::C4, MoveType::Capture), "Pawn capture should be first");
-        assert_eq!(moves[1], Move::new(Square::D2, Square::C4, MoveType::Capture), "Knight capture should be second");
-        assert_eq!(moves[2],  Move::new(Square::G1, Square::F3, MoveType::Capture), "Rook capture should be third");
-        assert_eq!(moves[3], Move::new(Square::E4, Square::E5, MoveType::Silent), "Silent Move should be last");
+        assert_eq!(
+            moves[0],
+            Move::new(Square::D3, Square::C4, MoveType::Capture),
+            "Pawn capture should be first"
+        );
+        assert_eq!(
+            moves[1],
+            Move::new(Square::D2, Square::C4, MoveType::Capture),
+            "Knight capture should be second"
+        );
+        assert_eq!(
+            moves[2],
+            Move::new(Square::G1, Square::F3, MoveType::Capture),
+            "Rook capture should be third"
+        );
+        assert_eq!(
+            moves[3],
+            Move::new(Square::E4, Square::E5, MoveType::Silent),
+            "Silent Move should be last"
+        );
     }
 }

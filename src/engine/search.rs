@@ -16,10 +16,31 @@ use std::{
 const INFINITY: i32 = 50000;
 const MAX_EXTENSIONS: usize = 3;
 
-#[derive(Default)]
+const MAX_PLY: u16 = 64;
+const MAX_KILLER_MOVES: usize = 2;
+type KillerMoves = [[Move; MAX_PLY as usize]; MAX_KILLER_MOVES];
+
 pub struct SearchInfo {
     nodes_searched: usize,
     pub history: Vec<ZHash>,
+    pub killer_moves: KillerMoves,
+}
+
+impl Default for SearchInfo {
+    fn default() -> Self {
+        Self {
+            nodes_searched: Default::default(),
+            history: Default::default(),
+            killer_moves: [[Move::NULL_MOVE; MAX_PLY as usize]; MAX_KILLER_MOVES],
+        }
+    }
+}
+
+impl SearchInfo {
+    fn reset(&mut self) {
+        self.nodes_searched = 0;
+        self.killer_moves = [[Move::NULL_MOVE; MAX_PLY as usize]; MAX_KILLER_MOVES];
+    }
 }
 
 pub struct Searcher<const T: usize> {
@@ -30,9 +51,7 @@ pub struct Searcher<const T: usize> {
 }
 
 impl<const T: usize> Searcher<T> {
-    pub fn new(
-        eval_fn: fn(&ChessBoardState) -> i32,
-    ) -> Self {
+    pub fn new(eval_fn: fn(&ChessBoardState) -> i32) -> Self {
         let transposition_table = unsafe {
             let layout = std::alloc::Layout::new::<TranspositionTable<T>>();
             let ptr = std::alloc::alloc_zeroed(layout) as *mut TranspositionTable<T>;
@@ -53,14 +72,19 @@ impl<const T: usize> Searcher<T> {
         }
     }
 
-    pub fn search(&mut self, board_state: &mut ChessBoardState, time_control: TimeControl, stop: &Arc<AtomicBool>) -> Move {
+    pub fn search(
+        &mut self,
+        board_state: &mut ChessBoardState,
+        time_control: TimeControl,
+        stop: &Arc<AtomicBool>,
+    ) -> Move {
         let mut moves = board_state.generate_legal_moves_for_current_player();
         // Sort moves by expected value
         order_moves(&mut moves, board_state);
 
         let search_depth = self.depth_from_time_control(time_control);
-        self.info.nodes_searched = 0;
         self.stop = stop.clone();
+        self.info.reset();
 
         // Iterative deepening
         for d in 1..=search_depth {
@@ -85,7 +109,8 @@ impl<const T: usize> Searcher<T> {
             return false;
         }
 
-        self.info.history
+        self.info
+            .history
             .iter()
             .rev() // step through history in reverse
             .take(rollback) // only check elements within rollback
@@ -135,7 +160,7 @@ impl<const T: usize> Searcher<T> {
         ply_from_root: u16,
         mut alpha: i32,
         mut beta: i32,
-        mut extensions: usize
+        mut extensions: usize,
     ) -> i32 {
         if self.stop.load(std::sync::atomic::Ordering::SeqCst) {
             return 0;
@@ -198,7 +223,7 @@ impl<const T: usize> Searcher<T> {
                         ply_from_root + 1,
                         alpha,
                         beta,
-                        extensions
+                        extensions,
                     ),
                 );
                 if value >= beta {
@@ -219,7 +244,7 @@ impl<const T: usize> Searcher<T> {
                         ply_from_root + 1,
                         alpha,
                         beta,
-                        extensions
+                        extensions,
                     ),
                 );
                 if value < alpha {

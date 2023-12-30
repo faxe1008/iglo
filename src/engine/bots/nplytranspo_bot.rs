@@ -1,22 +1,16 @@
-use std::{
-    sync::{atomic::AtomicBool, Arc},
-};
-
-
+use std::sync::{atomic::AtomicBool, Arc};
 
 use crate::{
-    chess::{
-        board::{ChessBoardState},
-        chess_move::{Move},
-    },
+    chess::{board::ChessBoardState, chess_move::Move},
     engine::{
         board_eval::{
             EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation,
             PieceSquareTableEvaluation,
         },
         bot::ChessBot,
+        search::Searcher,
         time_control::TimeControl,
-        transposition_table::{TranspositionEntry}, search::Searcher,
+        transposition_table::TranspositionEntry,
     },
 };
 
@@ -45,7 +39,7 @@ impl ChessBot for NPlyTranspoBot {
     ) -> Move {
         let cur_board_eval = Self::eval(board_state);
         println!("info score cp {}", cur_board_eval as f32 / 100.0);
-        
+
         self.searcher.search(board_state, tc, stop)
     }
 
@@ -60,7 +54,6 @@ impl ChessBot for NPlyTranspoBot {
         self.searcher.info.history.clear();
     }
 }
-
 
 impl EvaluationFunction for NPlyTranspoBot {
     fn eval(board_state: &crate::chess::board::ChessBoardState) -> i32 {
