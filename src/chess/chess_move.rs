@@ -194,7 +194,6 @@ impl TryFrom<(&str, &ChessBoardState)> for Move {
         };
         // Capture Move
         if let Some((_piece, col)) = board_state.board.get_piece_at_pos(mv_dst as usize) {
-            dbg!(resulting_move);
             if col == current_side {
                 // Capturing Own Piece??
                 return Err(());

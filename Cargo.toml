@@ -10,6 +10,7 @@ lerp = "0.5.0"
 
 [dev-dependencies]
 criterion = { version = "0.4", features = ["html_reports"] }
+iter-progress = "0.8.0"
 
 [dev-dependencies.sdl2]
 sdl2 = "0.36.0"
@@ -35,6 +36,10 @@ path = "src/dbg/perft_debugger.rs"
 [[example]]
 name = "iglo"
 path = "src/engine/main.rs"
+
+[[example]]
+name = "build_book"
+path = "src/engine/opening/build_opening_book.rs"
 
 [[bench]]
 name = "search_benchmark"

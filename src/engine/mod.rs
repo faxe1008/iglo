@@ -6,3 +6,4 @@ pub mod transposition_table;
 pub mod time_control;
 pub mod move_ordering;
 pub mod search;
+pub mod opening;

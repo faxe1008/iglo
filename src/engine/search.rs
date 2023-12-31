@@ -219,7 +219,7 @@ impl<const T: usize> Searcher<T> {
             .any(|b| *b == board_state.zhash) // stop at first repetition
     }
 
-    fn minimax_root(
+    pub fn minimax_root(
         &mut self,
         board_state: &mut ChessBoardState,
         moves: &mut Vec<Move>,
