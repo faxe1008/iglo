@@ -94,6 +94,10 @@ impl<const T: usize> Searcher<T> {
         }
     }
 
+    pub fn clear_hash_table(&mut self) {
+        self.transposition_table.clear();
+    }
+
     fn should_stop(&mut self) -> bool {
         if self.stop.load(std::sync::atomic::Ordering::SeqCst) {
             return true;

@@ -56,6 +56,7 @@ fn sort_moves_in_order<const T: usize>(
     board_state: &mut ChessBoardState,
     moves: &HashSet<Move>,
 ) -> Vec<Move> {
+    searcher.clear_hash_table();
     let mut move_vec: Vec<Move> = moves.iter().map(|x| x.clone()).collect();
     searcher.minimax_root(board_state, &mut move_vec, 6);
     move_vec
@@ -67,7 +68,7 @@ fn eval(board_state: &ChessBoardState) -> i32 {
         + PassedPawnEvaluation::eval(board_state)
 }
 
-const TT_SIZE: usize = 512 * 1024 * 1024;
+const TT_SIZE: usize = 256 * 1024 * 1024;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
