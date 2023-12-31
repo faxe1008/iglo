@@ -1,15 +1,15 @@
-use rand::random;
 
+use serde::{Serialize, Deserialize};
 use crate::chess::chess_move::Move;
 use crate::chess::zobrist_hash::ZHash;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct OpeningBookEntry {
     pub position: ZHash,
     pub moves: Vec<Move>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpeningBook {
     pub entries: Vec<OpeningBookEntry>
 }

@@ -1,3 +1,4 @@
+use serde::{Serialize,Deserialize};
 use super::{
     board::{ChessPiece, PieceColor, CastlingRights},
     square::Square,
@@ -849,7 +850,7 @@ const CASTLING_HASHES : [u64; 16] = [0x40dd164d9f66630d, 0xfac1287c93bbf3a2, 0x9
 0x1ac5899e7b6f95ab, 0x6d9ecbb55392b170, 0xde0ba771a93d5864, 0x053f15838ec330c5];
 const SIDE_HASH: u64= 0xe48fe3e0fb244264;
 
-#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash, Default)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash, Default, Serialize, Deserialize)]
 pub struct ZHash(pub u64);
 
 impl ZHash {

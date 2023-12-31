@@ -1,11 +1,12 @@
 use super::bitboard::BitBoard;
 use super::board::{ChessBoardState, ChessPiece, PieceColor};
 use super::square::Square;
+use serde::{Deserialize, Serialize};
 use core::fmt::Debug;
 use std::fmt::Write;
 
 
-#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Default, Hash)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Default, Hash, Serialize, Deserialize)]
 pub struct Move(pub u16);
 
 const MOVE_SRC_MASK: u16 = 0x003F;

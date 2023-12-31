@@ -1,23 +1,20 @@
 use iglo::{
     chess::{
-        board::{self, ChessBoardState},
+        board::{ChessBoardState},
         chess_move::Move,
         zobrist_hash::ZHash,
     },
     engine::{
         board_eval::{
-            self, EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation,
+            EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation,
             PieceSquareTableEvaluation,
         },
-        bot::ChessBot,
-        bots::nplytranspo_bot::NPlyTranspoBot,
         opening::opening_book::{OpeningBook, OpeningBookEntry},
         search::Searcher,
     },
 };
 use iter_progress::ProgressableIter;
 use std::{
-    cmp::min,
     collections::{HashMap, HashSet},
     env,
     fs::File,
@@ -28,7 +25,7 @@ fn process_line(line: &str, openings: &mut HashMap<ZHash, (ChessBoardState, Hash
     let mut board_state = ChessBoardState::starting_state();
 
     let line_parts: Vec<&str> = line.split(";").collect();
-    let opening_name = line_parts[0];
+    let _opening_name = line_parts[0];
 
     let move_strings: Vec<&str> = line_parts[1].trim().split(",").collect();
 
@@ -121,12 +118,10 @@ fn main() {
 
     let opening_book = OpeningBook { entries };
 
-    /*  let mut buffer = vec![0_u8; 5 * 1024 * 1024];
+    let bytes = bincode::serialize(&opening_book).unwrap();
+
     let mut file = File::create("opening_book.bin").unwrap();
+    file.write_all(&bytes).unwrap();
 
-    if let Ok(buf_sl) = postcard::to_slice(&opening_book, &mut buffer) {
-        file.write_all(buf_sl).unwrap();
-    }
-
-    println!("{:?}", &opening_book.entries[0]);*/
+    println!("{:?}", &opening_book.entries[0]);
 }
