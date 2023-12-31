@@ -197,7 +197,7 @@ impl<const T: usize> Searcher<T> {
 
         if let Some(eval) =
             self.transposition_table
-                .lookup(board_state.zhash, ply_remaining, alpha, beta)
+                .lookup(board_state.zhash, ply_remaining, &mut alpha, &mut beta)
         {
             return eval;
         }
@@ -258,6 +258,7 @@ impl<const T: usize> Searcher<T> {
                     ),
                 );
                 if value >= beta {
+                    self.transposition_table.add_entry(board_state, alpha, ply_remaining, NodeType::LowerBound);
                     if !mv.is_capture() {
                         self.info.store_killer_move(*mv, ply_from_root);
                     }
@@ -282,6 +283,7 @@ impl<const T: usize> Searcher<T> {
                     ),
                 );
                 if value < alpha {
+                    self.transposition_table.add_entry(board_state, beta, ply_remaining, NodeType::UpperBound);
                     break;
                 }
                 beta = min(beta, value);

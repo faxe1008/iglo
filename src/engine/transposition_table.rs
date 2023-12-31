@@ -1,3 +1,5 @@
+use std::cmp::{min, max};
+
 use crate::chess::{board::ChessBoardState, zobrist_hash::ZHash};
 
 #[derive(Copy, Clone, PartialEq)]
@@ -37,15 +39,19 @@ impl<const T: usize> Default for TranspositionTable<T> {
 }
 
 impl<const T: usize> TranspositionTable<T> {
-    pub fn lookup(&self, hash: ZHash, depth: u16, alpha: i32, beta: i32) -> Option<i32> {
+    pub fn lookup(&self, hash: ZHash, depth: u16, alpha: &mut i32, beta: &mut i32) -> Option<i32> {
         let entry = &self.entries[hash.0 as usize % T];
         if entry.zhash == hash && entry.depth >= depth {
             if entry.node_type == NodeType::Exact {
                 return Some(entry.eval);
-            } else if entry.node_type == NodeType::UpperBound && entry.eval <= alpha {
-                return Some(entry.eval);
-            } else if entry.node_type == NodeType::LowerBound && entry.eval >= beta {
-                return Some(entry.eval);
+            } else if entry.node_type == NodeType::UpperBound {
+                *beta = min(*beta, entry.eval);
+            } else if entry.node_type == NodeType::LowerBound  {
+                *alpha = max(*alpha, entry.eval);
+            }
+            
+            if alpha >= beta {
+                return Some(entry.eval)
             }
         }
         None
