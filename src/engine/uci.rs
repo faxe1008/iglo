@@ -5,7 +5,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         mpsc, Arc,
     },
-    thread,
+    thread, str::FromStr,
 };
 
 use crate::chess::{board::ChessBoardState, perft::perft};
@@ -88,18 +88,12 @@ impl TryFrom<&str> for UCICommand {
                 }
             }
             Some("go") => {
-                let timecontrol = match tokens.next() {
-                    Some("depth") => {
-                        if let Some(tk) = tokens.next() {
-                            TimeControl::FixedDepth(tk.parse::<u32>().unwrap_or(4))
-                        } else {
-                            TimeControl::Infinite
-                        }
-                    }
-                    _ => TimeControl::Infinite,
-                };
-
-                Ok(UCICommand::Go(timecontrol))
+                let tc = TimeControl::from_str(&tokens.collect::<Vec<&str>>().join(" "));
+                if let Ok(tc) = tc {
+                    Ok(UCICommand::Go(tc))
+                }else {
+                    Err(())
+                }
             }
             Some("eval") => Ok(UCICommand::Eval),
             Some("print") => Ok(UCICommand::Print),

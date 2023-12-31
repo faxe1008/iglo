@@ -17,7 +17,7 @@ fn run_move_search(
     let stop: Arc<AtomicBool> = Arc::new(false.into());
     bot.search_best_move(
         &mut board_state,
-        TimeControl::FixedDepth(depth as u32),
+        TimeControl::FixedDepth(depth as u64),
         &stop,
     )
 }

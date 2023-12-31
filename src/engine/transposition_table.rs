@@ -1,4 +1,4 @@
-use std::cmp::{min, max};
+use std::{cmp::{min, max}, sync::{Arc, atomic::AtomicBool}};
 
 use crate::chess::{board::ChessBoardState, zobrist_hash::ZHash};
 
@@ -79,7 +79,11 @@ impl<const T: usize> TranspositionTable<T> {
         eval: i32,
         depth: u16,
         node_type: NodeType,
+        stop: &Arc<AtomicBool>
     ) {
+        if stop.load(std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
         let entry = &mut self.entries[board_state.zhash.0 as usize % T];
         if entry.zhash.0 == 0 {
             entry.zhash = board_state.zhash;

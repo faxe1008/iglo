@@ -20,10 +20,10 @@ impl ChessBot for NPlyBot {
         _stop: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Move {
         let mut moves = board_state.generate_legal_moves_for_current_player();
-        let depth = match tc {
+        let depth= match tc {
             TimeControl::FixedDepth(d) => d,
-            TimeControl::Infinite => 6,
-        };
+            _ => 6,
+        } as u32;
 
         moves.sort_by(|a, b| {
             let board_a = board_state.exec_move(*a);
