@@ -135,7 +135,7 @@ impl<const T: usize> Searcher<T> {
 
                     0.6 * total
                 };
-                
+
                 duration.as_millis() >= duration_for_move as u128
             }
         };
@@ -184,10 +184,11 @@ impl<const T: usize> Searcher<T> {
         let nps = (1000 * self.info.nodes_searched as u128) / (search_duration.as_millis() + 1);
 
         println!(
-            "info time {} nodes {} nps {}",
+            "info time {} nodes {} nps {} hashfull {}",
             search_duration.as_millis(),
             self.info.nodes_searched,
-            nps
+            nps,
+            self.transposition_table.hashfull()
         );
 
         let best_move = moves[0];
@@ -295,16 +296,26 @@ impl<const T: usize> Searcher<T> {
                 (PieceColor::Black, true) => INFINITY * ply_remaining as i32,
                 (PieceColor::Black, false) => 0,
             };
-            self.transposition_table
-                .add_entry(board_state, score, ply_remaining, NodeType::Exact, &self.stop);
+            self.transposition_table.add_entry(
+                board_state,
+                score,
+                ply_remaining,
+                NodeType::Exact,
+                &self.stop,
+            );
 
             return score;
         }
 
         // Check for drawing moves
         if self.is_draw(board_state, ply_remaining) {
-            self.transposition_table
-                .add_entry(board_state, 0, ply_remaining, NodeType::Exact, &self.stop);
+            self.transposition_table.add_entry(
+                board_state,
+                0,
+                ply_remaining,
+                NodeType::Exact,
+                &self.stop,
+            );
 
             return 0;
         }
@@ -335,7 +346,7 @@ impl<const T: usize> Searcher<T> {
                         alpha,
                         ply_remaining,
                         NodeType::LowerBound,
-                        &self.stop
+                        &self.stop,
                     );
 
                     if !mv.is_capture() {
@@ -367,7 +378,7 @@ impl<const T: usize> Searcher<T> {
                         beta,
                         ply_remaining,
                         NodeType::UpperBound,
-                        &self.stop
+                        &self.stop,
                     );
 
                     break;

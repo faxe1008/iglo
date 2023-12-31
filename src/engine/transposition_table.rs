@@ -1,4 +1,7 @@
-use std::{cmp::{min, max}, sync::{Arc, atomic::AtomicBool}};
+use std::{
+    cmp::{max, min},
+    sync::{atomic::AtomicBool, Arc},
+};
 
 use crate::chess::{board::ChessBoardState, zobrist_hash::ZHash};
 
@@ -46,12 +49,12 @@ impl<const T: usize> TranspositionTable<T> {
                 return Some(entry.eval);
             } else if entry.node_type == NodeType::UpperBound {
                 *beta = min(*beta, entry.eval);
-            } else if entry.node_type == NodeType::LowerBound  {
+            } else if entry.node_type == NodeType::LowerBound {
                 *alpha = max(*alpha, entry.eval);
             }
-            
+
             if alpha >= beta {
-                return Some(entry.eval)
+                return Some(entry.eval);
             }
         }
         None
@@ -73,13 +76,17 @@ impl<const T: usize> TranspositionTable<T> {
         self.occupancy
     }
 
+    pub fn hashfull(&self) -> usize {
+        (1000 * self.occupancy) / T
+    }
+
     pub fn add_entry(
         &mut self,
         board_state: &ChessBoardState,
         eval: i32,
         depth: u16,
         node_type: NodeType,
-        stop: &Arc<AtomicBool>
+        stop: &Arc<AtomicBool>,
     ) {
         if stop.load(std::sync::atomic::Ordering::SeqCst) {
             return;
