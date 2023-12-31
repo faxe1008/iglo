@@ -56,7 +56,6 @@ fn sort_moves_in_order<const T: usize>(
     board_state: &mut ChessBoardState,
     moves: &HashSet<Move>,
 ) -> Vec<Move> {
-    searcher.clear_hash_table();
     let mut move_vec: Vec<Move> = moves.iter().map(|x| x.clone()).collect();
     searcher.minimax_root(board_state, &mut move_vec, 6);
     move_vec
@@ -99,6 +98,7 @@ fn main() {
     opening_list.sort_by(|a, b| a.0 .0.cmp(&b.0 .0));
 
     let mut entries = Vec::new();
+    let mut count = 0;
     for (progress, (hash, (state, move_set))) in opening_list.iter().progress() {
         let mut board = state.clone();
         let entry = OpeningBookEntry {
@@ -114,6 +114,10 @@ fn main() {
             );
         });
 
+        count += 1;
+        if count % 6 == 0 {
+            searcher.clear_hash_table();
+        }
         entries.push(entry);
     }
 
