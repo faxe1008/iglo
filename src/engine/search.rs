@@ -388,6 +388,16 @@ impl<const T: usize> Searcher<T> {
             value
         };
 
+        if alpha < value && value < beta {
+            self.transposition_table.add_entry(
+                board_state,
+                value,
+                ply_remaining,
+                NodeType::Exact,
+                &self.stop,
+            );
+        }
+
         value
     }
 }
