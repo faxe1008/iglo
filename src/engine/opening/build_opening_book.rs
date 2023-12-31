@@ -28,7 +28,6 @@ fn process_line(line: &str, openings: &mut HashMap<ZHash, (ChessBoardState, Hash
     let _opening_name = line_parts[0];
 
     let move_strings: Vec<&str> = line_parts[1].trim().split(",").collect();
-
     for move_str in &move_strings {
         let mv = Move::try_from((*move_str, &board_state));
 
@@ -42,8 +41,10 @@ fn process_line(line: &str, openings: &mut HashMap<ZHash, (ChessBoardState, Hash
         let entry_board_state = board_state.clone();
         board_state = board_state.exec_move(mv);
 
-        if let Some(existing_opening) = openings.get_mut(&entry_board_state.zhash) {
-            existing_opening.1.insert(mv);
+        if let Some(existing_opening) = openings.get_mut(&entry_board_state.zhash)  {
+            if existing_opening.0 == entry_board_state {
+                existing_opening.1.insert(mv);
+            }
         } else {
             // Create new entry
             openings.insert(entry_board_state.zhash, (entry_board_state, [mv].into()));
@@ -56,6 +57,7 @@ fn sort_moves_in_order<const T: usize>(
     board_state: &mut ChessBoardState,
     moves: &HashSet<Move>,
 ) -> Vec<Move> {
+    println!("{:?}", moves);
     let mut move_vec: Vec<Move> = moves.iter().map(|x| x.clone()).collect();
     searcher.minimax_root(board_state, &mut move_vec, 6);
     move_vec

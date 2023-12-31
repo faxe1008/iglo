@@ -25,11 +25,12 @@ pub struct NPlyTranspoBot {
     use_openening_book: bool,
 }
 
-const OPENING_BOOK_DATA: &[u8; 26004] = include_bytes!("../opening/opening_book.bin");
+const OPENING_BOOK_DATA: &[u8; 46388] = include_bytes!("../opening/opening_book.bin");
 
 impl Default for NPlyTranspoBot {
     fn default() -> Self {
         let opening_book = bincode::deserialize::<OpeningBook>(OPENING_BOOK_DATA).ok();
+
         Self {
             searcher: Searcher::new(Self::eval),
             opening_book: opening_book,
