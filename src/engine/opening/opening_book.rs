@@ -41,8 +41,10 @@ impl OpeningBook {
             .binary_search_by(|e: &OpeningBookEntry| e.position.0.cmp(&hash.0))
         {
             let entry = &self.entries[entry_index];
+
             let mv_index = if pick_random_opening {
-                random::<usize>() % entry.moves.len()
+                let max = entry.moves.len().min(3);
+                random::<usize>() % max
             } else {
                 0
             };

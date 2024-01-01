@@ -25,7 +25,7 @@ pub struct NPlyTranspoBot {
     use_openening_book: bool,
 }
 
-const OPENING_BOOK_DATA: &[u8; 46388] = include_bytes!("../opening/opening_book.bin");
+const OPENING_BOOK_DATA: &[u8; 225740] = include_bytes!("../opening/opening_book.bin");
 
 impl Default for NPlyTranspoBot {
     fn default() -> Self {
@@ -54,7 +54,7 @@ impl ChessBot for NPlyTranspoBot {
                 .opening_book
                 .as_ref()
                 .unwrap()
-                .lookup(board_state.zhash, false)
+                .lookup(board_state.zhash, true)
             {
                 println!("info string openingbook hit {:?}", &mv);
                 return mv;
