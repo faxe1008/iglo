@@ -9,7 +9,6 @@ use crate::chess::{
     zobrist_hash::ZHash,
 };
 use std::{
-    cmp::{max, min},
     sync::{atomic::AtomicBool, Arc},
     time::Instant,
 };
@@ -18,7 +17,7 @@ const INFINITY: i32 = 50000;
 pub const CHECKMATE: i32 = 49000;
 const MAX_EXTENSIONS: usize = 3;
 pub const MATE_DISTANCE: i32 = CHECKMATE - MAX_PLY as i32;
-pub const DEPTH_REDUCTION : u16 = 1;
+pub const DEPTH_REDUCTION: u16 = 1;
 
 pub const MAX_PLY: u16 = 64;
 pub const MAX_KILLER_MOVES: usize = 2;

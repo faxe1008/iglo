@@ -1,11 +1,8 @@
-use std::{
-    cmp::{max, min},
-    sync::{atomic::AtomicBool, Arc},
-};
+use std::sync::{atomic::AtomicBool, Arc};
 
 use crate::chess::{board::ChessBoardState, zobrist_hash::ZHash};
 
-use super::search::{Searcher, CHECKMATE, MATE_DISTANCE};
+use super::search::MATE_DISTANCE;
 
 #[derive(Copy, Clone, PartialEq)]
 #[repr(u8)]
@@ -27,13 +24,13 @@ pub struct TranspositionEntry {
     pub eval: i32,
     pub depth: u16,
     pub node_type: NodeType,
-    age: u8
+    age: u8,
 }
 
 pub struct TranspositionTable<const T: usize> {
     entries: [TranspositionEntry; T],
     occupancy: usize,
-    age: u8
+    age: u8,
 }
 
 impl<const T: usize> Default for TranspositionTable<T> {
@@ -41,7 +38,7 @@ impl<const T: usize> Default for TranspositionTable<T> {
         Self {
             entries: [TranspositionEntry::default(); T],
             occupancy: 0,
-            age: 0
+            age: 0,
         }
     }
 }

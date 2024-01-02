@@ -8,7 +8,7 @@ use crate::{
             PieceSquareTableEvaluation,
         },
         bot::ChessBot,
-        opening::opening_book::{self, OpeningBook},
+        opening::opening_book::OpeningBook,
         search::Searcher,
         time_control::TimeControl,
         transposition_table::TranspositionEntry,
