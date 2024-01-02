@@ -27,11 +27,13 @@ pub struct TranspositionEntry {
     pub eval: i32,
     pub depth: u16,
     pub node_type: NodeType,
+    age: u8
 }
 
 pub struct TranspositionTable<const T: usize> {
     entries: [TranspositionEntry; T],
     occupancy: usize,
+    age: u8
 }
 
 impl<const T: usize> Default for TranspositionTable<T> {
@@ -39,6 +41,7 @@ impl<const T: usize> Default for TranspositionTable<T> {
         Self {
             entries: [TranspositionEntry::default(); T],
             occupancy: 0,
+            age: 0
         }
     }
 }
@@ -97,6 +100,10 @@ impl<const T: usize> TranspositionTable<T> {
         }
     }
 
+    pub fn increment_age(&mut self) {
+        self.age = self.age.wrapping_add(1);
+    }
+
     pub fn correct_fetched_score(eval: i32, ply_from_root: u16) -> i32 {
         if eval >= MATE_DISTANCE {
             eval - ply_from_root as i32
@@ -120,13 +127,19 @@ impl<const T: usize> TranspositionTable<T> {
             return;
         }
         let entry = &mut self.entries[board_state.zhash.0 as usize % T];
-        if entry.zhash.0 == 0 {
+
+        let slot_is_empty = entry.zhash.0 == 0;
+        let slot_matches = entry.zhash == board_state.zhash;
+        let slot_depth_smaller = entry.depth < depth;
+        let slot_has_different_age = entry.age != self.age;
+
+        if slot_is_empty {
             entry.zhash = board_state.zhash;
             entry.eval = Self::correct_eval_for_storage(eval, ply_from_root);
             entry.depth = depth;
             entry.node_type = node_type;
             self.occupancy += 1;
-        } else if entry.zhash == board_state.zhash && entry.depth < depth {
+        } else if slot_matches && (slot_depth_smaller || slot_has_different_age) {
             entry.depth = depth;
             entry.eval = Self::correct_eval_for_storage(eval, ply_from_root);
             entry.node_type = node_type;

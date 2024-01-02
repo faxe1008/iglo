@@ -78,6 +78,8 @@ impl ChessBot for NPlyTranspoBot {
     }
     fn clear_history(&mut self) {
         self.searcher.info.history.clear();
+        // TODO: Hack factor this better
+        self.searcher.incr_hash_table_age();
     }
 }
 

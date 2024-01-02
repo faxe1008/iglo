@@ -18,6 +18,7 @@ const INFINITY: i32 = 50000;
 pub const CHECKMATE: i32 = 49000;
 const MAX_EXTENSIONS: usize = 3;
 pub const MATE_DISTANCE: i32 = CHECKMATE - MAX_PLY as i32;
+pub const DEPTH_REDUCTION : u16 = 1;
 
 pub const MAX_PLY: u16 = 64;
 pub const MAX_KILLER_MOVES: usize = 2;
@@ -98,6 +99,10 @@ impl<const T: usize> Searcher<T> {
 
     pub fn clear_hash_table(&mut self) {
         self.transposition_table.clear();
+    }
+
+    pub fn incr_hash_table_age(&mut self) {
+        self.transposition_table.increment_age();
     }
 
     fn should_stop(&mut self) -> bool {
@@ -190,11 +195,13 @@ impl<const T: usize> Searcher<T> {
         let nps = (1000 * self.info.nodes_searched as u128) / (search_duration.as_millis() + 1);
 
         println!(
-            "info time {} nodes {} nps {} hashfull {}",
+            "info time {} nodes {} nps {} hashfull {} depth {} seldepth {}",
             search_duration.as_millis(),
             self.info.nodes_searched,
             nps,
-            self.transposition_table.hashfull()
+            self.transposition_table.hashfull(),
+            search_depth,
+            self.info.sel_depth
         );
 
         let best_move = moves[0];
@@ -261,7 +268,7 @@ impl<const T: usize> Searcher<T> {
         mut ply_remaining: u16,
         ply_from_root: u16,
         mut alpha: i32,
-        mut beta: i32,
+        beta: i32,
         mut extensions: usize,
     ) -> i32 {
         if self.should_stop() {
@@ -327,7 +334,7 @@ impl<const T: usize> Searcher<T> {
 
         let mut node_type = NodeType::UpperBound;
 
-        for mv in &moves {
+        for (_, mv) in moves.iter().enumerate() {
             let new_board: ChessBoardState = board_state.exec_move(*mv);
             let score = -self.minimax(
                 &new_board,
@@ -337,7 +344,6 @@ impl<const T: usize> Searcher<T> {
                 -alpha,
                 extensions,
             );
-
             if self.should_stop() {
                 return 0;
             }
