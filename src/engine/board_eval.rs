@@ -276,11 +276,78 @@ impl EvaluationFunction for BishopPairEvaluation {
     }
 }
 
+pub struct KingPawnShieldEvaluation;
+impl EvaluationFunction for KingPawnShieldEvaluation {
+    fn eval(board_state: &ChessBoardState) -> i32 {
+        const PUNISHMENT_PER_PAWN: f32 = -30.0;
+
+        // The earlier in the game the more important
+        let end_game_factor = 1.0 - endgame_lerp_value(board_state);
+
+        let white_punishment = {
+            let king_bb = board_state
+                .board
+                .get_piece_bitboard(ChessPiece::King, PieceColor::White);
+            let pawn_bb = board_state
+                .board
+                .get_piece_bitboard(ChessPiece::Pawn, PieceColor::White);
+
+            let white_king_ks_pawns = BitBoard(0xe0000000000000);
+            let white_king_ks_squares = BitBoard(0xe000000000000000);
+
+            let white_king_qs_squares = BitBoard(0x700000000000000);
+            let white_king_qs_pawns = BitBoard(0x7000000000000);
+
+            if !(king_bb & white_king_ks_squares).is_empty() {
+                // King tucked away king side
+                let missing_pawns = 3 - dbg!((pawn_bb & white_king_ks_pawns).bit_count());
+                (end_game_factor * missing_pawns as f32 * PUNISHMENT_PER_PAWN) as i32
+            } else if !(king_bb & white_king_qs_squares).is_empty() {
+                // King tucked away queen side
+                let missing_pawns = 3 - (pawn_bb & white_king_qs_pawns).bit_count();
+                (end_game_factor * missing_pawns as f32 * PUNISHMENT_PER_PAWN) as i32
+            } else {
+                0
+            }
+        };
+
+
+        let black_punishment = {
+            let king_bb = board_state
+                .board
+                .get_piece_bitboard(ChessPiece::King, PieceColor::Black);
+            let pawn_bb = board_state
+                .board
+                .get_piece_bitboard(ChessPiece::Pawn, PieceColor::Black);
+
+            let black_king_ks_pawns = BitBoard(0xe000);
+            let black_king_ks_squares = BitBoard(0xe0);
+
+            let black_king_qs_pawns = BitBoard(0x700);
+            let black_king_qs_squares = BitBoard(0x7);
+
+            if !(king_bb & black_king_ks_squares).is_empty() {
+                // King tucked away king side
+                let missing_pawns = 3 - (pawn_bb & black_king_ks_pawns).bit_count();
+                (end_game_factor * missing_pawns as f32 * PUNISHMENT_PER_PAWN) as i32
+            } else if !(king_bb & black_king_qs_squares).is_empty() {
+                // King tucked away queen side
+                let missing_pawns = 3 - (pawn_bb & black_king_qs_pawns).bit_count();
+                (end_game_factor * missing_pawns as f32 * PUNISHMENT_PER_PAWN) as i32
+            } else {
+                0
+            }
+        };
+
+        white_punishment - black_punishment
+    }
+}
+
 #[cfg(test)]
 mod eval_tests {
     use crate::{
         chess::board::ChessBoardState,
-        engine::board_eval::{EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation},
+        engine::board_eval::{EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation, KingPawnShieldEvaluation},
     };
 
     #[test]
@@ -305,5 +372,16 @@ mod eval_tests {
         let board_opposing_passer =
             ChessBoardState::from_fen("4k3/8/8/8/6p1/8/8/4K3 w - - 0 1").unwrap();
         assert!(PassedPawnEvaluation::eval(&board_opposing_passer) < 0);
+    }
+
+    #[test]
+    fn eval_king_pawn_shield() {  
+        let board_white_damaged_shield = ChessBoardState::from_fen("rnbq2kr/pppppppp/8/4bn2/3Q1N2/1PN1BB2/P1PPPPPP/1KR4R w Kkq - 0 1").unwrap();
+        assert!(KingPawnShieldEvaluation::eval(&board_white_damaged_shield) < 0);
+
+        let board_black_damaged_shield = ChessBoardState::from_fen("rnbq2kr/pppppp1p/6p1/4bn2/3Q1N2/2N1BB2/PPPPPPPP/1KR4R w Kkq - 0 1").unwrap();
+        assert!(KingPawnShieldEvaluation::eval(&board_black_damaged_shield) > 0);
+
+        assert!(KingPawnShieldEvaluation::eval(&ChessBoardState::starting_state()) == 0);
     }
 }
