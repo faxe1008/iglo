@@ -1,3 +1,5 @@
+use super::board::PieceColor;
+
 pub struct Square;
 
 impl Square {
@@ -141,6 +143,14 @@ impl Square {
         name.push(new_rank);
 
         name
+    }
+
+    pub fn square_color(square: u16) -> PieceColor {
+        if square % 2 == 0 {
+            PieceColor::White
+        } else {
+            PieceColor::Black
+        }
     }
 
 

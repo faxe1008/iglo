@@ -1,8 +1,9 @@
-use lerp::{Lerp, num_traits::clamp};
+use lerp::{num_traits::clamp, Lerp};
 
 use crate::chess::{
     bitboard::BitBoard,
     board::{ChessBoardState, ChessPiece, PieceColor},
+    square::Square,
 };
 
 pub trait EvaluationFunction {
@@ -179,6 +180,7 @@ impl EvaluationFunction for PieceSquareTableEvaluation {
     }
 }
 
+// Strategy: Give Bonus for Passed Pawns
 pub struct PassedPawnEvaluation;
 impl EvaluationFunction for PassedPawnEvaluation {
     fn eval(board_state: &ChessBoardState) -> i32 {
@@ -197,7 +199,8 @@ impl EvaluationFunction for PassedPawnEvaluation {
                 let pp_mask = Self::mask_infront_of_pawn(pawn as u64, color)
                     & Self::mask_neighbor_file_of_pawn(pawn as u64);
                 if opposing_pawns & pp_mask == BitBoard::EMPTY {
-                    bonus +=  (endgame_factor * Self::bonus_for_passed_pawn(pawn, color) as f32) as i32;
+                    bonus +=
+                        (endgame_factor * Self::bonus_for_passed_pawn(pawn, color) as f32) as i32;
                 }
             }
             bonus
@@ -239,6 +242,37 @@ impl PassedPawnEvaluation {
         } else {
             BONUS_FOR_PASSED_PAWN[7 - rank]
         }
+    }
+}
+
+// Strategy Give Bonus for having the bishop pair
+pub struct BishopPairEvaluation;
+impl EvaluationFunction for BishopPairEvaluation {
+    fn eval(board_state: &ChessBoardState) -> i32 {
+        let eval_bishop_pair = |color: PieceColor| -> i32 {
+            let bishop_board = board_state
+                .board
+                .get_piece_bitboard(ChessPiece::Bishop, color);
+
+            let mut white_bishop_count = 0;
+            let mut black_bishop_count = 0;
+
+            for bishop in bishop_board {
+                match Square::square_color(bishop as u16) {
+                    PieceColor::White => white_bishop_count += 1,
+                    PieceColor::Black => black_bishop_count += 1,
+                }
+            }
+
+            /* Half a pawn bonus for the pair */
+            if white_bishop_count >= 1 && black_bishop_count >= 1 {
+                ChessPiece::Pawn.eval_value() as i32 / 2
+            } else {
+                0
+            }
+        };
+
+        eval_bishop_pair(PieceColor::White) - eval_bishop_pair(PieceColor::Black)
     }
 }
 

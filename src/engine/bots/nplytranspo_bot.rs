@@ -5,7 +5,7 @@ use crate::{
     engine::{
         board_eval::{
             EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation,
-            PieceSquareTableEvaluation,
+            PieceSquareTableEvaluation, BishopPairEvaluation,
         },
         bot::ChessBot,
         opening::opening_book::OpeningBook,
@@ -88,5 +88,6 @@ impl EvaluationFunction for NPlyTranspoBot {
         PieceCountEvaluation::eval(board_state)
             + PieceSquareTableEvaluation::eval(board_state)
             + PassedPawnEvaluation::eval(board_state)
+            + BishopPairEvaluation::eval(board_state)
     }
 }
