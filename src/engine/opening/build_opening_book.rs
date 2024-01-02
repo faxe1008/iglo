@@ -1,9 +1,5 @@
 use iglo::{
-    chess::{
-        board::{ChessBoardState},
-        chess_move::Move,
-        zobrist_hash::ZHash,
-    },
+    chess::{board::ChessBoardState, chess_move::Move, zobrist_hash::ZHash},
     engine::{
         board_eval::{
             EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation,
@@ -18,10 +14,11 @@ use std::{
     collections::{HashMap, HashSet},
     env,
     fs::File,
-    io::{BufRead, BufReader, Write}, thread,
+    io::{BufRead, BufReader, Write},
+    thread,
 };
 
-const THREAD_COUNT : usize = 4;
+const THREAD_COUNT: usize = 4;
 
 fn process_line(line: &str, openings: &mut HashMap<ZHash, (ChessBoardState, HashSet<Move>)>) {
     let mut board_state = ChessBoardState::starting_state();
@@ -43,7 +40,7 @@ fn process_line(line: &str, openings: &mut HashMap<ZHash, (ChessBoardState, Hash
         let entry_board_state = board_state.clone();
         board_state = board_state.exec_move(mv);
 
-        if let Some(existing_opening) = openings.get_mut(&entry_board_state.zhash)  {
+        if let Some(existing_opening) = openings.get_mut(&entry_board_state.zhash) {
             if existing_opening.0 == entry_board_state {
                 existing_opening.1.insert(mv);
             }
@@ -73,8 +70,10 @@ fn eval(board_state: &ChessBoardState) -> i32 {
 
 const TT_SIZE: usize = 64 * 1024 * 1024;
 
-fn process_opening_entry(id: usize, openings: &[(ZHash, (ChessBoardState, HashSet<Move>))]) -> Vec<OpeningBookEntry> {
-
+fn process_opening_entry(
+    id: usize,
+    openings: &[(ZHash, (ChessBoardState, HashSet<Move>))],
+) -> Vec<OpeningBookEntry> {
     let mut searcher = Searcher::<TT_SIZE>::new(eval);
     let mut entries: Vec<OpeningBookEntry> = Vec::new();
     let mut count = 0;
@@ -125,12 +124,15 @@ fn main() {
     openings.retain(|_, (_, move_set)| move_set.len() > 1);
 
     // Collect into Vec for sorting
-    let opening_list: Vec<(ZHash, (ChessBoardState, HashSet<Move>))> =
-        openings.iter().map(|(hash, (board, moves))| (*hash, (*board, moves.clone()))).collect();
+    let opening_list: Vec<(ZHash, (ChessBoardState, HashSet<Move>))> = openings
+        .iter()
+        .map(|(hash, (board, moves))| (*hash, (*board, moves.clone())))
+        .collect();
 
-
+    println!("Found {} lines", opening_list.len());
     let CHUNK_SIZE = opening_list.len() / THREAD_COUNT;
-    let chunks: Vec<&[(ZHash, (ChessBoardState, HashSet<Move>))]> = opening_list.chunks(CHUNK_SIZE).collect();
+    let chunks: Vec<&[(ZHash, (ChessBoardState, HashSet<Move>))]> =
+        opening_list.chunks(CHUNK_SIZE).collect();
 
     let mut thread_handles = Vec::new();
 
@@ -139,9 +141,7 @@ fn main() {
 
         println!("Starting {} with size {}", chunk_index, chunk.len());
 
-        let handle = thread::spawn(move || {
-            process_opening_entry(chunk_index, &chunk)
-        });
+        let handle = thread::spawn(move || process_opening_entry(chunk_index, &chunk));
 
         thread_handles.push(handle);
     }

@@ -15,7 +15,9 @@ use std::{
 };
 
 const INFINITY: i32 = 50000;
+pub const CHECKMATE: i32 = 49000;
 const MAX_EXTENSIONS: usize = 3;
+pub const MATE_DISTANCE: i32 = CHECKMATE - MAX_PLY as i32;
 
 pub const MAX_PLY: u16 = 64;
 pub const MAX_KILLER_MOVES: usize = 2;
@@ -238,7 +240,7 @@ impl<const T: usize> Searcher<T> {
         // Evaluate moves
         for (mv_index, mv) in moves.iter().enumerate() {
             let board_new = board_state.exec_move(*mv);
-            ratings[mv_index] = self.minimax(&board_new, depth, 0, i32::MIN, i32::MAX, 0);
+            ratings[mv_index] = -self.minimax(&board_new, depth, 0, -INFINITY, INFINITY, 0);
         }
 
         if self.should_stop() {
@@ -247,11 +249,7 @@ impl<const T: usize> Searcher<T> {
 
         // Sort moves by their rating
         let mut zipped: Vec<_> = moves.drain(..).zip(ratings.drain(..)).collect();
-        if board_state.side == PieceColor::White {
-            zipped.sort_by(|(_, a_rt), (_, b_rt)| b_rt.cmp(a_rt));
-        } else {
-            zipped.sort_by(|(_, a_rt), (_, b_rt)| a_rt.cmp(b_rt));
-        }
+        zipped.sort_by(|(_, a_rt), (_, b_rt)| b_rt.cmp(a_rt));
 
         // Push sorted moves back to caller
         *moves = zipped.drain(..).map(|(mv, _)| mv).collect();
@@ -270,10 +268,19 @@ impl<const T: usize> Searcher<T> {
             return 0;
         }
 
-        if let Some(eval) =
-            self.transposition_table
-                .lookup(board_state.zhash, ply_remaining, &mut alpha, &mut beta)
-        {
+        let sf = if board_state.side == PieceColor::White {
+            1
+        } else {
+            -1
+        };
+
+        if let Some(eval) = self.transposition_table.lookup(
+            board_state.zhash,
+            ply_remaining,
+            ply_from_root,
+            alpha,
+            beta,
+        ) {
             return eval;
         }
 
@@ -285,7 +292,7 @@ impl<const T: usize> Searcher<T> {
         }
 
         if ply_remaining == 0 {
-            return (self.eval_fn)(board_state);
+            return sf * (self.eval_fn)(board_state);
         }
 
         self.info.nodes_searched += 1;
@@ -294,20 +301,11 @@ impl<const T: usize> Searcher<T> {
 
         // No moves, either draw or checkmate
         if moves.len() == 0 {
-            let score = match (board_state.side, is_in_check) {
-                (PieceColor::White, true) => -INFINITY * ply_remaining as i32,
-                (PieceColor::White, false) => 0,
-                (PieceColor::Black, true) => INFINITY * ply_remaining as i32,
-                (PieceColor::Black, false) => 0,
+            let score = if is_in_check {
+                -CHECKMATE + ply_from_root as i32
+            } else {
+                0
             };
-            self.transposition_table.add_entry(
-                board_state,
-                score,
-                ply_remaining,
-                NodeType::Exact,
-                &self.stop,
-            );
-
             return score;
         }
 
@@ -317,91 +315,60 @@ impl<const T: usize> Searcher<T> {
                 board_state,
                 0,
                 ply_remaining,
+                ply_from_root,
                 NodeType::Exact,
                 &self.stop,
             );
-
             return 0;
         }
 
         // Sort moves by expected value
         order_moves(&mut moves, board_state, &self.info, ply_from_root);
 
-        let value = if board_state.side == PieceColor::White {
-            let mut value = i32::MIN;
+        let mut node_type = NodeType::UpperBound;
 
-            for mv in &moves {
-                let new_board = board_state.exec_move(*mv);
-
-                value = max(
-                    value,
-                    self.minimax(
-                        &new_board,
-                        ply_remaining - 1,
-                        ply_from_root + 1,
-                        alpha,
-                        beta,
-                        extensions,
-                    ),
-                );
-                if value >= beta {
-                    self.transposition_table.add_entry(
-                        board_state,
-                        alpha,
-                        ply_remaining,
-                        NodeType::LowerBound,
-                        &self.stop,
-                    );
-
-                    if !mv.is_capture() {
-                        self.info.store_killer_move(*mv, ply_from_root);
-                    }
-                    break;
-                }
-                alpha = max(alpha, value);
-            }
-            value
-        } else {
-            let mut value = i32::MAX;
-            for mv in &moves {
-                let new_board = board_state.exec_move(*mv);
-                value = min(
-                    value,
-                    self.minimax(
-                        &new_board,
-                        ply_remaining - 1,
-                        ply_from_root + 1,
-                        alpha,
-                        beta,
-                        extensions,
-                    ),
-                );
-                if value < alpha {
-                    self.transposition_table.add_entry(
-                        board_state,
-                        beta,
-                        ply_remaining,
-                        NodeType::UpperBound,
-                        &self.stop,
-                    );
-
-                    break;
-                }
-                beta = min(beta, value);
-            }
-            value
-        };
-
-        if alpha < value && value < beta {
-            self.transposition_table.add_entry(
-                board_state,
-                value,
-                ply_remaining,
-                NodeType::Exact,
-                &self.stop,
+        for mv in &moves {
+            let new_board: ChessBoardState = board_state.exec_move(*mv);
+            let score = -self.minimax(
+                &new_board,
+                ply_remaining - 1,
+                ply_from_root + 1,
+                -beta,
+                -alpha,
+                extensions,
             );
+
+            if self.should_stop() {
+                return 0;
+            }
+
+            if score >= beta {
+                self.info.store_killer_move(*mv, ply_from_root);
+                self.transposition_table.add_entry(
+                    board_state,
+                    beta,
+                    ply_remaining,
+                    ply_from_root,
+                    NodeType::LowerBound,
+                    &self.stop,
+                );
+                return beta;
+            }
+
+            if score > alpha {
+                node_type = NodeType::Exact;
+                alpha = score;
+            }
         }
 
-        value
+        self.transposition_table.add_entry(
+            board_state,
+            alpha,
+            ply_remaining,
+            ply_from_root,
+            node_type,
+            &self.stop,
+        );
+        alpha
     }
 }
