@@ -279,7 +279,7 @@ impl EvaluationFunction for BishopPairEvaluation {
 pub struct KingPawnShieldEvaluation;
 impl EvaluationFunction for KingPawnShieldEvaluation {
     fn eval(board_state: &ChessBoardState) -> i32 {
-        const PUNISHMENT_PER_PAWN: f32 = -30.0;
+        const PUNISHMENT_PER_PAWN: f32 = -20.0;
 
         // The earlier in the game the more important
         let end_game_factor = 1.0 - endgame_lerp_value(board_state);
@@ -300,7 +300,7 @@ impl EvaluationFunction for KingPawnShieldEvaluation {
 
             if !(king_bb & white_king_ks_squares).is_empty() {
                 // King tucked away king side
-                let missing_pawns = 3 - dbg!((pawn_bb & white_king_ks_pawns).bit_count());
+                let missing_pawns = 3 - (pawn_bb & white_king_ks_pawns).bit_count();
                 (end_game_factor * missing_pawns as f32 * PUNISHMENT_PER_PAWN) as i32
             } else if !(king_bb & white_king_qs_squares).is_empty() {
                 // King tucked away queen side

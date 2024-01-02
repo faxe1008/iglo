@@ -3,7 +3,7 @@ use iglo::{
     engine::{
         board_eval::{
             EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation,
-            PieceSquareTableEvaluation,
+            PieceSquareTableEvaluation, BishopPairEvaluation, KingPawnShieldEvaluation,
         },
         opening::opening_book::{OpeningBook, OpeningBookEntry},
         search::Searcher,
@@ -66,6 +66,8 @@ fn eval(board_state: &ChessBoardState) -> i32 {
     PieceCountEvaluation::eval(board_state)
         + PieceSquareTableEvaluation::eval(board_state)
         + PassedPawnEvaluation::eval(board_state)
+        + BishopPairEvaluation::eval(board_state)
+        + KingPawnShieldEvaluation::eval(board_state)
 }
 
 const TT_SIZE: usize = 64 * 1024 * 1024;

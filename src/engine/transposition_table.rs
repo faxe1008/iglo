@@ -134,11 +134,14 @@ impl<const T: usize> TranspositionTable<T> {
             entry.zhash = board_state.zhash;
             entry.eval = Self::correct_eval_for_storage(eval, ply_from_root);
             entry.depth = depth;
+            entry.age = self.age;
             entry.node_type = node_type;
             self.occupancy += 1;
         } else if slot_matches && (slot_depth_smaller || slot_has_different_age) {
-            entry.depth = depth;
+            entry.zhash = board_state.zhash;
             entry.eval = Self::correct_eval_for_storage(eval, ply_from_root);
+            entry.depth = depth;
+            entry.age = self.age;
             entry.node_type = node_type;
         }
     }
