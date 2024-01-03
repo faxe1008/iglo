@@ -25,7 +25,7 @@ pub struct NPlyTranspoBot {
     use_openening_book: bool,
 }
 
-const OPENING_BOOK_DATA: &[u8; 225740] = include_bytes!("../opening/opening_book.bin");
+const OPENING_BOOK_DATA: &[u8; 97328] = include_bytes!("../opening/opening_book.bin");
 
 impl Default for NPlyTranspoBot {
     fn default() -> Self {

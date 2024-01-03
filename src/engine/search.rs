@@ -19,6 +19,8 @@ const MAX_EXTENSIONS: usize = 3;
 pub const MATE_DISTANCE: i32 = CHECKMATE - MAX_PLY as i32;
 pub const DEPTH_REDUCTION: u16 = 1;
 
+pub const MAX_QUISCIENCE_DEPTH: u16 = 4;
+
 pub const MAX_PLY: u16 = 64;
 pub const MAX_KILLER_MOVES: usize = 2;
 type KillerMoves = [[Move; MAX_PLY as usize]; MAX_KILLER_MOVES];
@@ -261,6 +263,72 @@ impl<const T: usize> Searcher<T> {
         *moves = zipped.drain(..).map(|(mv, _)| mv).collect();
     }
 
+    fn quiescience_search(
+        &mut self,
+        board_state: &ChessBoardState,
+        ply_remaining: u16,
+        ply_from_root: u16,
+        mut alpha: i32,
+        beta: i32,
+    ) -> i32 {
+        if self.should_stop() {
+            return 0;
+        }
+
+        let sf = if board_state.side == PieceColor::White {
+            1
+        } else {
+            -1
+        };
+
+        self.info.sel_depth = self.info.sel_depth.max(ply_from_root as usize);
+
+        if ply_from_root >= MAX_PLY || ply_remaining == 0 {
+            return sf * (self.eval_fn)(&board_state);
+        }
+
+        if self.is_draw(board_state, ply_from_root) {
+            return 0;
+        }
+
+        if let Some(score) = self.transposition_table.lookup(
+            board_state.zhash,
+            ply_remaining,
+            ply_from_root,
+            alpha,
+            beta,
+        ) {
+            return score;
+        }
+
+        let mut score = sf * (self.eval_fn)(&board_state);
+        if score >= beta {
+            return beta;
+        }
+        if alpha < score {
+            alpha = score;
+        }
+
+        let moves = board_state.generate_legal_moves_for_current_player();
+        for mv in moves.iter().filter(|m| m.is_capture()) {
+            let new_board = board_state.exec_move(*mv);
+            score = -self.quiescience_search(
+                &new_board,
+                ply_remaining - 1,
+                ply_from_root + 1,
+                -beta,
+                -alpha,
+            );
+            if score >= beta {
+                return beta;
+            }
+            if score > alpha {
+                alpha = score;
+            }
+        }
+        return alpha;
+    }
+
     fn minimax(
         &mut self,
         board_state: &ChessBoardState,
@@ -273,12 +341,6 @@ impl<const T: usize> Searcher<T> {
         if self.should_stop() {
             return 0;
         }
-
-        let sf = if board_state.side == PieceColor::White {
-            1
-        } else {
-            -1
-        };
 
         if let Some(eval) = self.transposition_table.lookup(
             board_state.zhash,
@@ -298,7 +360,13 @@ impl<const T: usize> Searcher<T> {
         }
 
         if ply_remaining == 0 {
-            return sf * (self.eval_fn)(board_state);
+            return self.quiescience_search(
+                board_state,
+                MAX_QUISCIENCE_DEPTH,
+                ply_from_root,
+                alpha,
+                beta,
+            );
         }
 
         self.info.nodes_searched += 1;
