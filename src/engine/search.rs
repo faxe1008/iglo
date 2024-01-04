@@ -282,6 +282,7 @@ impl<const T: usize> Searcher<T> {
         };
 
         self.info.sel_depth = self.info.sel_depth.max(ply_from_root as usize);
+        self.info.nodes_searched += 1;
 
         if ply_from_root >= MAX_PLY || ply_remaining == 0 {
             return sf * (self.eval_fn)(&board_state);
