@@ -64,7 +64,7 @@ impl TryFrom<&str> for UCICommand {
                     Some("startpos") => ChessBoardState::starting_state(),
                     Some("fen") => {
                         let fen_str = tokens.by_ref().take(6).collect::<Vec<&str>>().join(" ");
-                        ChessBoardState::from_fen(dbg!(&fen_str))?
+                        ChessBoardState::from_fen(&fen_str)?
                     }
                     Some(_) | None => return Err(()),
                 };

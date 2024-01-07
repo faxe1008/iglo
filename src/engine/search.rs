@@ -184,7 +184,7 @@ impl<const T: usize> Searcher<T> {
         self.stop = stop.clone();
         self.stop.store(false, std::sync::atomic::Ordering::SeqCst);
         self.info.reset();
-        self.time_control = dbg!(time_control);
+        self.time_control = time_control;
         self.info.self_color = board_state.side;
 
         // Iterative deepening
