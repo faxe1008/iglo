@@ -25,14 +25,14 @@ fn run_move_search(
 fn search_benchmark(c: &mut Criterion) {
     let mut bot = NPlyTranspoBot::default();
     let mut board_state = ChessBoardState::from_fen(
-        "rnbqkbnr/pp1p1ppp/2p1p3/8/4P3/3P4/PPPN1PPP/R1BQKBNR b KQkq - 1 5",
+        "rnbqkbnr/pp1p1ppp/2p1p3/8/4P3/3P4/PPPN1PPP/R1BQKBNR b KQkq - 9 9",
     )
     .unwrap();
 
     let mut group = c.benchmark_group("Search Move");
     group.sample_size(10);
     group.bench_function("Search 6ply deep", |b| {
-        b.iter(|| run_move_search(black_box(&mut bot), &mut board_state, 6))
+        b.iter(|| run_move_search(black_box(&mut bot), &mut board_state, 7))
     });
     group.finish();
 }

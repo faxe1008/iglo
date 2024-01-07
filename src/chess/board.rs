@@ -4,7 +4,6 @@ use crate::chess::{chess_move::MoveType, square::Square};
 
 use super::{bitboard::BitBoard, chess_move::Move, zobrist_hash::ZHash};
 
-
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash)]
 pub enum ChessPiece {
     Pawn = 0,
@@ -29,13 +28,15 @@ pub struct CastlingRights {
     pub black_king_side: bool,
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash, Default)]
+#[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash)]
 pub struct ChessBoard {
     pub white_pieces: [BitBoard; ChessPiece::PIECE_TYPE_COUNT],
     pub black_pieces: [BitBoard; ChessPiece::PIECE_TYPE_COUNT],
 
     pub all_white_pieces: BitBoard,
     pub all_black_pieces: BitBoard,
+
+    piece_board: [Option<(ChessPiece, PieceColor)>; Square::NUM as usize],
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash)]
@@ -46,7 +47,7 @@ pub struct ChessBoardState {
     pub en_passant_target: Option<u8>,
     pub half_moves: u8,
     pub full_moves: u8,
-    pub zhash: ZHash
+    pub zhash: ZHash,
 }
 
 impl From<usize> for ChessPiece {
@@ -75,7 +76,7 @@ impl Not for PieceColor {
 }
 
 impl PieceColor {
-    pub const PIECE_COLOR_COUNT : usize = 2;
+    pub const PIECE_COLOR_COUNT: usize = 2;
     pub fn as_display_str(&self) -> String {
         match self {
             PieceColor::White => "White",
@@ -185,13 +186,25 @@ impl ChessPiece {
     }
 }
 
+impl Default for ChessBoard {
+    fn default() -> Self {
+        Self {
+            white_pieces: Default::default(),
+            black_pieces: Default::default(),
+            all_white_pieces: Default::default(),
+            all_black_pieces: Default::default(),
+            piece_board: [None; Square::NUM as usize],
+        }
+    }
+}
+
 impl ChessBoard {
     pub fn place_piece_of_color(
         &mut self,
         piece: ChessPiece,
         col: PieceColor,
         index_to_set: usize,
-        zhash: &mut ZHash
+        zhash: &mut ZHash,
     ) {
         let piece_bitboard = if col == PieceColor::White {
             self.all_white_pieces = self.all_white_pieces.set_bit(index_to_set);
@@ -200,25 +213,22 @@ impl ChessBoard {
             self.all_black_pieces = self.all_black_pieces.set_bit(index_to_set);
             &mut self.black_pieces[piece as usize]
         };
+        self.piece_board[index_to_set] = Some((piece, col));
         *piece_bitboard = piece_bitboard.set_bit(index_to_set);
         zhash.toggle_piece_at_pos(piece, col, index_to_set);
     }
 
     pub fn get_piece_at_pos(&self, index: usize) -> Option<(ChessPiece, PieceColor)> {
-        for (piece_type, bb) in self.white_pieces.iter().enumerate() {
-            if bb.get_bit(index) {
-                return Some((piece_type.into(), PieceColor::White));
-            }
-        }
-        for (piece_type, bb) in self.black_pieces.iter().enumerate() {
-            if bb.get_bit(index) {
-                return Some((piece_type.into(), PieceColor::Black));
-            }
-        }
-        None
+        self.piece_board[index]
     }
 
-    pub fn remove_piece_at_pos(&mut self, piece: ChessPiece, col: PieceColor, index: usize, zhash: &mut ZHash) {
+    pub fn remove_piece_at_pos(
+        &mut self,
+        piece: ChessPiece,
+        col: PieceColor,
+        index: usize,
+        zhash: &mut ZHash,
+    ) {
         let piece_bitboard = if col == PieceColor::White {
             self.all_white_pieces = self.all_white_pieces.clear_bit(index);
             &mut self.white_pieces[piece as usize]
@@ -226,6 +236,7 @@ impl ChessBoard {
             self.all_black_pieces = self.all_black_pieces.clear_bit(index);
             &mut self.black_pieces[piece as usize]
         };
+        self.piece_board[index] = None;
         *piece_bitboard = piece_bitboard.clear_bit(index);
         zhash.toggle_piece_at_pos(piece, col, index);
     }
@@ -250,7 +261,7 @@ impl ChessBoard {
             self.white_pieces[piece as usize]
         } else {
             self.black_pieces[piece as usize]
-        } 
+        }
     }
 
     #[inline(always)]
@@ -264,9 +275,11 @@ impl ChessBoard {
 
     #[inline(always)]
     pub fn get_king_pos(&self, col: PieceColor) -> usize {
-        self.get_piece_bitboard(ChessPiece::King, col).into_iter().nth(0).unwrap()
+        self.get_piece_bitboard(ChessPiece::King, col)
+            .into_iter()
+            .nth(0)
+            .unwrap()
     }
-
 
     pub fn from_fen_notation(fen: &str, zhash: &mut ZHash) -> Result<Self, ()> {
         let mut board = Self::default();
@@ -343,7 +356,7 @@ impl ChessBoardState {
             en_passant_target: Square::from_square_name(fen_parts[3])?,
             half_moves: fen_parts[4].parse::<u8>().map_err(|_| ())?,
             full_moves: fen_parts[5].parse::<u8>().map_err(|_| ())?,
-            zhash: zhash
+            zhash: zhash,
         })
     }
 
@@ -453,7 +466,6 @@ impl ChessBoardState {
     pub fn exec_move(&self, mv: Move) -> Self {
         let mut new = *self;
 
-
         if let Some(ep_target) = new.en_passant_target {
             new.zhash.toggle_enpassant(ep_target as usize);
         }
@@ -475,10 +487,18 @@ impl ChessBoardState {
         if mv.is_capture() && !mv.is_en_passant() {
             let (dst_piece, dst_color) = dst_piece_col.unwrap();
             assert!(dst_color != src_color, "Can not capture own pieces");
-            new.board
-                .remove_piece_at_pos(dst_piece, dst_color, mv.get_dst() as usize, &mut new.zhash);
-            new.board
-                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
+            new.board.remove_piece_at_pos(
+                dst_piece,
+                dst_color,
+                mv.get_dst() as usize,
+                &mut new.zhash,
+            );
+            new.board.remove_piece_at_pos(
+                src_piece,
+                src_color,
+                mv.get_src() as usize,
+                &mut new.zhash,
+            );
 
             let new_piece = if mv.is_promotion() {
                 mv.promotion_target()
@@ -486,26 +506,54 @@ impl ChessBoardState {
                 src_piece
             };
 
-            new.board
-                .place_piece_of_color(new_piece, src_color, mv.get_dst() as usize, &mut new.zhash);
-        }   else if mv.is_promotion() && !mv.is_capture() {
+            new.board.place_piece_of_color(
+                new_piece,
+                src_color,
+                mv.get_dst() as usize,
+                &mut new.zhash,
+            );
+        } else if mv.is_promotion() && !mv.is_capture() {
             // Promotion, non capture
-            new.board
-                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
-            new.board
-                .place_piece_of_color(mv.promotion_target(), src_color, mv.get_dst() as usize, &mut new.zhash);
+            new.board.remove_piece_at_pos(
+                src_piece,
+                src_color,
+                mv.get_src() as usize,
+                &mut new.zhash,
+            );
+            new.board.place_piece_of_color(
+                mv.promotion_target(),
+                src_color,
+                mv.get_dst() as usize,
+                &mut new.zhash,
+            );
         } else if mv.is_silent() {
             // Move is silent
-            new.board
-                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
-            new.board
-                .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize, &mut new.zhash);
+            new.board.remove_piece_at_pos(
+                src_piece,
+                src_color,
+                mv.get_src() as usize,
+                &mut new.zhash,
+            );
+            new.board.place_piece_of_color(
+                src_piece,
+                src_color,
+                mv.get_dst() as usize,
+                &mut new.zhash,
+            );
         } else if mv.is_double_push() {
             // Pawn double push
-            new.board
-                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
-            new.board
-                .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize, &mut new.zhash);
+            new.board.remove_piece_at_pos(
+                src_piece,
+                src_color,
+                mv.get_src() as usize,
+                &mut new.zhash,
+            );
+            new.board.place_piece_of_color(
+                src_piece,
+                src_color,
+                mv.get_dst() as usize,
+                &mut new.zhash,
+            );
             let new_ep_target = if src_color == PieceColor::White {
                 Some(mv.get_dst() as u8 + 8)
             } else {
@@ -527,51 +575,108 @@ impl ChessBoardState {
 
             new.board
                 .remove_piece_at_pos(dst_piece, dst_color, dst as usize, &mut new.zhash);
-            new.board
-                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
-            new.board
-                .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize, &mut new.zhash);
+            new.board.remove_piece_at_pos(
+                src_piece,
+                src_color,
+                mv.get_src() as usize,
+                &mut new.zhash,
+            );
+            new.board.place_piece_of_color(
+                src_piece,
+                src_color,
+                mv.get_dst() as usize,
+                &mut new.zhash,
+            );
         } else if mv.get_type() == MoveType::CastleKingSide {
             // Castling King Side
 
             assert!(src_piece == ChessPiece::King);
-            new.board
-                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
-            new.board
-                .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize, &mut new.zhash);
+            new.board.remove_piece_at_pos(
+                src_piece,
+                src_color,
+                mv.get_src() as usize,
+                &mut new.zhash,
+            );
+            new.board.place_piece_of_color(
+                src_piece,
+                src_color,
+                mv.get_dst() as usize,
+                &mut new.zhash,
+            );
             if src_color == PieceColor::White {
-                new.board
-                    .remove_piece_at_pos(ChessPiece::Rook, src_color, Square::H1 as usize, &mut new.zhash);
-                new.board
-                    .place_piece_of_color(ChessPiece::Rook, src_color, Square::F1 as usize, &mut new.zhash);
+                new.board.remove_piece_at_pos(
+                    ChessPiece::Rook,
+                    src_color,
+                    Square::H1 as usize,
+                    &mut new.zhash,
+                );
+                new.board.place_piece_of_color(
+                    ChessPiece::Rook,
+                    src_color,
+                    Square::F1 as usize,
+                    &mut new.zhash,
+                );
             } else {
-                new.board
-                    .remove_piece_at_pos(ChessPiece::Rook, src_color, Square::H8 as usize, &mut new.zhash);
-                new.board
-                    .place_piece_of_color(ChessPiece::Rook, src_color, Square::F8 as usize, &mut new.zhash);
+                new.board.remove_piece_at_pos(
+                    ChessPiece::Rook,
+                    src_color,
+                    Square::H8 as usize,
+                    &mut new.zhash,
+                );
+                new.board.place_piece_of_color(
+                    ChessPiece::Rook,
+                    src_color,
+                    Square::F8 as usize,
+                    &mut new.zhash,
+                );
             }
         } else if mv.get_type() == MoveType::CastleQueenSide {
             // Castling Queen Side
             assert!(src_piece == ChessPiece::King);
-            new.board
-                .remove_piece_at_pos(src_piece, src_color, mv.get_src() as usize, &mut new.zhash);
-            new.board
-                .place_piece_of_color(src_piece, src_color, mv.get_dst() as usize, &mut new.zhash);
+            new.board.remove_piece_at_pos(
+                src_piece,
+                src_color,
+                mv.get_src() as usize,
+                &mut new.zhash,
+            );
+            new.board.place_piece_of_color(
+                src_piece,
+                src_color,
+                mv.get_dst() as usize,
+                &mut new.zhash,
+            );
             if src_color == PieceColor::White {
-                new.board
-                    .remove_piece_at_pos(ChessPiece::Rook, src_color, Square::A1 as usize, &mut new.zhash);
-                new.board
-                    .place_piece_of_color(ChessPiece::Rook, src_color, Square::D1 as usize, &mut new.zhash);
+                new.board.remove_piece_at_pos(
+                    ChessPiece::Rook,
+                    src_color,
+                    Square::A1 as usize,
+                    &mut new.zhash,
+                );
+                new.board.place_piece_of_color(
+                    ChessPiece::Rook,
+                    src_color,
+                    Square::D1 as usize,
+                    &mut new.zhash,
+                );
             } else {
-                new.board
-                    .remove_piece_at_pos(ChessPiece::Rook, src_color, Square::A8 as usize, &mut new.zhash);
-                new.board
-                    .place_piece_of_color(ChessPiece::Rook, src_color, Square::D8 as usize, &mut new.zhash);
+                new.board.remove_piece_at_pos(
+                    ChessPiece::Rook,
+                    src_color,
+                    Square::A8 as usize,
+                    &mut new.zhash,
+                );
+                new.board.place_piece_of_color(
+                    ChessPiece::Rook,
+                    src_color,
+                    Square::D8 as usize,
+                    &mut new.zhash,
+                );
             }
         }
 
         new.revoke_castling_rights(src_piece, src_color, dst_piece_col, &mv);
-        new.zhash.swap_castling_rights(&self.castling_rights, &new.castling_rights);
+        new.zhash
+            .swap_castling_rights(&self.castling_rights, &new.castling_rights);
 
         if mv.is_capture() || src_piece == ChessPiece::Pawn {
             new.half_moves = 0;
@@ -673,6 +778,7 @@ mod board_tests {
                 black_pieces: [bb!(65280), bb!(66), bb!(36), bb!(129), bb!(8), bb!(16)],
                 all_white_pieces: bb!(18446462598732840960),
                 all_black_pieces: bb!(65535),
+                piece_board: [None; Square::NUM as usize]
             },
             side: PieceColor::White,
             castling_rights: CastlingRights {
@@ -684,7 +790,7 @@ mod board_tests {
             en_passant_target: None,
             half_moves: 0,
             full_moves: 0,
-            zhash: ZHash::default()
+            zhash: ZHash::default(),
         };
 
         check_board_equality(&board.unwrap(), &expected);
@@ -716,6 +822,7 @@ mod board_tests {
                 ],
                 all_white_pieces: bb!(2037460020536279040),
                 all_black_pieces: bb!(10770984612),
+                piece_board: [None; Square::NUM as usize]
             },
             side: PieceColor::Black,
             castling_rights: CastlingRights {
@@ -727,7 +834,7 @@ mod board_tests {
             en_passant_target: None,
             half_moves: 0,
             full_moves: 21,
-            zhash: ZHash::default()
+            zhash: ZHash::default(),
         };
 
         check_board_equality(&board.unwrap(), &expected);
@@ -768,35 +875,61 @@ mod board_tests {
             let board_state = board_state.unwrap();
 
             let fen = board_state.to_fen();
-            assert!(board.eq(&fen), "FENs are not equal, expected: {}, produced: {}", board, fen);
+            assert!(
+                board.eq(&fen),
+                "FENs are not equal, expected: {}, produced: {}",
+                board,
+                fen
+            );
         }
-
     }
 
     #[test]
-    fn test_castling_right_update(){
-        let mut board_state = ChessBoardState::from_fen("r3k2r/8/8/R6R/r6r/8/8/R3K2R w KQkq - 0 12").unwrap();
+    fn test_castling_right_update() {
+        let mut board_state =
+            ChessBoardState::from_fen("r3k2r/8/8/R6R/r6r/8/8/R3K2R w KQkq - 0 12").unwrap();
 
         // Castle King Side White
-        let castled_white_king_side = board_state.exec_move(Move::new(Square::E1, Square::G1, MoveType::CastleKingSide));
-        assert_eq!(castled_white_king_side.castling_rights.white_king_side, false, "Castle Kingside, all castling should be revoked");
-        assert_eq!(castled_white_king_side.castling_rights.white_queen_side, false, "Castle Kingside, all castling should be revoked");
+        let castled_white_king_side =
+            board_state.exec_move(Move::new(Square::E1, Square::G1, MoveType::CastleKingSide));
+        assert_eq!(
+            castled_white_king_side.castling_rights.white_king_side, false,
+            "Castle Kingside, all castling should be revoked"
+        );
+        assert_eq!(
+            castled_white_king_side.castling_rights.white_queen_side, false,
+            "Castle Kingside, all castling should be revoked"
+        );
 
         // Castle Queen Side White
-        let castled_white_queen_side = board_state.exec_move(Move::new(Square::E1, Square::C1, MoveType::CastleQueenSide));
-        assert_eq!(castled_white_queen_side.castling_rights.white_king_side, false, "Castle Queenside, all castling should be revoked");
-        assert_eq!(castled_white_queen_side.castling_rights.white_queen_side, false, "Castle Queenside, all castling should be revoked");
+        let castled_white_queen_side =
+            board_state.exec_move(Move::new(Square::E1, Square::C1, MoveType::CastleQueenSide));
+        assert_eq!(
+            castled_white_queen_side.castling_rights.white_king_side, false,
+            "Castle Queenside, all castling should be revoked"
+        );
+        assert_eq!(
+            castled_white_queen_side.castling_rights.white_queen_side, false,
+            "Castle Queenside, all castling should be revoked"
+        );
 
         // Make black the current player
         board_state.side = PieceColor::Black;
 
         // Capture Queen Side Rook
-        let capture_white_q_rook = board_state.exec_move(Move::new(Square::A4, Square::A1, MoveType::Capture));
-        assert_eq!(capture_white_q_rook.castling_rights.white_queen_side, false, "Captured queen side rook");
+        let capture_white_q_rook =
+            board_state.exec_move(Move::new(Square::A4, Square::A1, MoveType::Capture));
+        assert_eq!(
+            capture_white_q_rook.castling_rights.white_queen_side, false,
+            "Captured queen side rook"
+        );
 
         // Capture King Side Rook
-        let capture_white_k_rook = board_state.exec_move(Move::new(Square::H4, Square::H1, MoveType::Capture));
-        assert_eq!(capture_white_k_rook.castling_rights.white_king_side, false, "Captured king side rook");
-
+        let capture_white_k_rook =
+            board_state.exec_move(Move::new(Square::H4, Square::H1, MoveType::Capture));
+        assert_eq!(
+            capture_white_k_rook.castling_rights.white_king_side, false,
+            "Captured king side rook"
+        );
     }
 }

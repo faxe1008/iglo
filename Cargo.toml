@@ -32,10 +32,6 @@ name = "lookup_gen"
 path = "src/chess/lookup_gens/main.rs"
 
 [[example]]
-name = "perft_debugger"
-path = "src/dbg/perft_debugger.rs"
-
-[[example]]
 name = "iglo"
 path = "src/engine/main.rs"
 
