@@ -49,7 +49,7 @@ impl ChessBot for NPlyTranspoBot {
         let cur_board_eval = Self::eval(board_state);
         println!("info score cp {}", cur_board_eval as f32 / 100.0);
 
-        if self.use_openening_book && board_state.full_moves < 6 && self.opening_book.is_some() {
+        if self.use_openening_book && board_state.full_moves < 8 && self.opening_book.is_some() {
             if let Some(mv) = self
                 .opening_book
                 .as_ref()
