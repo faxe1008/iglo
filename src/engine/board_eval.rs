@@ -311,7 +311,6 @@ impl EvaluationFunction for KingPawnShieldEvaluation {
             }
         };
 
-
         let black_punishment = {
             let king_bb = board_state
                 .board
@@ -343,11 +342,55 @@ impl EvaluationFunction for KingPawnShieldEvaluation {
     }
 }
 
+pub struct PieceConnectivityEvaluation;
+impl EvaluationFunction for PieceConnectivityEvaluation {
+    fn eval(board_state: &ChessBoardState) -> i32 {
+        let eval_connectivity = |color: PieceColor| -> i32 {
+            let attacked_squares = board_state.board.squares_attacked_by_side(color, false);
+
+            let defended_pieces = match color {
+                PieceColor::White => attacked_squares & board_state.board.all_white_pieces,
+                PieceColor::Black => attacked_squares & board_state.board.all_black_pieces,
+            };
+
+            defended_pieces.bit_count() as i32 * 5
+        };
+
+        eval_connectivity(PieceColor::White) - eval_connectivity(PieceColor::Black)
+    }
+}
+
+pub struct DoublePawnsEvaluation;
+impl EvaluationFunction for DoublePawnsEvaluation {
+    fn eval(board_state: &ChessBoardState) -> i32 {
+        const PUNISHMET_PER_PAWN: i32 = -10;
+
+        let eval_doubled_pawns = |color: PieceColor| -> i32 {
+            let piece_board = board_state
+                .board
+                .get_piece_bitboard(ChessPiece::Pawn, color);
+            let shifted_board = match color {
+                PieceColor::White => piece_board.s_no(),
+                PieceColor::Black => piece_board.s_so(),
+            };
+
+            let doubled_pawns = piece_board & shifted_board;
+
+            doubled_pawns.bit_count() as i32 * PUNISHMET_PER_PAWN
+        };
+
+        eval_doubled_pawns(PieceColor::White) - eval_doubled_pawns(PieceColor::Black)
+    }
+}
+
 #[cfg(test)]
 mod eval_tests {
     use crate::{
         chess::board::ChessBoardState,
-        engine::board_eval::{EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation, KingPawnShieldEvaluation},
+        engine::board_eval::{
+            EvaluationFunction, KingPawnShieldEvaluation, PassedPawnEvaluation,
+            PieceCountEvaluation,
+        },
     };
 
     #[test]
@@ -375,11 +418,17 @@ mod eval_tests {
     }
 
     #[test]
-    fn eval_king_pawn_shield() {  
-        let board_white_damaged_shield = ChessBoardState::from_fen("rnbq2kr/pppppppp/8/4bn2/3Q1N2/1PN1BB2/P1PPPPPP/1KR4R w Kkq - 0 1").unwrap();
+    fn eval_king_pawn_shield() {
+        let board_white_damaged_shield = ChessBoardState::from_fen(
+            "rnbq2kr/pppppppp/8/4bn2/3Q1N2/1PN1BB2/P1PPPPPP/1KR4R w Kkq - 0 1",
+        )
+        .unwrap();
         assert!(KingPawnShieldEvaluation::eval(&board_white_damaged_shield) < 0);
 
-        let board_black_damaged_shield = ChessBoardState::from_fen("rnbq2kr/pppppp1p/6p1/4bn2/3Q1N2/2N1BB2/PPPPPPPP/1KR4R w Kkq - 0 1").unwrap();
+        let board_black_damaged_shield = ChessBoardState::from_fen(
+            "rnbq2kr/pppppp1p/6p1/4bn2/3Q1N2/2N1BB2/PPPPPPPP/1KR4R w Kkq - 0 1",
+        )
+        .unwrap();
         assert!(KingPawnShieldEvaluation::eval(&board_black_damaged_shield) > 0);
 
         assert!(KingPawnShieldEvaluation::eval(&ChessBoardState::starting_state()) == 0);

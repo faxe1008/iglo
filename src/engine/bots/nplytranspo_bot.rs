@@ -4,8 +4,9 @@ use crate::{
     chess::{board::ChessBoardState, chess_move::Move},
     engine::{
         board_eval::{
-            EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation,
-            PieceSquareTableEvaluation, BishopPairEvaluation, KingPawnShieldEvaluation,
+            BishopPairEvaluation, EvaluationFunction, KingPawnShieldEvaluation,
+            PassedPawnEvaluation, PieceConnectivityEvaluation, PieceCountEvaluation,
+            PieceSquareTableEvaluation, DoublePawnsEvaluation
         },
         bot::ChessBot,
         opening::opening_book::OpeningBook,
@@ -90,5 +91,6 @@ impl EvaluationFunction for NPlyTranspoBot {
             + PassedPawnEvaluation::eval(board_state)
             + BishopPairEvaluation::eval(board_state)
             + KingPawnShieldEvaluation::eval(board_state)
+            + DoublePawnsEvaluation::eval(board_state)
     }
 }
