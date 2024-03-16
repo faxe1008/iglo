@@ -28,18 +28,13 @@ impl EvaluationFunction for PieceCountEvaluation {
 }
 
 fn endgame_lerp_value(board_state: &ChessBoardState) -> f32 {
-    let piece_count: f32 = [
-        ChessPiece::Bishop,
-        ChessPiece::Knight,
-        ChessPiece::Rook,
-        ChessPiece::Queen,
-    ]
-    .iter()
-    .map(|&p| {
-        board_state.board.white_pieces[p as usize].bit_count()
-            + board_state.board.black_pieces[p as usize].bit_count()
-    })
-    .sum::<u32>() as f32;
+    // Get number of pieces (non-pawns and non-kings)
+    let piece_count: f32 = ((board_state.board.all_black_pieces
+        | board_state.board.all_white_pieces)
+        & (!board_state.board.white_pieces[ChessPiece::Pawn as usize])
+        & (!board_state.board.black_pieces[ChessPiece::Pawn as usize]))
+        .bit_count() as f32
+        - 2.0;
 
     clamp(-0.1 * piece_count + 1.4, 0.0, 1.0)
 }
