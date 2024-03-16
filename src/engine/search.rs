@@ -21,7 +21,7 @@ pub const DEPTH_REDUCTION: u16 = 1;
 
 pub const MAX_QUISCIENCE_DEPTH: u16 = 4;
 
-pub const MAX_PLY: u16 = 64;
+pub const MAX_PLY: u16 = 128;
 pub const MAX_KILLER_MOVES: usize = 2;
 type KillerMoves = [[Move; MAX_PLY as usize]; MAX_KILLER_MOVES];
 
@@ -111,7 +111,7 @@ impl<const T: usize> Searcher<T> {
             return true;
         }
 
-        if self.info.nodes_searched % 2048 != 0 {
+        if self.info.nodes_searched % 4096 != 0 {
             return false;
         }
 
@@ -176,7 +176,7 @@ impl<const T: usize> Searcher<T> {
         time_control: TimeControl,
         stop: &Arc<AtomicBool>,
     ) -> Move {
-        let mut moves = board_state.generate_legal_moves_for_current_player();
+        let mut moves = board_state.generate_legal_moves_for_current_player::<false>();
         // Sort moves by expected value
         order_moves(&mut moves, board_state, &self.info, 0);
 
@@ -310,8 +310,8 @@ impl<const T: usize> Searcher<T> {
             alpha = score;
         }
 
-        let moves = board_state.generate_legal_moves_for_current_player();
-        for mv in moves.iter().filter(|m| m.is_capture()) {
+        let moves = board_state.generate_legal_moves_for_current_player::<true>();
+        for mv in &moves{
             let new_board = board_state.exec_move(*mv);
             score = -self.quiescience_search(
                 &new_board,
@@ -372,7 +372,7 @@ impl<const T: usize> Searcher<T> {
 
         self.info.nodes_searched += 1;
         self.info.sel_depth = self.info.sel_depth.max(ply_from_root as usize);
-        let mut moves = board_state.generate_legal_moves_for_current_player();
+        let mut moves = board_state.generate_legal_moves_for_current_player::<false>();
 
         // No moves, either draw or checkmate
         if moves.len() == 0 {

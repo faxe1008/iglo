@@ -19,7 +19,7 @@ impl ChessBot for NPlyBot {
         tc: TimeControl,
         _stop: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Move {
-        let mut moves = board_state.generate_legal_moves_for_current_player();
+        let mut moves = board_state.generate_legal_moves_for_current_player::<false>();
         let depth= match tc {
             TimeControl::FixedDepth(d) => d,
             _ => 6,
@@ -63,7 +63,7 @@ impl NPlyBot {
             return Self::eval(board_state);
         }
 
-        let moves = board_state.generate_legal_moves_for_current_player();
+        let moves = board_state.generate_legal_moves_for_current_player::<false>();
         if moves.len() == 0 {
             if board_state.side == PieceColor::White {
                 return i32::MIN;

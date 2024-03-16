@@ -4,7 +4,7 @@ pub fn perft(board_state: &ChessBoardState, depth: u32) -> u64 {
     if depth < 1 {
         1
     } else {
-        let moves = board_state.generate_legal_moves_for_current_player();
+        let moves = board_state.generate_legal_moves_for_current_player::<false>();
 
         if depth == 1 {
             moves.len() as u64

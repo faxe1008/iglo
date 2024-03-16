@@ -17,7 +17,7 @@ impl ChessBot for RandomBot {
         _tc: TimeControl,
         _stop: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Move {
-        let moves = board_state.generate_legal_moves_for_current_player();
+        let moves = board_state.generate_legal_moves_for_current_player::<false>();
         let index = random::<usize>() % moves.len();
         let selected_move = moves[index];
         *board_state = board_state.exec_move(selected_move);

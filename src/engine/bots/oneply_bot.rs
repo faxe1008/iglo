@@ -15,7 +15,7 @@ impl ChessBot for OnePlyBot {
         _tc: TimeControl,
         _stop: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Move {
-        let mut moves = board_state.generate_legal_moves_for_current_player();
+        let mut moves = board_state.generate_legal_moves_for_current_player::<false>();
         
 
         moves.sort_by(|a,b|

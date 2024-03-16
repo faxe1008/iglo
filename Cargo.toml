@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Fabian Blatz"]
 
+[profile.release]
+lto=true
+overflow-checks=false
+
 [dependencies]
 rand = "0.8.5"
 lerp = "0.5.0"
@@ -42,3 +46,4 @@ path = "src/engine/opening/build_opening_book.rs"
 [[bench]]
 name = "search_benchmark"
 harness = false
+

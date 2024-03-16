@@ -176,7 +176,7 @@ fn draw_stats_bar(
         ),
         format!(
             "Legal Move Count: {}",
-            generate_legal_moves(board_state, board_state.side).len()
+            generate_legal_moves::<false>(board_state, board_state.side).len()
         ),
     ];
 
@@ -537,7 +537,7 @@ fn execute_move_with_src_and_dst(
 }
 
 fn generate_possible_moves_for_piece(board_state: &ChessBoardState, pos: u16) -> Vec<Move> {
-    generate_legal_moves(board_state, board_state.side)
+    generate_legal_moves::<false>(board_state, board_state.side)
         .iter()
         .filter(|mv| mv.get_src() == pos)
         .map(|&x| x)
