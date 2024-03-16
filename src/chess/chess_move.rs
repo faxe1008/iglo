@@ -1,10 +1,9 @@
 use super::bitboard::BitBoard;
 use super::board::{ChessBoardState, ChessPiece, PieceColor};
 use super::square::Square;
-use serde::{Deserialize, Serialize};
 use core::fmt::Debug;
+use serde::{Deserialize, Serialize};
 use std::fmt::Write;
-
 
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Default, Hash, Serialize, Deserialize)]
 pub struct Move(pub u16);
@@ -15,8 +14,8 @@ const MOVE_DST_SHIFT: u16 = 6;
 const MOVE_TYPE_MASK: u16 = 0xF000;
 const MOVE_TYPE_SHIFT: u16 = 12;
 
-const PAWN_START_SQUARE_BB : BitBoard = BitBoard(0xff00000000ff00);
-const PAWN_DOUBLE_PUSH_SQUARE_BB : BitBoard = BitBoard(0xffff000000);
+const PAWN_START_SQUARE_BB: BitBoard = BitBoard(0xff00000000ff00);
+const PAWN_DOUBLE_PUSH_SQUARE_BB: BitBoard = BitBoard(0xffff000000);
 
 pub const PROMOTION_TARGETS: [MoveType; 4] = [
     MoveType::KnightPromotion,
@@ -81,7 +80,7 @@ impl MoveType {
 }
 
 impl Move {
-    pub const NULL_MOVE : Move = Move(0);
+    pub const NULL_MOVE: Move = Move(0);
 
     pub fn new(src: u16, dst: u16, ty: MoveType) -> Self {
         Self(src | (dst << MOVE_DST_SHIFT) | ((ty as u16) << MOVE_TYPE_SHIFT))
@@ -141,17 +140,23 @@ impl Move {
     }
 
     pub fn get_moved_piece(&self, board_state: &ChessBoardState) -> ChessPiece {
-        board_state.board.get_piece_at_pos(self.get_src() as usize).unwrap().0
+        board_state
+            .board
+            .get_piece_at_pos(self.get_src() as usize)
+            .unwrap()
+            .0
     }
 
     pub fn get_captured_piece(&self, board_state: &ChessBoardState) -> Option<ChessPiece> {
         if self.is_en_passant() {
             Some(ChessPiece::Pawn)
         } else {
-            board_state.board.get_piece_at_pos(self.get_dst() as usize).map(|(p,_)| p)
+            board_state
+                .board
+                .get_piece_at_pos(self.get_dst() as usize)
+                .map(|(p, _)| p)
         }
     }
-
 }
 
 impl TryFrom<(&str, &ChessBoardState)> for Move {
@@ -163,7 +168,7 @@ impl TryFrom<(&str, &ChessBoardState)> for Move {
             return Err(());
         }
         let current_side = board_state.side;
-        let opposing_side= !current_side;
+        let opposing_side = !current_side;
         let parse_square_from_slice = |str_slc: &str| -> Result<u16, Self::Error> {
             if str_slc.len() != 2 {
                 return Err(());
@@ -191,7 +196,7 @@ impl TryFrom<(&str, &ChessBoardState)> for Move {
 
         let (src_piece, src_color) = match board_state.board.get_piece_at_pos(mv_src as usize) {
             Some(e) => e,
-            _ => return Err(())
+            _ => return Err(()),
         };
         // Capture Move
         if let Some((_piece, col)) = board_state.board.get_piece_at_pos(mv_dst as usize) {
@@ -205,23 +210,32 @@ impl TryFrom<(&str, &ChessBoardState)> for Move {
             // Check for Pawn Moves
             if src_piece == ChessPiece::Pawn {
                 // En Passant
-                if board_state.en_passant_target.is_some()  && mv_dst == board_state.en_passant_target.unwrap()as u16{
+                if board_state.en_passant_target.is_some()
+                    && mv_dst == board_state.en_passant_target.unwrap() as u16
+                {
                     let enpassanted_pawn = if current_side == PieceColor::White {
                         board_state.en_passant_target.unwrap() + 8
                     } else {
                         board_state.en_passant_target.unwrap() - 8
                     };
-                    match board_state.board.get_piece_at_pos(enpassanted_pawn as  usize) {
-                        Some((ChessPiece::Pawn, side)) if side == opposing_side => resulting_move.set_move_type(MoveType::EnPassant),
+                    match board_state
+                        .board
+                        .get_piece_at_pos(enpassanted_pawn as usize)
+                    {
+                        Some((ChessPiece::Pawn, side)) if side == opposing_side => {
+                            resulting_move.set_move_type(MoveType::EnPassant)
+                        }
                         _ => {}
                     }
                 } else {
-                    if PAWN_START_SQUARE_BB.get_bit(mv_src as usize) && PAWN_DOUBLE_PUSH_SQUARE_BB.get_bit(mv_dst as usize) {
+                    if PAWN_START_SQUARE_BB.get_bit(mv_src as usize)
+                        && PAWN_DOUBLE_PUSH_SQUARE_BB.get_bit(mv_dst as usize)
+                    {
                         resulting_move.set_move_type(MoveType::DoublePush);
                     }
                 }
             }
-           
+
             // Castling
             if src_piece == ChessPiece::King {
                 match (src_color, mv_src, mv_dst) {
@@ -230,41 +244,39 @@ impl TryFrom<(&str, &ChessBoardState)> for Move {
                             resulting_move.set_move_type(MoveType::CastleKingSide);
                         } else {
                             // Attempt to perform non legal castle
-                            return Err(())
+                            return Err(());
                         }
-                    },
+                    }
                     (PieceColor::White, Square::E1, Square::WHITE_QUEEN_SIDE_CASTLE_SQUARE) => {
                         if board_state.castling_rights.white_queen_side {
                             resulting_move.set_move_type(MoveType::CastleQueenSide);
                         } else {
                             // Attempt to perform non legal castle
-                            return Err(())
+                            return Err(());
                         }
-                    },
+                    }
                     (PieceColor::Black, Square::E8, Square::BLACK_KING_SIDE_CASTLE_SQAURE) => {
                         if board_state.castling_rights.black_king_side {
                             resulting_move.set_move_type(MoveType::CastleKingSide);
                         } else {
                             // Attempt to perform non legal castle
-                            return Err(())
+                            return Err(());
                         }
-                    },
+                    }
                     (PieceColor::Black, Square::E8, Square::BLACK_QUEEN_SIDE_CASTLE_SQAURE) => {
                         if board_state.castling_rights.black_queen_side {
                             resulting_move.set_move_type(MoveType::CastleQueenSide);
                         } else {
                             // Attempt to perform non legal castle
-                            return Err(())
+                            return Err(());
                         }
-                    },
+                    }
                     _ => {
                         // TODO: check king moves
                     }
                 }
             }
-
         }
-
 
         Ok(resulting_move)
     }

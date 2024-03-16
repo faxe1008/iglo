@@ -1,7 +1,7 @@
-use std::env;
 use iglo::engine::bots::nply_bot::NPlyBot;
 use iglo::engine::bots::nplytranspo_bot::NPlyTranspoBot;
 use iglo::engine::{bots::oneply_bot::OnePlyBot, bots::random_bot::RandomBot, uci::UCIReader};
+use std::env;
 
 fn main() {
     let args: Vec<String> = env::args().collect();

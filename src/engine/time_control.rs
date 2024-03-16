@@ -1,5 +1,4 @@
-use std::str::{FromStr};
-
+use std::str::FromStr;
 
 #[derive(PartialEq, Debug, Default)]
 pub struct ClockControl {
@@ -16,10 +15,8 @@ pub enum TimeControl {
     FixedDepth(u64),
     FixedNodes(u64),
     FixedTime(u64),
-    Variable(ClockControl)
+    Variable(ClockControl),
 }
-
-
 
 impl FromStr for TimeControl {
     type Err = &'static str;
@@ -28,8 +25,13 @@ impl FromStr for TimeControl {
         let mut tokens = s.split(" ");
         let mut cc = ClockControl::default();
 
-        fn parse_numeric<T: FromStr>(tk: &mut std::str::Split<'_, &str>) -> Result<T, &'static str> {
-            tk.next().ok_or("No Value found")?.parse::<T>().or(Err("Unparseable value"))
+        fn parse_numeric<T: FromStr>(
+            tk: &mut std::str::Split<'_, &str>,
+        ) -> Result<T, &'static str> {
+            tk.next()
+                .ok_or("No Value found")?
+                .parse::<T>()
+                .or(Err("Unparseable value"))
         }
 
         while let Some(tk) = tokens.next() {
@@ -43,7 +45,7 @@ impl FromStr for TimeControl {
                 "winc" => cc.white_inc = Some(parse_numeric(&mut tokens)?),
                 "binc" => cc.black_inc = Some(parse_numeric(&mut tokens)?),
                 "movestogo" => cc.movestogo = Some(parse_numeric(&mut tokens)?),
-                _ => return Err("Unknown time control")
+                _ => return Err("Unknown time control"),
             }
         }
 

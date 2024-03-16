@@ -4,9 +4,9 @@ use crate::{
     chess::{board::ChessBoardState, chess_move::Move},
     engine::{
         board_eval::{
-            BishopPairEvaluation, EvaluationFunction, KingPawnShieldEvaluation,
-            PassedPawnEvaluation, PieceConnectivityEvaluation, PieceCountEvaluation,
-            PieceSquareTableEvaluation, DoublePawnsEvaluation
+            BishopPairEvaluation, DoublePawnsEvaluation, EvaluationFunction,
+            KingPawnShieldEvaluation, PassedPawnEvaluation, PieceConnectivityEvaluation,
+            PieceCountEvaluation, PieceSquareTableEvaluation,
         },
         bot::ChessBot,
         opening::opening_book::OpeningBook,

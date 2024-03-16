@@ -1,4 +1,4 @@
-use super::{board::ChessBoardState};
+use super::board::ChessBoardState;
 
 pub fn perft(board_state: &ChessBoardState, depth: u32) -> u64 {
     if depth < 1 {
@@ -52,9 +52,9 @@ mod perft_tests {
 
     #[test]
     fn chess_wiki_position_5() {
-        let board_state = ChessBoardState::from_fen(
-            "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8"
-        ).unwrap();
+        let board_state =
+            ChessBoardState::from_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
+                .unwrap();
         assert_eq!(perft(&board_state, 1), 44);
         assert_eq!(perft(&board_state, 2), 1486);
         assert_eq!(perft(&board_state, 3), 62379);

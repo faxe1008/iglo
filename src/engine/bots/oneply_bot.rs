@@ -1,8 +1,12 @@
 use crate::{
-    chess::{chess_move::Move, board::{PieceColor, ChessBoardState}},
+    chess::{
+        board::{ChessBoardState, PieceColor},
+        chess_move::Move,
+    },
     engine::{
         board_eval::{EvaluationFunction, PieceCountEvaluation, PieceSquareTableEvaluation},
-        bot::{ChessBot}, time_control::TimeControl,
+        bot::ChessBot,
+        time_control::TimeControl,
     },
 };
 
@@ -16,21 +20,20 @@ impl ChessBot for OnePlyBot {
         _stop: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Move {
         let mut moves = board_state.generate_legal_moves_for_current_player::<false>();
-        
 
-        moves.sort_by(|a,b|
-            if board_state.side  == PieceColor::White {
+        moves.sort_by(|a, b| {
+            if board_state.side == PieceColor::White {
                 Self::eval(&board_state.exec_move(*b)).cmp(&Self::eval(&board_state.exec_move(*a)))
             } else {
                 Self::eval(&board_state.exec_move(*a)).cmp(&Self::eval(&board_state.exec_move(*b)))
             }
-        );
+        });
 
         let selected_move = moves[0];
         *board_state = board_state.exec_move(selected_move);
         selected_move
     }
-    fn set_option(&mut self, _name: String, _value: String){}
+    fn set_option(&mut self, _name: String, _value: String) {}
     fn get_options() -> &'static str {
         ""
     }

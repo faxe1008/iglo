@@ -70,18 +70,18 @@ impl Square {
 
     pub const NUM: u16 = 64;
 
-    pub const WHITE_KING_SIDE_CASTLE_SQUARE : u16 = Self::G1;
-    pub const WHITE_QUEEN_SIDE_CASTLE_SQUARE : u16 = Self::C1;
+    pub const WHITE_KING_SIDE_CASTLE_SQUARE: u16 = Self::G1;
+    pub const WHITE_QUEEN_SIDE_CASTLE_SQUARE: u16 = Self::C1;
 
     pub const BLACK_KING_SIDE_CASTLE_SQAURE: u16 = Self::G8;
-    pub const BLACK_QUEEN_SIDE_CASTLE_SQAURE : u16 = Self::C8;
+    pub const BLACK_QUEEN_SIDE_CASTLE_SQAURE: u16 = Self::C8;
 
     pub fn designator_str_from_index(index: u16) -> String {
         let file = index % 8;
         let rank = 7 - (index / 8);
 
         let file_char = char::from_u32('A' as u32 + file as u32).unwrap();
-        let rank_char =  char::from_u32('1' as u32 + rank as u32).unwrap();
+        let rank_char = char::from_u32('1' as u32 + rank as u32).unwrap();
         [file_char, rank_char].iter().collect()
     }
 
@@ -125,7 +125,7 @@ impl Square {
 
         Ok(Some(col + row * 8))
     }
-    
+
     pub fn to_square_name(square: Option<u8>) -> String {
         if square.is_none() {
             return "-".to_string();
@@ -135,8 +135,7 @@ impl Square {
         let rank = square.unwrap() / 8;
         let file = square.unwrap() % 8;
 
-
-        let new_file : char = ('a' as u8 + file as u8).into();
+        let new_file: char = ('a' as u8 + file as u8).into();
         let new_rank: char = ('8' as u8 - rank as u8).into();
 
         name.push(new_file);
@@ -152,6 +151,4 @@ impl Square {
             PieceColor::Black
         }
     }
-
-
 }

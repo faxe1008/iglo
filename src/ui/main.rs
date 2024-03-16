@@ -1,24 +1,28 @@
-use iglo::{chess::{
-    board::{ChessBoardState, ChessPiece, PieceColor},
-    chess_move::Move,
-    move_generator::generate_legal_moves,
-    square::Square,
-}, engine::board_eval::{EvaluationFunction, PieceCountEvaluation, PieceSquareTableEvaluation}};
 use core::time::Duration;
+use iglo::{
+    chess::{
+        board::{ChessBoardState, ChessPiece, PieceColor},
+        chess_move::Move,
+        move_generator::generate_legal_moves,
+        square::Square,
+    },
+    engine::board_eval::{EvaluationFunction, PieceCountEvaluation, PieceSquareTableEvaluation},
+};
 use sdl2::{
     audio::{AudioCVT, AudioCallback, AudioDevice, AudioSpecDesired, AudioSpecWAV},
     event::Event,
-    image::{self, InitFlag, LoadTexture, LoadSurface},
+    image::{self, InitFlag, LoadSurface, LoadTexture},
     keyboard::Keycode,
     mouse::MouseButton,
     pixels::Color,
     rect::{Point, Rect},
     render::{BlendMode, Canvas, Texture, TextureCreator},
+    surface::Surface,
     ttf::Font,
     video::{Window, WindowContext},
-    AudioSubsystem, surface::Surface,
+    AudioSubsystem,
 };
-use std::{env};
+use std::env;
 
 const SQUARE_SIZE: i32 = 100;
 const MIN_MARGIN: i32 = 20;
@@ -55,7 +59,7 @@ struct AssetPack<'a> {
     sprite_texture: Texture<'a>,
     font: Font<'a, 'a>,
     capture_sound: AudioDevice<Sound>,
-    move_sound: AudioDevice<Sound>
+    move_sound: AudioDevice<Sound>,
 }
 
 #[derive(Default, Debug)]
@@ -524,7 +528,6 @@ fn execute_move_with_src_and_dst(
             play_sound(&mut asset_pack.move_sound);
         }
         println!("{:x}", board_state.zhash.0);
-
     } else {
         ui_state.promotion_prompt = Some((board_state.side, moves))
     }
@@ -558,10 +561,9 @@ fn create_audio_device_sound(path: &str, audio_subsystem: &AudioSubsystem) -> Au
         channels: Some(1), // mono
         samples: None,     // default
     };
-    let sound_wav =
-        AudioSpecWAV::load_wav(path).expect("Could not load capture WAV file");
+    let sound_wav = AudioSpecWAV::load_wav(path).expect("Could not load capture WAV file");
 
-     audio_subsystem
+    audio_subsystem
         .open_playback(None, &audio_spec, |spec| {
             let cvt = AudioCVT::new(
                 sound_wav.format,
@@ -583,7 +585,6 @@ fn create_audio_device_sound(path: &str, audio_subsystem: &AudioSubsystem) -> Au
             }
         })
         .expect("Audio device not openable to playback")
-
 }
 
 fn main() {
@@ -633,7 +634,7 @@ fn main() {
     font.set_style(sdl2::ttf::FontStyle::BOLD);
 
     let audio_subsystem = sdl_context.audio().expect("Error creating audio context");
-  
+
     let mut asset_pack = AssetPack {
         sprite_texture,
         font,
@@ -643,17 +644,19 @@ fn main() {
 
     let mut game_ui_state = GameUIState::default();
 
-    let mut redraw_board =
-        |board_state: &ChessBoardState, game_ui_state: &GameUIState, asset_pack: &AssetPack| -> Result<(), String> {
-            draw_grid(&mut canvas, asset_pack, &texture_creator, game_ui_state)?;
-            draw_chess_board(&mut canvas, &board_state, asset_pack, game_ui_state)?;
-            draw_moves_indicator(&mut canvas, game_ui_state)?;
-            draw_dragged_piece(&mut canvas, asset_pack, board_state, game_ui_state)?;
-            draw_promotion_prompt(&mut canvas, asset_pack, board_state, game_ui_state)?;
-            draw_stats_bar(&mut canvas, &board_state, asset_pack, &texture_creator)?;
-            canvas.present();
-            Ok(())
-        };
+    let mut redraw_board = |board_state: &ChessBoardState,
+                            game_ui_state: &GameUIState,
+                            asset_pack: &AssetPack|
+     -> Result<(), String> {
+        draw_grid(&mut canvas, asset_pack, &texture_creator, game_ui_state)?;
+        draw_chess_board(&mut canvas, &board_state, asset_pack, game_ui_state)?;
+        draw_moves_indicator(&mut canvas, game_ui_state)?;
+        draw_dragged_piece(&mut canvas, asset_pack, board_state, game_ui_state)?;
+        draw_promotion_prompt(&mut canvas, asset_pack, board_state, game_ui_state)?;
+        draw_stats_bar(&mut canvas, &board_state, asset_pack, &texture_creator)?;
+        canvas.present();
+        Ok(())
+    };
 
     redraw_board(&board_state, &game_ui_state, &asset_pack);
     let mut event_pump = sdl_context.event_pump().unwrap();

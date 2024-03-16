@@ -778,7 +778,7 @@ mod board_tests {
                 black_pieces: [bb!(65280), bb!(66), bb!(36), bb!(129), bb!(8), bb!(16)],
                 all_white_pieces: bb!(18446462598732840960),
                 all_black_pieces: bb!(65535),
-                piece_board: [None; Square::NUM as usize]
+                piece_board: [None; Square::NUM as usize],
             },
             side: PieceColor::White,
             castling_rights: CastlingRights {
@@ -822,7 +822,7 @@ mod board_tests {
                 ],
                 all_white_pieces: bb!(2037460020536279040),
                 all_black_pieces: bb!(10770984612),
-                piece_board: [None; Square::NUM as usize]
+                piece_board: [None; Square::NUM as usize],
             },
             side: PieceColor::Black,
             castling_rights: CastlingRights {

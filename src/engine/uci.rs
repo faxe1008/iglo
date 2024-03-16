@@ -1,16 +1,17 @@
 use std::{
     io::{stdin, BufRead},
     marker::PhantomData,
+    str::FromStr,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc, Arc,
     },
-    thread, str::FromStr,
+    thread,
 };
 
 use crate::chess::{board::ChessBoardState, perft::perft};
 
-use super::{bot::{ChessBot}, time_control::TimeControl};
+use super::{bot::ChessBot, time_control::TimeControl};
 
 const ENGINE_NAME: &str = env!("CARGO_PKG_NAME");
 const ENGINE_AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -91,7 +92,7 @@ impl TryFrom<&str> for UCICommand {
                 let tc = TimeControl::from_str(&tokens.collect::<Vec<&str>>().join(" "));
                 if let Ok(tc) = tc {
                     Ok(UCICommand::Go(tc))
-                }else {
+                } else {
                     Err(())
                 }
             }

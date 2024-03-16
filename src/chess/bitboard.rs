@@ -1,4 +1,3 @@
-
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Default, Hash)]
 pub struct BitBoard(pub u64);
 
@@ -12,7 +11,7 @@ pub struct MagicEntry {
 pub struct BitBoardSubsetIter {
     set: BitBoard,
     subset: BitBoard,
-    finished: bool
+    finished: bool,
 }
 
 #[macro_export]
@@ -58,7 +57,7 @@ impl BitBoard {
         BitBoardSubsetIter {
             set: self,
             subset: Self::EMPTY,
-            finished: false
+            finished: false,
         }
     }
 
@@ -117,9 +116,7 @@ pub struct BitBoardIterator {
 
 impl BitBoardIterator {
     fn new(bitboard: BitBoard) -> Self {
-        Self {
-            value: bitboard,
-        }
+        Self { value: bitboard }
     }
 }
 
@@ -145,7 +142,6 @@ impl IntoIterator for BitBoard {
         BitBoardIterator::new(self)
     }
 }
-
 
 impl std::ops::BitAnd<BitBoard> for BitBoard {
     type Output = BitBoard;
@@ -205,8 +201,6 @@ impl Iterator for BitBoardSubsetIter {
     }
 }
 
-
-
 #[cfg(test)]
 mod bitboard_tests {
     use super::{BitBoard, BitBoardIterator};
@@ -240,7 +234,7 @@ mod bitboard_tests {
         bitboard = bitboard.set_bit(5);
         bitboard = bitboard.set_bit(1);
 
-        let subsets : Vec<BitBoard> = bitboard.iter_subsets().collect();
+        let subsets: Vec<BitBoard> = bitboard.iter_subsets().collect();
         assert!(subsets.len() == 8);
         assert!(subsets.contains(&BitBoard(0 << 1 | 0 << 5 | 0 << 10)));
         assert!(subsets.contains(&BitBoard(1 << 1 | 0 << 5 | 0 << 10)));

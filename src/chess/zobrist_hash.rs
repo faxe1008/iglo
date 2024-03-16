@@ -1,8 +1,8 @@
-use serde::{Serialize,Deserialize};
 use super::{
-    board::{ChessPiece, PieceColor, CastlingRights},
+    board::{CastlingRights, ChessPiece, PieceColor},
     square::Square,
 };
+use serde::{Deserialize, Serialize};
 
 const ZHASH_TABLE: [u64; PieceColor::PIECE_COLOR_COUNT
     * ChessPiece::PIECE_TYPE_COUNT
@@ -844,17 +844,30 @@ const EN_PASSANT_TABLE: [u64; Square::NUM as usize] = [
     0x4dff6125f154ff81,
 ];
 
-const CASTLING_HASHES : [u64; 16] = [0x40dd164d9f66630d, 0xfac1287c93bbf3a2, 0x90f82b552ceb4228, 0x90b4ab38d2525f0c,
-0xc2d64cf87e7d2315, 0xa19ac9598af08005, 0xe1e6b41d0922e27a, 0x655705c7c59174e2,
-0x9069ee5b9429b677, 0xc1ed9fa40654c770, 0x20c5b7125571630d, 0xb7c391f853d76cc7,
-0x1ac5899e7b6f95ab, 0x6d9ecbb55392b170, 0xde0ba771a93d5864, 0x053f15838ec330c5];
-const SIDE_HASH: u64= 0xe48fe3e0fb244264;
+const CASTLING_HASHES: [u64; 16] = [
+    0x40dd164d9f66630d,
+    0xfac1287c93bbf3a2,
+    0x90f82b552ceb4228,
+    0x90b4ab38d2525f0c,
+    0xc2d64cf87e7d2315,
+    0xa19ac9598af08005,
+    0xe1e6b41d0922e27a,
+    0x655705c7c59174e2,
+    0x9069ee5b9429b677,
+    0xc1ed9fa40654c770,
+    0x20c5b7125571630d,
+    0xb7c391f853d76cc7,
+    0x1ac5899e7b6f95ab,
+    0x6d9ecbb55392b170,
+    0xde0ba771a93d5864,
+    0x053f15838ec330c5,
+];
+const SIDE_HASH: u64 = 0xe48fe3e0fb244264;
 
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash, Default, Serialize, Deserialize)]
 pub struct ZHash(pub u64);
 
 impl ZHash {
-
     pub fn toggle_piece_at_pos(&mut self, piece: ChessPiece, color: PieceColor, pos: usize) {
         let hash_pos = piece as usize * color as usize + pos;
         self.0 ^= &ZHASH_TABLE[hash_pos];
@@ -873,4 +886,3 @@ impl ZHash {
         self.0 ^= SIDE_HASH;
     }
 }
-

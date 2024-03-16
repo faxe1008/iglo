@@ -311,7 +311,7 @@ impl<const T: usize> Searcher<T> {
         }
 
         let moves = board_state.generate_legal_moves_for_current_player::<true>();
-        for mv in &moves{
+        for mv in &moves {
             let new_board = board_state.exec_move(*mv);
             score = -self.quiescience_search(
                 &new_board,

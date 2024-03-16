@@ -1,11 +1,8 @@
 use rand::random;
 
 use crate::{
-    chess::{chess_move::Move, board::ChessBoardState},
-    engine::{
-        board_eval::EvaluationFunction,
-        bot::{ChessBot}, time_control::TimeControl,
-    },
+    chess::{board::ChessBoardState, chess_move::Move},
+    engine::{board_eval::EvaluationFunction, bot::ChessBot, time_control::TimeControl},
 };
 
 #[derive(Default)]
@@ -24,7 +21,7 @@ impl ChessBot for RandomBot {
         selected_move
     }
 
-    fn set_option(&mut self, _name: String, _value: String){}
+    fn set_option(&mut self, _name: String, _value: String) {}
     fn get_options() -> &'static str {
         ""
     }

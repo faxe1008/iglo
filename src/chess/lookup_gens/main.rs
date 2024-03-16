@@ -198,12 +198,15 @@ fn generate_magic_entries(
     blocker_mask_fn: fn(u16) -> BitBoard,
     index_bits: u8,
 ) -> ([MagicEntry; 64], [Vec<BitBoard>; 64]) {
-
-    let mut magic_array = [MagicEntry { blocker_mask:BitBoard::EMPTY, magic: 0, index_bits: 0}; 64];
+    let mut magic_array = [MagicEntry {
+        blocker_mask: BitBoard::EMPTY,
+        magic: 0,
+        index_bits: 0,
+    }; 64];
     let mut moves_array: [Vec<BitBoard>; 64] = vec![Vec::new(); 64].try_into().expect("static");
 
     for square in 0..Square::NUM {
-        let (magic, moves)  = find_magic(move_gen_fn, blocker_mask_fn, square, index_bits);
+        let (magic, moves) = find_magic(move_gen_fn, blocker_mask_fn, square, index_bits);
         magic_array[square as usize] = magic;
         dbg!(&moves.len());
         moves_array[square as usize] = moves;
@@ -219,7 +222,7 @@ fn write_bitboards_to_file(path: &str, boards: &[BitBoard]) {
     }
 }
 
-fn write_magic_entries_to_file(path: &str, magics: &[MagicEntry]){
+fn write_magic_entries_to_file(path: &str, magics: &[MagicEntry]) {
     let mut file = File::create(path).unwrap();
     for me in magics {
         file.write_all(unsafe { &std::mem::transmute::<MagicEntry, [u8; 17]>(*me) })
@@ -232,7 +235,8 @@ fn write_moves_entries_to_file(path: &str, moves: &[Vec<BitBoard>]) {
     assert!(moves.len() == 64);
     for mv in moves {
         for single_mv in mv {
-            file.write_all(unsafe { &std::mem::transmute::<BitBoard, [u8; 8]>(*single_mv) }).unwrap();
+            file.write_all(unsafe { &std::mem::transmute::<BitBoard, [u8; 8]>(*single_mv) })
+                .unwrap();
         }
     }
 }
@@ -245,11 +249,7 @@ fn main() -> Result<(), ()> {
         return Err(());
     }
 
-    generate_magic_entries(
-        rook_moves,
-        rook_blocker_mask,
-        ROOK_INDEX_BITS
-    );
+    generate_magic_entries(rook_moves, rook_blocker_mask, ROOK_INDEX_BITS);
 
     match args[1].as_ref() {
         "knight" => {
@@ -263,14 +263,16 @@ fn main() -> Result<(), ()> {
                 "king_lookup.bin",
                 &generate_jump_piece_lookup(&KING_OFFSETS),
             );
-        },
+        }
         "rook" => {
-            let (magics, moves) = generate_magic_entries(rook_moves, rook_blocker_mask, ROOK_INDEX_BITS);
+            let (magics, moves) =
+                generate_magic_entries(rook_moves, rook_blocker_mask, ROOK_INDEX_BITS);
             write_magic_entries_to_file("rook_magics.bin", &magics);
             write_moves_entries_to_file("rook_moves.bin", &moves);
-        },
+        }
         "bishop" => {
-            let (magics, moves) = generate_magic_entries(bishop_moves, bishop_blocker_mask, BISHOP_INDEX_BITS);
+            let (magics, moves) =
+                generate_magic_entries(bishop_moves, bishop_blocker_mask, BISHOP_INDEX_BITS);
             write_magic_entries_to_file("bishop_magics.bin", &magics);
             write_moves_entries_to_file("bishop_moves.bin", &moves);
         }

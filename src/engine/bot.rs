@@ -1,16 +1,20 @@
-use std::sync::{Arc, atomic::AtomicBool};
-use crate::chess::{board::ChessBoardState, chess_move::Move};
 use super::{board_eval::EvaluationFunction, time_control::TimeControl};
+use crate::chess::{board::ChessBoardState, chess_move::Move};
+use std::sync::{atomic::AtomicBool, Arc};
 
-pub trait ChessBot : EvaluationFunction + Default {
-    fn search_best_move(&mut self, board_state: &mut ChessBoardState, tc: TimeControl, stop: &Arc<AtomicBool>) -> Move;
+pub trait ChessBot: EvaluationFunction + Default {
+    fn search_best_move(
+        &mut self,
+        board_state: &mut ChessBoardState,
+        tc: TimeControl,
+        stop: &Arc<AtomicBool>,
+    ) -> Move;
     fn set_option(&mut self, name: String, value: String);
     fn get_options() -> &'static str;
 
     fn append_to_history(&mut self, board_state: &mut ChessBoardState);
     fn clear_history(&mut self);
-    fn execute_move_list(&mut self, board_state: &mut ChessBoardState, moves: &Vec<String>) 
-    {
+    fn execute_move_list(&mut self, board_state: &mut ChessBoardState, moves: &Vec<String>) {
         self.clear_history();
         for move_str in moves {
             if let Ok(mv) = Move::try_from(((*move_str).trim(), &*board_state)) {

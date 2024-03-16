@@ -7,7 +7,8 @@ use crate::{
     },
     engine::{
         board_eval::{EvaluationFunction, PieceCountEvaluation, PieceSquareTableEvaluation},
-        bot::{ChessBot}, time_control::TimeControl,
+        bot::ChessBot,
+        time_control::TimeControl,
     },
 };
 #[derive(Default)]
@@ -20,7 +21,7 @@ impl ChessBot for NPlyBot {
         _stop: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Move {
         let mut moves = board_state.generate_legal_moves_for_current_player::<false>();
-        let depth= match tc {
+        let depth = match tc {
             TimeControl::FixedDepth(d) => d,
             _ => 6,
         } as u32;

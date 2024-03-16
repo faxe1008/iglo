@@ -3,10 +3,7 @@ use std::sync::{atomic::AtomicBool, Arc};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use iglo::{
     chess::{board::ChessBoardState, chess_move::Move, perft::perft},
-    engine::{
-        bot::{ChessBot},
-        bots::nplytranspo_bot::NPlyTranspoBot, time_control::TimeControl,
-    },
+    engine::{bot::ChessBot, bots::nplytranspo_bot::NPlyTranspoBot, time_control::TimeControl},
 };
 
 fn run_move_search(
@@ -38,9 +35,10 @@ fn search_benchmark(c: &mut Criterion) {
 }
 
 fn perft_benchmark(c: &mut Criterion) {
-
-    let board_fens = ["r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1",
-    "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8" ];
+    let board_fens = [
+        "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1",
+        "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
+    ];
 
     let mut group = c.benchmark_group("Peft");
     group.sample_size(10);
@@ -54,7 +52,6 @@ fn perft_benchmark(c: &mut Criterion) {
     }
     group.finish()
 }
-
 
 criterion_group!(benches, search_benchmark, perft_benchmark);
 criterion_main!(benches);

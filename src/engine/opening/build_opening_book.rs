@@ -2,8 +2,9 @@ use iglo::{
     chess::{board::ChessBoardState, chess_move::Move, zobrist_hash::ZHash},
     engine::{
         board_eval::{
-            EvaluationFunction, PassedPawnEvaluation, PieceCountEvaluation,
-            PieceSquareTableEvaluation, BishopPairEvaluation, KingPawnShieldEvaluation, DoublePawnsEvaluation
+            BishopPairEvaluation, DoublePawnsEvaluation, EvaluationFunction,
+            KingPawnShieldEvaluation, PassedPawnEvaluation, PieceCountEvaluation,
+            PieceSquareTableEvaluation,
         },
         opening::opening_book::{OpeningBook, OpeningBookEntry},
         search::Searcher,
