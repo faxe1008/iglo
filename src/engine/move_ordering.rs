@@ -49,14 +49,15 @@ pub fn order_moves(
     search_info: &SearchInfo,
     ply_from_root: u16,
 ) {
-    moves.sort_by(|&a, &b| {
-        move_order_eval(b, board_state, search_info, ply_from_root).cmp(&move_order_eval(
-            a,
-            board_state,
-            search_info,
-            ply_from_root,
-        ))
-    });
+    let mut move_rating: Vec<u32> = moves
+        .iter()
+        .map(|mv| move_order_eval(*mv, board_state, search_info, ply_from_root))
+        .collect();
+
+    let mut zipped: Vec<_> = moves.drain(..).zip(move_rating.drain(..)).collect();
+    zipped.sort_by(|(_, a_rt), (_, b_rt)| b_rt.cmp(a_rt));
+
+    *moves = zipped.drain(..).map(|(mv, _)| mv).collect();
 }
 
 #[cfg(test)]
