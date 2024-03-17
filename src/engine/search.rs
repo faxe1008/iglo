@@ -4,8 +4,9 @@ use super::{
     transposition_table::{NodeType, TranspositionTable},
 };
 use crate::chess::{
-    board::{ChessBoardState, PieceColor},
+    board::{self, ChessBoardState, ChessPiece, PieceColor},
     chess_move::Move,
+    square::Square,
     zobrist_hash::ZHash,
 };
 use std::{
@@ -15,11 +16,11 @@ use std::{
 
 const INFINITY: i32 = 50000;
 pub const CHECKMATE: i32 = 49000;
-const MAX_EXTENSIONS: usize = 3;
+const MAX_EXTENSIONS: usize = 5;
 pub const MATE_DISTANCE: i32 = CHECKMATE - MAX_PLY as i32;
 pub const DEPTH_REDUCTION: u16 = 1;
 
-pub const MAX_QUISCIENCE_DEPTH: u16 = 4;
+pub const MAX_QUISCIENCE_DEPTH: u16 = 5;
 
 pub const MAX_PLY: u16 = 128;
 pub const MAX_KILLER_MOVES: usize = 2;
@@ -330,6 +331,16 @@ impl<const T: usize> Searcher<T> {
         return alpha;
     }
 
+    fn pawn_close_to_promotion(&self, board_state: &ChessBoardState, mv: Move) -> bool {
+        let mv_dst = mv.get_dst() as usize;
+        if let Some((piece, _)) = board_state.board.get_piece_at_pos(mv_dst) {
+            piece == ChessPiece::Pawn
+                && (Square::rank_index(mv_dst) == 1 || Square::rank_index(mv_dst) == 6)
+        } else {
+            false
+        }
+    }
+
     fn minimax(
         &mut self,
         board_state: &ChessBoardState,
@@ -353,9 +364,9 @@ impl<const T: usize> Searcher<T> {
             return eval;
         }
 
-        // Extend the search
-        let is_in_check = board_state.is_in_check();
-        if is_in_check && extensions < MAX_EXTENSIONS {
+        let is_in_check: bool = board_state.is_in_check();
+        // Extend the search if in check
+        if extensions < MAX_EXTENSIONS && is_in_check {
             ply_remaining += 1;
             extensions += 1;
         }
@@ -402,16 +413,44 @@ impl<const T: usize> Searcher<T> {
 
         let mut node_type = NodeType::UpperBound;
 
-        for (_, mv) in moves.iter().enumerate() {
+        for (mv_index, mv) in moves.iter().enumerate() {
             let new_board: ChessBoardState = board_state.exec_move(*mv);
-            let score = -self.minimax(
-                &new_board,
-                ply_remaining - 1,
-                ply_from_root + 1,
-                -beta,
-                -alpha,
-                extensions,
-            );
+
+            let mut needs_full_search = true;
+            let mut score = 0;
+
+            // extend if there are pawns close to promotion
+            if extensions < MAX_EXTENSIONS && self.pawn_close_to_promotion(&new_board, *mv) {
+                extensions += 1;
+                ply_remaining += 1;
+            }
+
+            // Reduce the depth of the search for moves later in the move list as these are less likely to be good
+            // (assuming our move ordering isn't terrible)
+            if extensions == 0 && ply_remaining >= 3 && mv_index >= 3 && !mv.is_capture() {
+                score = -self.minimax(
+                    &new_board,
+                    ply_remaining - 1 - DEPTH_REDUCTION,
+                    ply_from_root + 1,
+                    -alpha - 1,
+                    -alpha,
+                    extensions,
+                );
+                // If the evaluation is better than expected, we'd better to a full-depth search to get a more accurate evaluation
+                needs_full_search = score > alpha;
+            }
+
+            if needs_full_search {
+                score = -self.minimax(
+                    &new_board,
+                    ply_remaining - 1,
+                    ply_from_root + 1,
+                    -beta,
+                    -alpha,
+                    extensions,
+                );
+            }
+
             if self.should_stop() {
                 return 0;
             }

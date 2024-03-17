@@ -144,6 +144,10 @@ impl Square {
         name
     }
 
+    pub fn rank_index(square: usize) -> usize {
+        square / 8
+    }
+
     pub fn square_color(square: u16) -> PieceColor {
         if square % 2 == 0 {
             PieceColor::White
