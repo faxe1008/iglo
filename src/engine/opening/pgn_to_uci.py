@@ -1,7 +1,8 @@
 import chess.pgn
 import sys
 
-OPENING_LENGTH = 8
+OPENING_LENGTH = 10
+
 
 def process_game(opening_dict, game):
     opening_name = game.headers["Opening"]
@@ -22,6 +23,3 @@ if __name__ == "__main__":
                 process_game(None, game)
             else:
                 break
-
-
-

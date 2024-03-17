@@ -26,7 +26,7 @@ pub struct NPlyTranspoBot {
     use_openening_book: bool,
 }
 
-const OPENING_BOOK_DATA: &[u8; 97328] = include_bytes!("../opening/opening_book.bin");
+const OPENING_BOOK_DATA: &[u8; 562736] = include_bytes!("../opening/opening_book.bin");
 
 impl Default for NPlyTranspoBot {
     fn default() -> Self {
@@ -50,7 +50,7 @@ impl ChessBot for NPlyTranspoBot {
         let cur_board_eval = Self::eval(board_state);
         println!("info score cp {}", cur_board_eval as f32 / 100.0);
 
-        if self.use_openening_book && board_state.full_moves < 8 && self.opening_book.is_some() {
+        if self.use_openening_book && board_state.full_moves < 10 && self.opening_book.is_some() {
             if let Some(mv) = self
                 .opening_book
                 .as_ref()

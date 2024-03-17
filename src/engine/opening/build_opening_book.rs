@@ -19,7 +19,7 @@ use std::{
     thread,
 };
 
-const THREAD_COUNT: usize = 4;
+const THREAD_COUNT: usize = 6;
 
 fn process_line(line: &str, openings: &mut HashMap<ZHash, (ChessBoardState, HashSet<Move>)>) {
     let mut board_state = ChessBoardState::starting_state();
@@ -80,7 +80,6 @@ fn process_opening_entry(
 ) -> Vec<OpeningBookEntry> {
     let mut searcher = Searcher::<TT_SIZE>::new(eval);
     let mut entries: Vec<OpeningBookEntry> = Vec::new();
-    let mut count = 0;
 
     for (progress, (hash, (state, move_set))) in openings.iter().progress() {
         let mut board = state.clone();
@@ -98,10 +97,6 @@ fn process_opening_entry(
             );
         });
 
-        count += 1;
-        if count % 6 == 0 {
-            searcher.clear_hash_table();
-        }
         entries.push(entry);
     }
     entries
