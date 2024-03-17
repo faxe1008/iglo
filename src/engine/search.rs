@@ -245,14 +245,14 @@ impl<const T: usize> Searcher<T> {
             vec![i32::MAX; moves.len()]
         };
 
+        let mut temp_rating = 0;
         // Evaluate moves
         for (mv_index, mv) in moves.iter().enumerate() {
             let board_new = board_state.exec_move(*mv);
-            ratings[mv_index] = -self.minimax(&board_new, depth, 0, -INFINITY, INFINITY, 0);
-        }
-
-        if self.should_stop() {
-            return;
+            temp_rating = -self.minimax(&board_new, depth, 0, -INFINITY, INFINITY, 0);
+            if !self.stop.load(std::sync::atomic::Ordering::SeqCst) {
+                ratings[mv_index] = temp_rating;
+            }
         }
 
         // Sort moves by their rating
