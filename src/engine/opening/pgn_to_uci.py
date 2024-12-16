@@ -1,11 +1,10 @@
 import chess.pgn
 import sys
 
-OPENING_LENGTH = 8
 
 def process_game(opening_dict, game):
     opening_name = game.headers["Opening"]
-    move_str = [mv.uci() for mv in game.mainline_moves()][:OPENING_LENGTH]
+    move_str = [mv.uci() for mv in game.mainline_moves()]
     if len(move_str) == 0:
         return
     sys.stdout.write(opening_name)
