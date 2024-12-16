@@ -39,6 +39,10 @@ path = "src/engine/main.rs"
 name = "build_book"
 path = "src/engine/opening/build_opening_book.rs"
 
+[[example]]
+name = "build_dataset"
+path = "src/engine/neval/build_dataset.rs"
+
 [[bench]]
 name = "search_benchmark"
 harness = false
