@@ -408,7 +408,7 @@ impl ChessBoardState {
         }
     }
 
-    pub fn get_neuralnetwork_representation(&self, nn_input: &mut [f64; 768]) {
+    pub fn get_neuralnetwork_representation(&self, nn_input: &mut [f32; 768]) {
         // Serialize each piece bitboard as a Vec of f64 with the following constraints:
         // - 0.0 for empty squares
         // - 1.0 for squares with the player's pieces

@@ -47,7 +47,7 @@ fn get_stock_fish_evaluation(
         .write_all(format!("position fen {}\n", fen).as_bytes())
         .expect("Failed to write to Stockfish");
     stockfish_stdin
-        .write_all("go depth 12\n".as_bytes())
+        .write_all("go depth 13\n".as_bytes())
         .expect("Failed to write to Stockfish");
 
     let mut evaluation = None;
@@ -115,7 +115,7 @@ fn main() -> io::Result<()> {
         }
         let moves_str: Vec<&str> = parts[1].trim().split(',').collect();
 
-        let mut neural_network_input_arr : [f64; 768]= [0.0; 768];
+        let mut neural_network_input_arr : [f32; 768]= [0.0; 768];
 
         for game_state in get_game_states(moves_str) {
             if seen_state_evals.contains(&game_state.zhash) {
