@@ -52,8 +52,8 @@ fn process_line(line: &str, openings: &mut HashMap<ZHash, (ChessBoardState, Hash
     }
 }
 
-fn sort_moves_in_order<const T: usize>(
-    searcher: &mut Searcher<T>,
+fn sort_moves_in_order<const T: usize, E: EvaluationFunction>(
+    searcher: &mut Searcher<T, E>,
     board_state: &mut ChessBoardState,
     moves: &HashSet<Move>,
 ) -> Vec<Move> {
@@ -63,13 +63,17 @@ fn sort_moves_in_order<const T: usize>(
     move_vec
 }
 
-fn eval(board_state: &ChessBoardState) -> i32 {
-    PieceCountEvaluation::eval(board_state)
-        + PieceSquareTableEvaluation::eval(board_state)
-        + PassedPawnEvaluation::eval(board_state)
-        + BishopPairEvaluation::eval(board_state)
-        + KingPawnShieldEvaluation::eval(board_state)
-        + DoublePawnsEvaluation::eval(board_state)
+#[derive(Default)]
+struct OpeningEvaluation();
+impl EvaluationFunction for OpeningEvaluation {
+    fn eval(&mut self, board_state: &ChessBoardState) -> i32 {
+        PieceCountEvaluation.eval(board_state)
+        + PieceSquareTableEvaluation.eval(board_state)
+        + PassedPawnEvaluation.eval(board_state)
+        + BishopPairEvaluation.eval(board_state)
+        + KingPawnShieldEvaluation.eval(board_state)
+        + DoublePawnsEvaluation.eval(board_state)
+    }
 }
 
 const TT_SIZE: usize = 64 * 1024 * 1024;
@@ -78,7 +82,7 @@ fn process_opening_entry(
     id: usize,
     openings: &[(ZHash, (ChessBoardState, HashSet<Move>))],
 ) -> Vec<OpeningBookEntry> {
-    let mut searcher = Searcher::<TT_SIZE>::new(eval);
+    let mut searcher = Searcher::<TT_SIZE, OpeningEvaluation>::new();
     let mut entries: Vec<OpeningBookEntry> = Vec::new();
     let mut count = 0;
 

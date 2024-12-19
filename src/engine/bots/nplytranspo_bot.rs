@@ -21,7 +21,7 @@ pub const TABLE_ENTRY_SIZE: usize = std::mem::size_of::<TranspositionEntry>();
 pub const TABLE_ENTRY_COUNT: usize = TABLE_SIZE / TABLE_ENTRY_SIZE;
 
 pub struct NPlyTranspoBot {
-    searcher: Searcher<TABLE_ENTRY_COUNT>,
+    searcher: Searcher<TABLE_ENTRY_COUNT, NPlyTranspoBotEval>,
     opening_book: Option<OpeningBook>,
     use_openening_book: bool,
 }
@@ -33,7 +33,7 @@ impl Default for NPlyTranspoBot {
         let opening_book = bincode::deserialize::<OpeningBook>(OPENING_BOOK_DATA).ok();
 
         Self {
-            searcher: Searcher::new(Self::eval),
+            searcher: Searcher::new(),
             opening_book: opening_book,
             use_openening_book: true,
         }
@@ -47,7 +47,7 @@ impl ChessBot for NPlyTranspoBot {
         tc: TimeControl,
         stop: &Arc<AtomicBool>,
     ) -> Move {
-        let cur_board_eval = Self::eval(board_state);
+        let cur_board_eval = self.eval(board_state);
         println!("info score cp {}", cur_board_eval as f32 / 100.0);
 
         if self.use_openening_book && board_state.full_moves < 8 && self.opening_book.is_some() {
@@ -84,13 +84,21 @@ impl ChessBot for NPlyTranspoBot {
     }
 }
 
+#[derive(Default)]
+struct NPlyTranspoBotEval();
+impl EvaluationFunction for NPlyTranspoBotEval {
+    fn eval(&mut self, board_state: &crate::chess::board::ChessBoardState) -> i32 {
+        PieceCountEvaluation.eval(board_state)
+            + PieceSquareTableEvaluation.eval(board_state)
+            + PassedPawnEvaluation.eval(board_state)
+            + BishopPairEvaluation.eval(board_state)
+            + KingPawnShieldEvaluation.eval(board_state)
+            + DoublePawnsEvaluation.eval(board_state)
+    }
+}
+
 impl EvaluationFunction for NPlyTranspoBot {
-    fn eval(board_state: &crate::chess::board::ChessBoardState) -> i32 {
-        PieceCountEvaluation::eval(board_state)
-            + PieceSquareTableEvaluation::eval(board_state)
-            + PassedPawnEvaluation::eval(board_state)
-            + BishopPairEvaluation::eval(board_state)
-            + KingPawnShieldEvaluation::eval(board_state)
-            + DoublePawnsEvaluation::eval(board_state)
+    fn eval(&mut self, board_state: &crate::chess::board::ChessBoardState) -> i32 {
+        self.searcher.eval_fn.eval(board_state)
     }
 }

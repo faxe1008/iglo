@@ -23,9 +23,9 @@ impl ChessBot for OnePlyBot {
 
         moves.sort_by(|a, b| {
             if board_state.side == PieceColor::White {
-                Self::eval(&board_state.exec_move(*b)).cmp(&Self::eval(&board_state.exec_move(*a)))
+                self.eval(&board_state.exec_move(*b)).cmp(&self.eval(&board_state.exec_move(*a)))
             } else {
-                Self::eval(&board_state.exec_move(*a)).cmp(&Self::eval(&board_state.exec_move(*b)))
+                self.eval(&board_state.exec_move(*a)).cmp(&self.eval(&board_state.exec_move(*b)))
             }
         });
 
@@ -42,7 +42,7 @@ impl ChessBot for OnePlyBot {
 }
 
 impl EvaluationFunction for OnePlyBot {
-    fn eval(board_state: &crate::chess::board::ChessBoardState) -> i32 {
-        PieceCountEvaluation::eval(board_state) + PieceSquareTableEvaluation::eval(board_state)
+    fn eval(&mut self, board_state: &crate::chess::board::ChessBoardState) -> i32 {
+        PieceCountEvaluation.eval(board_state) + PieceSquareTableEvaluation.eval(board_state)
     }
 }

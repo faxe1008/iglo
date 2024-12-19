@@ -1,7 +1,5 @@
 use super::{
-    move_ordering::order_moves,
-    time_control::TimeControl,
-    transposition_table::{NodeType, TranspositionTable},
+    board_eval::EvaluationFunction, move_ordering::order_moves, time_control::TimeControl, transposition_table::{NodeType, TranspositionTable}
 };
 use crate::chess::{
     board::{ChessBoardState, PieceColor},
@@ -74,16 +72,16 @@ impl SearchInfo {
     }
 }
 
-pub struct Searcher<const T: usize> {
+pub struct Searcher<const T: usize, E: EvaluationFunction> {
     transposition_table: Box<TranspositionTable<T>>,
     pub info: SearchInfo,
-    eval_fn: fn(&ChessBoardState) -> i32,
+    pub eval_fn: E,
     pub stop: Arc<AtomicBool>,
     time_control: TimeControl,
 }
 
-impl<const T: usize> Searcher<T> {
-    pub fn new(eval_fn: fn(&ChessBoardState) -> i32) -> Self {
+impl<const T: usize, E: EvaluationFunction> Searcher<T, E> {
+    pub fn new() -> Self {
         let transposition_table = unsafe {
             let layout = std::alloc::Layout::new::<TranspositionTable<T>>();
             let ptr = std::alloc::alloc_zeroed(layout) as *mut TranspositionTable<T>;
@@ -92,7 +90,7 @@ impl<const T: usize> Searcher<T> {
         Self {
             transposition_table,
             info: SearchInfo::default(),
-            eval_fn,
+            eval_fn: E::default(),
             stop: Arc::new(false.into()),
             time_control: TimeControl::FixedDepth(5),
         }
@@ -285,7 +283,7 @@ impl<const T: usize> Searcher<T> {
         self.info.nodes_searched += 1;
 
         if ply_from_root >= MAX_PLY || ply_remaining == 0 {
-            return sf * (self.eval_fn)(&board_state);
+            return sf * self.eval_fn.eval(&board_state);
         }
 
         if self.is_draw(board_state, ply_from_root) {
@@ -302,7 +300,7 @@ impl<const T: usize> Searcher<T> {
             return score;
         }
 
-        let mut score = sf * (self.eval_fn)(&board_state);
+        let mut score = sf * self.eval_fn.eval(&board_state);
         if score >= beta {
             return beta;
         }
