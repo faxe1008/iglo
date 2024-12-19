@@ -76,5 +76,28 @@ fn perft_benchmark(c: &mut Criterion) {
     group.finish()
 }
 
-criterion_group!(benches, search_benchmark, perft_benchmark, benchmark_order_moves);
+fn neural_network_representation_benchmark(c: &mut Criterion) {
+    let mut board_state = ChessBoardState::starting_state();
+    let mut  repr: [f32; 768] = [0.0; 768];
+
+    let mut group = c.benchmark_group("Neural Network Representation");
+    group.sample_size(10);
+
+    group.bench_function("Convert FEN to NN input", |b| {
+        b.iter(|| {
+            board_state.get_neuralnetwork_representation(&mut repr);
+            black_box(repr);
+
+            let moves = board_state.generate_legal_moves_for_current_player::<false>();
+            if moves.is_empty() {
+                return;
+            }
+            board_state = board_state.exec_move(moves[0]);
+        })
+    });
+
+    group.finish();
+}
+
+criterion_group!(benches, search_benchmark, perft_benchmark, benchmark_order_moves, neural_network_representation_benchmark);
 criterion_main!(benches);
