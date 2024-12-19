@@ -7,6 +7,9 @@ authors = ["Fabian Blatz"]
 [profile.release]
 lto=true
 overflow-checks=false
+panic='abort'
+opt-level=3
+codegen-units=1
 
 [dependencies]
 rand = "0.8.5"
