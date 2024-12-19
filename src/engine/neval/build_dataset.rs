@@ -24,30 +24,17 @@ fn get_game_states(moves: Vec<&str>) -> Vec<ChessBoardState> {
     }
     board_states
 }
+
 fn get_stock_fish_evaluation(
     board_state: &ChessBoardState,
-    stock_fish_proc: &mut std::process::Child,
+    stdin: &mut std::process::ChildStdin,
+    reader: &mut std::io::BufReader<&mut std::process::ChildStdout>,
 ) -> Option<f64> {
-    let mut stockfish_stdin = stock_fish_proc
-        .stdin
-        .as_mut()
-        .expect("Failed to open stdin");
-    let stockfish_stdout = stock_fish_proc
-        .stdout
-        .as_mut()
-        .expect("Failed to open stdout");
-
-    // Wrap the stdout in a BufReader to enable read_line
-    let mut reader = BufReader::new(stockfish_stdout);
-
     let fen = board_state.to_fen();
 
     // Send the position with the given moves to Stockfish
-    stockfish_stdin
-        .write_all(format!("position fen {}\n", fen).as_bytes())
-        .expect("Failed to write to Stockfish");
-    stockfish_stdin
-        .write_all("go depth 13\n".as_bytes())
+    stdin
+        .write_all(format!("position fen {}\ngo depth 12\n", fen).as_bytes())
         .expect("Failed to write to Stockfish");
 
     let mut evaluation = None;
@@ -103,6 +90,12 @@ fn main() -> io::Result<()> {
         .spawn()
         .expect("Failed to start Stockfish");
 
+    let mut stockfish_stdin = stockfish.stdin.as_mut().expect("Failed to open stdin");
+    let stockfish_stdout = stockfish.stdout.as_mut().expect("Failed to open stdout");
+
+    // Wrap the stdout in a BufReader to enable read_line
+    let mut stockfish_reader = BufReader::new(stockfish_stdout);
+
     let seen_state_evals = HashSet::<ZHash>::new();
 
     // Process each line in the file
@@ -115,13 +108,14 @@ fn main() -> io::Result<()> {
         }
         let moves_str: Vec<&str> = parts[1].trim().split(',').collect();
 
-        let mut neural_network_input_arr : [f32; 768]= [0.0; 768];
+        let mut neural_network_input_arr: [f32; 768] = [0.0; 768];
 
         for game_state in get_game_states(moves_str) {
             if seen_state_evals.contains(&game_state.zhash) {
                 continue;
             }
-            let evaluation = get_stock_fish_evaluation(&game_state, &mut stockfish);
+            let evaluation =
+                get_stock_fish_evaluation(&game_state, &mut stockfish_stdin, &mut stockfish_reader);
             if evaluation.is_none() {
                 continue;
             }
@@ -132,7 +126,7 @@ fn main() -> io::Result<()> {
                 .map(|v| v.to_string())
                 .collect::<Vec<String>>()
                 .join(";");
-            
+
             println!(
                 "{};{};{}",
                 game_state.to_fen(),

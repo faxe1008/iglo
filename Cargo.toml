@@ -5,12 +5,11 @@ edition = "2021"
 authors = ["Fabian Blatz"]
 
 [profile.release]
-opt-level = 3
-lto = true # Enable Link Time Optimization for better cross-module optimization.
-codegen-units = 1 # Reduce the number of codegen units for better optimization at the cost of compile time.
-overflow-checks = false # Disable overflow checks in release builds for better performance.
-panic = "abort" # Reduce binary size by aborting on panic instead of unwinding.
-
+lto=true
+overflow-checks=false
+panic='abort'
+opt-level=3
+codegen-units=1
 
 [dependencies]
 rand = "0.8.5"

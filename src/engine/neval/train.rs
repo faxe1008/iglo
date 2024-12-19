@@ -83,7 +83,7 @@ fn main() {
     );
 
     // Define the neural network structure
-    let vs = nn::VarStore::new(Device::Cpu);
+    let vs = nn::VarStore::new(Device::cuda_if_available());
     let net = nn::seq()
         .add(nn::linear(
             vs.root() / "layer1",
@@ -141,16 +141,17 @@ fn main() {
 
             opt.backward_step(&loss);
 
-            // Update progress line
-            print!(
-                "\rEpoch {}/{} - Batch {}/{} - Loss: {:.6}",
-                epoch + 1,
-                num_epochs,
-                batch_idx + 1,
-                num_train_batches,
-                loss.double_value(&[])
-            );
-            io::stdout().flush().unwrap();
+            if batch_idx % 100 == 0 {
+                print!(
+                    "\rEpoch {}/{} - Batch {}/{} - Loss: {:.6}",
+                    epoch + 1,
+                    num_epochs,
+                    batch_idx + 1,
+                    num_train_batches,
+                    loss.double_value(&[])
+                );
+                io::stdout().flush().unwrap();
+            }
         }
 
         // Validation phase
