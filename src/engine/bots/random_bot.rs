@@ -30,7 +30,7 @@ impl ChessBot for RandomBot {
 }
 
 impl EvaluationFunction for RandomBot {
-    fn eval(_board_state: &crate::chess::board::ChessBoardState) -> i32 {
+    fn eval(&mut self, _board_state: &crate::chess::board::ChessBoardState) -> i32 {
         0
     }
 }

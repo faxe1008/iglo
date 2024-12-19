@@ -192,7 +192,7 @@ impl<B: ChessBot> UCIController<B> {
                     println!("bestmove {:?}", best_move);
                 }
                 UCICommand::Eval => {
-                    println!("Static evaluation: {}", B::eval(&board_state));
+                    println!("Static evaluation: {}", chessbot.eval(&board_state));
                 }
                 UCICommand::Print => {
                     println!("{}", board_state.to_fen());

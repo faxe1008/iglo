@@ -48,10 +48,11 @@ const CAPTURE_INDICATOR_THICKNESS: u32 = 5;
 const CAPTURE_INDICATOR_MARGIN: i32 = 3;
 const CAPTURE_INDICATOR_SIDE_LEN: u32 = SQUARE_SIZE as u32 / 5;
 
+#[derive(Default)]
 pub struct EvaluationEngine;
 impl EvaluationFunction for EvaluationEngine {
-    fn eval(board_state: &ChessBoardState) -> i32 {
-        PieceCountEvaluation::eval(&board_state) + PieceSquareTableEvaluation::eval(&board_state)
+    fn eval(&mut self, board_state: &ChessBoardState) -> i32 {
+        PieceCountEvaluation.eval(&board_state) + PieceSquareTableEvaluation.eval(&board_state)
     }
 }
 
@@ -159,7 +160,7 @@ fn draw_stats_bar(
     asset_pack: &AssetPack,
     texture_creator: &TextureCreator<WindowContext>,
 ) -> Result<(), String> {
-    let evaluation = EvaluationEngine::eval(board_state);
+    let evaluation = EvaluationEngine::default().eval(board_state);
 
     let enpassant_text = if let Some(target) = board_state.en_passant_target {
         Square::designator_str_from_index(target as u16)

@@ -31,12 +31,12 @@ impl ChessBot for NPlyBot {
             let board_b = board_state.exec_move(*b);
 
             if board_state.side == PieceColor::White {
-                Self::minimax_alpha_beta(&board_b, depth, i32::MIN, i32::MAX).cmp(
-                    &Self::minimax_alpha_beta(&board_a, depth, i32::MIN, i32::MAX),
+                self.minimax_alpha_beta(&board_b, depth, i32::MIN, i32::MAX).cmp(
+                    &self.minimax_alpha_beta(&board_a, depth, i32::MIN, i32::MAX),
                 )
             } else {
-                Self::minimax_alpha_beta(&board_a, depth, i32::MIN, i32::MAX).cmp(
-                    &Self::minimax_alpha_beta(&board_b, depth, i32::MIN, i32::MAX),
+                self.minimax_alpha_beta(&board_a, depth, i32::MIN, i32::MAX).cmp(
+                    &self.minimax_alpha_beta(&board_b, depth, i32::MIN, i32::MAX),
                 )
             }
         });
@@ -55,13 +55,14 @@ impl ChessBot for NPlyBot {
 
 impl NPlyBot {
     fn minimax_alpha_beta(
+        &mut self,
         board_state: &ChessBoardState,
         depth: u32,
         mut alpha: i32,
         mut beta: i32,
     ) -> i32 {
         if depth == 0 {
-            return Self::eval(board_state);
+            return self.eval(board_state);
         }
 
         let moves = board_state.generate_legal_moves_for_current_player::<false>();
@@ -81,7 +82,7 @@ impl NPlyBot {
 
                 value = max(
                     value,
-                    Self::minimax_alpha_beta(&new_board, depth - 1, alpha, beta),
+                    self.minimax_alpha_beta(&new_board, depth - 1, alpha, beta),
                 );
                 alpha = max(alpha, value);
 
@@ -96,7 +97,7 @@ impl NPlyBot {
                 let new_board = board_state.exec_move(*mv);
                 value = min(
                     value,
-                    Self::minimax_alpha_beta(&new_board, depth - 1, alpha, beta),
+                    self.minimax_alpha_beta(&new_board, depth - 1, alpha, beta),
                 );
                 beta = min(beta, value);
                 if value <= alpha {
@@ -109,7 +110,7 @@ impl NPlyBot {
 }
 
 impl EvaluationFunction for NPlyBot {
-    fn eval(board_state: &crate::chess::board::ChessBoardState) -> i32 {
-        PieceCountEvaluation::eval(board_state) + PieceSquareTableEvaluation::eval(board_state)
+    fn eval(&mut self, board_state: &crate::chess::board::ChessBoardState) -> i32 {
+        PieceCountEvaluation.eval(board_state) + PieceSquareTableEvaluation.eval(board_state)
     }
 }

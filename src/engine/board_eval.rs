@@ -6,14 +6,15 @@ use crate::chess::{
     square::Square,
 };
 
-pub trait EvaluationFunction {
-    fn eval(board_state: &ChessBoardState) -> i32;
+pub trait EvaluationFunction : Default {
+    fn eval(&mut self, board_state: &ChessBoardState) -> i32;
 }
 
 // Strategy: Value per Piece on either side
+#[derive(Default)]
 pub struct PieceCountEvaluation;
 impl EvaluationFunction for PieceCountEvaluation {
-    fn eval(board_state: &ChessBoardState) -> i32 {
+    fn eval(&mut self, board_state: &ChessBoardState) -> i32 {
         let calc_piece_val_sum = |bitboards: &[BitBoard]| -> i32 {
             bitboards
                 .iter()
@@ -134,9 +135,10 @@ const KING_END_GAME_TABLE : PieceSquareTable =
     -50,-30,-30,-30,-30,-30,-30,-50
 ];
 
+#[derive(Default)]
 pub struct PieceSquareTableEvaluation;
 impl EvaluationFunction for PieceSquareTableEvaluation {
-    fn eval(board_state: &ChessBoardState) -> i32 {
+    fn eval(&mut self, board_state: &ChessBoardState) -> i32 {
         let endgame_factor = endgame_lerp_value(board_state);
 
         #[inline(always)]
@@ -188,9 +190,10 @@ impl EvaluationFunction for PieceSquareTableEvaluation {
 }
 
 // Strategy: Give Bonus for Passed Pawns
+#[derive(Default)]
 pub struct PassedPawnEvaluation;
 impl EvaluationFunction for PassedPawnEvaluation {
-    fn eval(board_state: &ChessBoardState) -> i32 {
+    fn eval(&mut self, board_state: &ChessBoardState) -> i32 {
         let endgame_factor = endgame_lerp_value(board_state);
         let eval_passed_pawns = |color: PieceColor| -> i32 {
             let own_pawns = board_state
@@ -253,9 +256,10 @@ impl PassedPawnEvaluation {
 }
 
 // Strategy Give Bonus for having the bishop pair
+#[derive(Default)]
 pub struct BishopPairEvaluation;
 impl EvaluationFunction for BishopPairEvaluation {
-    fn eval(board_state: &ChessBoardState) -> i32 {
+    fn eval(&mut self, board_state: &ChessBoardState) -> i32 {
         let eval_bishop_pair = |color: PieceColor| -> i32 {
             let bishop_board = board_state
                 .board
@@ -283,9 +287,10 @@ impl EvaluationFunction for BishopPairEvaluation {
     }
 }
 
+#[derive(Default)]
 pub struct KingPawnShieldEvaluation;
 impl EvaluationFunction for KingPawnShieldEvaluation {
-    fn eval(board_state: &ChessBoardState) -> i32 {
+    fn eval(&mut self, board_state: &ChessBoardState) -> i32 {
         const PUNISHMENT_PER_PAWN: f32 = -20.0;
 
         // The earlier in the game the more important
@@ -349,9 +354,10 @@ impl EvaluationFunction for KingPawnShieldEvaluation {
     }
 }
 
+#[derive(Default)]
 pub struct PieceConnectivityEvaluation;
 impl EvaluationFunction for PieceConnectivityEvaluation {
-    fn eval(board_state: &ChessBoardState) -> i32 {
+    fn eval(&mut self, board_state: &ChessBoardState) -> i32 {
         let eval_connectivity = |color: PieceColor| -> i32 {
             let attacked_squares = board_state.board.squares_attacked_by_side(color, false);
 
@@ -366,10 +372,10 @@ impl EvaluationFunction for PieceConnectivityEvaluation {
         eval_connectivity(PieceColor::White) - eval_connectivity(PieceColor::Black)
     }
 }
-
+#[derive(Default)]
 pub struct DoublePawnsEvaluation;
 impl EvaluationFunction for DoublePawnsEvaluation {
-    fn eval(board_state: &ChessBoardState) -> i32 {
+    fn eval(&mut self, board_state: &ChessBoardState) -> i32 {
         const PUNISHMET_PER_PAWN: i32 = -10;
 
         let eval_doubled_pawns = |color: PieceColor| -> i32 {
@@ -406,22 +412,22 @@ mod eval_tests {
             ChessBoardState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w QKqk - 0 0");
         assert!(start_board.is_ok());
         let start_board = start_board.unwrap();
-        assert_eq!(PieceCountEvaluation::eval(&start_board), 0);
+        assert_eq!(PieceCountEvaluation.eval(&start_board), 0);
     }
 
     #[test]
     fn eval_passed_pawn() {
         let board_state_passer =
             ChessBoardState::from_fen("4k3/8/6P1/8/8/8/8/4K3 w - - 0 1").unwrap();
-        assert!(PassedPawnEvaluation::eval(&board_state_passer) > 0);
+        assert!(PassedPawnEvaluation.eval(&board_state_passer) > 0);
 
         let board_state_no_passer =
             ChessBoardState::from_fen("4k3/6p1/6P1/8/8/8/8/4K3 w - - 0 1").unwrap();
-        assert!(PassedPawnEvaluation::eval(&board_state_no_passer) == 0);
+        assert!(PassedPawnEvaluation.eval(&board_state_no_passer) == 0);
 
         let board_opposing_passer =
             ChessBoardState::from_fen("4k3/8/8/8/6p1/8/8/4K3 w - - 0 1").unwrap();
-        assert!(PassedPawnEvaluation::eval(&board_opposing_passer) < 0);
+        assert!(PassedPawnEvaluation.eval(&board_opposing_passer) < 0);
     }
 
     #[test]
@@ -430,14 +436,14 @@ mod eval_tests {
             "rnbq2kr/pppppppp/8/4bn2/3Q1N2/1PN1BB2/P1PPPPPP/1KR4R w Kkq - 0 1",
         )
         .unwrap();
-        assert!(KingPawnShieldEvaluation::eval(&board_white_damaged_shield) < 0);
+        assert!(KingPawnShieldEvaluation.eval(&board_white_damaged_shield) < 0);
 
         let board_black_damaged_shield = ChessBoardState::from_fen(
             "rnbq2kr/pppppp1p/6p1/4bn2/3Q1N2/2N1BB2/PPPPPPPP/1KR4R w Kkq - 0 1",
         )
         .unwrap();
-        assert!(KingPawnShieldEvaluation::eval(&board_black_damaged_shield) > 0);
+        assert!(KingPawnShieldEvaluation.eval(&board_black_damaged_shield) > 0);
 
-        assert!(KingPawnShieldEvaluation::eval(&ChessBoardState::starting_state()) == 0);
+        assert!(KingPawnShieldEvaluation.eval(&ChessBoardState::starting_state()) == 0);
     }
 }
