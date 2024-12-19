@@ -431,20 +431,18 @@ impl ChessBoardState {
             (PieceColor::Black, ChessPiece::King),
         ];
     
+        nn_input.fill(0.0);
+
         // Iterate over each piece type and color
         for (index, (color, piece)) in vec_ordering.iter().enumerate() {
             let bitboard = self.board.get_piece_bitboard(*piece, *color);
-            for i in 0..64 {
-                let value = if bitboard.get_bit(i) {
-                    if *color == self.side {
-                        1.0
-                    } else {
-                        -1.0
-                    }
+            for pos in bitboard.into_iter() {
+                let value = if *color == self.side {
+                    1.0
                 } else {
-                    0.0
+                    -1.0
                 };
-                nn_input[index * 64 + i] = value;
+                nn_input[index * 64 + pos] = value;
             }
         }
 
