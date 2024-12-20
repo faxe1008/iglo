@@ -4,9 +4,7 @@ use crate::{
     chess::{board::ChessBoardState, chess_move::Move},
     engine::{
         board_eval::{
-            BishopPairEvaluation, DoublePawnsEvaluation, EvaluationFunction,
-            KingPawnShieldEvaluation, PassedPawnEvaluation, PieceConnectivityEvaluation,
-            PieceCountEvaluation, PieceSquareTableEvaluation,
+            BishopPairEvaluation, DoublePawnsEvaluation, EvaluationFunction, KingPawnShieldEvaluation, NeuralNetworkEvaluation, PassedPawnEvaluation, PieceConnectivityEvaluation, PieceCountEvaluation, PieceSquareTableEvaluation
         },
         bot::ChessBot,
         opening::opening_book::OpeningBook,
@@ -21,7 +19,7 @@ pub const TABLE_ENTRY_SIZE: usize = std::mem::size_of::<TranspositionEntry>();
 pub const TABLE_ENTRY_COUNT: usize = TABLE_SIZE / TABLE_ENTRY_SIZE;
 
 pub struct NPlyTranspoBot {
-    searcher: Searcher<TABLE_ENTRY_COUNT, NPlyTranspoBotEval>,
+    searcher: Searcher<TABLE_ENTRY_COUNT, NeuralNetworkEvaluation>,
     opening_book: Option<OpeningBook>,
     use_openening_book: bool,
 }
