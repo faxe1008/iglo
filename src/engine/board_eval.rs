@@ -1,4 +1,7 @@
+use std::env::var;
+
 use lerp::{num_traits::clamp, Lerp};
+use tch::nn::{self, Module};
 
 use crate::chess::{
     bitboard::BitBoard,
@@ -393,6 +396,67 @@ impl EvaluationFunction for DoublePawnsEvaluation {
         };
 
         eval_doubled_pawns(PieceColor::White) - eval_doubled_pawns(PieceColor::Black)
+    }
+}
+
+
+pub struct NeuralNetworkEvaluation {
+    var_store: tch::nn::VarStore,
+    network: tch::nn::Sequential,
+
+    network_input: [f32; 768]
+}
+
+impl Default for NeuralNetworkEvaluation
+{
+    fn default() -> Self {
+        let mut var_store = tch::nn::VarStore::new(tch::Device::cuda_if_available());
+        let network = nn::seq()
+        .add(nn::linear(
+            var_store.root() / "layer1",
+            768,
+            512,
+            Default::default(),
+        ))
+        .add_fn(|xs| xs.elu())
+        .add(nn::linear(
+            var_store.root() / "layer2",
+            512,
+            256,
+            Default::default(),
+        ))
+        .add_fn(|xs| xs.elu())
+        .add(nn::linear(
+            var_store.root() / "layer3",
+            256,
+            256,
+            Default::default(),
+        ))
+        .add_fn(|xs| xs.elu())
+        .add(nn::linear(
+            var_store.root() / "output",
+            256,
+            1,
+            Default::default(),
+        ));
+        var_store.load("/home/faxe/priv/iglo/trained_model.ot").unwrap();
+
+        NeuralNetworkEvaluation {
+            var_store,
+            network,
+            network_input: [0.0; 768]
+        }
+    }
+}
+
+impl EvaluationFunction for NeuralNetworkEvaluation {
+    fn eval(&mut self, board_state: &ChessBoardState) -> i32 {
+        board_state.get_neuralnetwork_representation(&mut self.network_input);
+
+        let input_tensor = tch::Tensor::from_slice(&self.network_input).view([-1, 768]);
+        let output = self.network.forward(&input_tensor).double_value(&[0]);
+
+        (output * 686.753418 + 15.058455) as i32
     }
 }
 

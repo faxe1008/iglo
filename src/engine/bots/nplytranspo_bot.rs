@@ -6,7 +6,7 @@ use crate::{
         board_eval::{
             BishopPairEvaluation, DoublePawnsEvaluation, EvaluationFunction,
             KingPawnShieldEvaluation, PassedPawnEvaluation, PieceCountEvaluation,
-            PieceSquareTableEvaluation,
+            PieceSquareTableEvaluation, NeuralNetworkEvaluation
         },
         bot::ChessBot,
         opening::polyglot::{OpeningBook, PolyglotOpeningBook},
@@ -26,7 +26,7 @@ const OPENING_BOOK_DATA: &'static [u8] =
     include_bytes!("/home/faxe/priv/iglo/src/engine/opening/Openings.bin");
 
 pub struct NPlyTranspoBot {
-    searcher: Searcher<TABLE_ENTRY_COUNT, NPlyTranspoBotEval>,
+    searcher: Searcher<TABLE_ENTRY_COUNT, NeuralNetworkEvaluation>,
     opening_book: PolyglotOpeningBook,
     use_openening_book: bool,
 }

@@ -1,7 +1,7 @@
+use iglo::chess::board::ChessBoardState;
 use std::fs;
 use std::io::Write;
 use std::io::{self, BufRead};
-use iglo::chess::board::ChessBoardState;
 use tch::Kind;
 use tch::{nn, nn::Module, nn::OptimizerConfig, Device, Tensor};
 
@@ -88,43 +88,47 @@ fn main() {
         .add(nn::linear(
             vs.root() / "layer1",
             768,
-            2048,
+            512,
             Default::default(),
         ))
         .add_fn(|xs| xs.elu())
         .add(nn::linear(
             vs.root() / "layer2",
-            2048,
-            2048,
+            512,
+            256,
             Default::default(),
         ))
         .add_fn(|xs| xs.elu())
         .add(nn::linear(
             vs.root() / "layer3",
-            2048,
-            2048,
+            256,
+            256,
             Default::default(),
         ))
         .add_fn(|xs| xs.elu())
-        .add(nn::linear(
-            vs.root() / "output",
-            2048,
-            1,
-            Default::default(),
-        ));
+        .add(nn::linear(vs.root() / "output", 256, 1, Default::default()));
 
     // Define optimizer
-    let mut opt = nn::Sgd::default().build(&vs, 1e-3).unwrap();
+    let initial_lr = 2e-3;
+    let decay_rate: f64 = 0.9;
+    let decay_epochs = 20;
+    let mut opt = nn::Sgd::default().build(&vs, initial_lr).unwrap();
     opt.set_momentum(0.7);
 
     // Training loop
     println!("Training model...");
-    let batch_size = 256;
+    let batch_size = 128;
     let num_train_batches = (train_size as f64 / batch_size as f64).ceil() as i64;
 
-    let num_epochs = 120;
+    let num_epochs = 200;
 
     for epoch in 0..num_epochs {
+        // Adjust learning rate at the start of each epoch
+        if epoch > 0 && epoch % decay_epochs == 0 {
+            let new_lr = initial_lr * decay_rate.powf((epoch / decay_epochs) as f64);
+            opt.set_lr(new_lr);
+        }
+
         // Training phase
         for batch_idx in 0..num_train_batches {
             let start = batch_idx * batch_size;
@@ -148,7 +152,7 @@ fn main() {
                     num_epochs,
                     batch_idx + 1,
                     num_train_batches,
-                    loss.double_value(&[])
+                    loss.double_value(&[]),
                 );
                 io::stdout().flush().unwrap();
             }
