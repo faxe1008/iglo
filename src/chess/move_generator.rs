@@ -72,7 +72,7 @@ impl ChessBoard {
     }
 
     #[inline(always)]
-    fn pawns_able_to_enpassant(&self, color: PieceColor, en_passant_target: u8) -> BitBoard {
+    pub fn pawns_able_to_enpassant(&self, color: PieceColor, en_passant_target: u8) -> BitBoard {
         let target_bb = BitBoard::EMPTY.set_bit(en_passant_target as usize);
         if color == PieceColor::White {
             (target_bb.s_so_ea() | target_bb.s_so_we())

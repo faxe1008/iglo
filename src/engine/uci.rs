@@ -29,6 +29,7 @@ enum UCICommand {
     Eval,
     Print,
     Go(TimeControl),
+    ZHash,
     Quit,
     Stop,
 }
@@ -98,6 +99,7 @@ impl TryFrom<&str> for UCICommand {
             }
             Some("eval") => Ok(UCICommand::Eval),
             Some("print") => Ok(UCICommand::Print),
+            Some("zhash") => Ok(UCICommand::ZHash),
             _ => Err(()),
         }
     }
@@ -194,6 +196,9 @@ impl<B: ChessBot> UCIController<B> {
                 }
                 UCICommand::Print => {
                     println!("{}", board_state.to_fen());
+                }
+                UCICommand::ZHash => {
+                    println!("Hash: {:x}", board_state.zhash.0);
                 }
                 _ => eprintln!("Unexpected UCI command!"),
             }

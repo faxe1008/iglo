@@ -342,6 +342,16 @@ impl ChessBoardState {
         }
     }
 
+    fn update_enpassant_hash(&mut self, current_side: PieceColor, ep_target: Option<u8>) {
+        // Only toggle the enpassant target if there are any pieces that attack the target square
+        if let Some(ep_target) = ep_target {
+            let enpassant_attackers = self.board.pawns_able_to_enpassant(current_side, ep_target);
+            if enpassant_attackers.0 != 0 {
+                self.zhash.toggle_enpassant(ep_target as usize);
+            }
+        }
+    }
+
     pub fn from_fen(text: &str) -> Result<Self, ()> {
         let fen_parts: Vec<&str> = text.trim().split(" ").collect();
         if fen_parts.len() != 6 {
@@ -349,7 +359,7 @@ impl ChessBoardState {
         }
 
         let mut zhash = ZHash::default();
-        Ok(ChessBoardState {
+        let mut board = ChessBoardState {
             board: ChessBoard::from_fen_notation(fen_parts[0], &mut zhash)?,
             side: PieceColor::try_from(fen_parts[1])?,
             castling_rights: CastlingRights::try_from(fen_parts[2])?,
@@ -357,7 +367,25 @@ impl ChessBoardState {
             half_moves: fen_parts[4].parse::<u8>().map_err(|_| ())?,
             full_moves: fen_parts[5].parse::<u8>().map_err(|_| ())?,
             zhash: zhash,
-        })
+        };
+
+        if board.side == PieceColor::White {
+            board.zhash.toggle_side();
+        }
+
+        board.zhash.swap_castling_rights(
+            &CastlingRights {
+                white_queen_side: false,
+                white_king_side: false,
+                black_queen_side: false,
+                black_king_side: false,
+            },
+            &board.castling_rights,
+        );
+
+        board.update_enpassant_hash(board.side, board.en_passant_target);
+
+        Ok(board)
     }
 
     pub fn to_fen(&self) -> String {
@@ -559,7 +587,8 @@ impl ChessBoardState {
             } else {
                 Some(mv.get_dst() as u8 - 8)
             };
-            new.zhash.toggle_enpassant(new_ep_target.unwrap() as usize);
+            // Side to move is not updated yet, so we need to toggle it
+            new.update_enpassant_hash(!new.side, new_ep_target);
             new.en_passant_target = new_ep_target;
         } else if mv.is_en_passant() {
             // En passant
