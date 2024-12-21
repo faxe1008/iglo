@@ -5,11 +5,11 @@ use crate::{
     engine::{
         board_eval::{
             BishopPairEvaluation, DoublePawnsEvaluation, EvaluationFunction,
-            KingPawnShieldEvaluation, PassedPawnEvaluation, PieceConnectivityEvaluation,
-            PieceCountEvaluation, PieceSquareTableEvaluation,
+            KingPawnShieldEvaluation, PassedPawnEvaluation, PieceCountEvaluation,
+            PieceSquareTableEvaluation,
         },
         bot::ChessBot,
-        opening::opening_book::OpeningBook,
+        opening::polyglot::{OpeningBook, PolyglotOpeningBook},
         search::Searcher,
         time_control::TimeControl,
         transposition_table::TranspositionEntry,
@@ -20,21 +20,23 @@ pub const TABLE_SIZE: usize = 64 * 1024 * 1024;
 pub const TABLE_ENTRY_SIZE: usize = std::mem::size_of::<TranspositionEntry>();
 pub const TABLE_ENTRY_COUNT: usize = TABLE_SIZE / TABLE_ENTRY_SIZE;
 
+// include bytes from file /home/faxe/priv/iglo/src/engine/opening/Openings.bin as OPENING_BOOK_DATA
+
+const OPENING_BOOK_DATA: &'static [u8] =
+    include_bytes!("/home/faxe/priv/iglo/src/engine/opening/Openings.bin");
+
 pub struct NPlyTranspoBot {
     searcher: Searcher<TABLE_ENTRY_COUNT>,
-    opening_book: Option<OpeningBook>,
+    opening_book: PolyglotOpeningBook,
     use_openening_book: bool,
 }
 
-const OPENING_BOOK_DATA: &[u8; 97328] = include_bytes!("../opening/opening_book.bin");
-
 impl Default for NPlyTranspoBot {
     fn default() -> Self {
-        let opening_book = bincode::deserialize::<OpeningBook>(OPENING_BOOK_DATA).ok();
-
+        let opening_book = PolyglotOpeningBook::from_bytes(OPENING_BOOK_DATA);
         Self {
             searcher: Searcher::new(Self::eval),
-            opening_book: opening_book,
+            opening_book,
             use_openening_book: true,
         }
     }
@@ -50,15 +52,20 @@ impl ChessBot for NPlyTranspoBot {
         let cur_board_eval = Self::eval(board_state);
         println!("info score cp {}", cur_board_eval as f32 / 100.0);
 
-        if self.use_openening_book && board_state.full_moves < 8 && self.opening_book.is_some() {
-            if let Some(mv) = self
-                .opening_book
-                .as_ref()
-                .unwrap()
-                .lookup(board_state.zhash, true)
-            {
-                println!("info string openingbook hit {:?}", &mv);
-                return mv;
+        if self.use_openening_book {
+            let moves = self.opening_book.get(board_state);
+            if !moves.is_empty() {
+                let legal_moves = board_state.generate_legal_moves_for_current_player::<false>();
+
+                // verify that each move in moves is in the legal moves
+                for m in &moves {
+                    if !legal_moves.contains(m) {
+                        //panic!("Illegal move in opening book: {:?}", m);
+                    }
+                }
+
+                println!("info string book move");
+                return moves[0];
             }
         }
 

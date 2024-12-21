@@ -35,10 +35,6 @@ path = "src/chess/lookup_gens/main.rs"
 name = "iglo"
 path = "src/engine/main.rs"
 
-[[example]]
-name = "build_book"
-path = "src/engine/opening/build_opening_book.rs"
-
 [[bench]]
 name = "search_benchmark"
 harness = false
