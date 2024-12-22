@@ -155,9 +155,7 @@ impl OpeningBook for PolyglotOpeningBook {
 
 #[cfg(test)]
 mod tests {
-    use lerp::num_traits::ops::bytes;
-
-    use crate::{chess::{board::{ChessBoard, ChessBoardState}, chess_move::MoveType, square::Square}, engine::opening::polyglot::PolyglotOpeningBook};
+    use crate::{chess::{board::ChessBoardState, chess_move::MoveType, square::Square}, engine::opening::polyglot::PolyglotOpeningBook};
 
     use super::OpeningBook;
 

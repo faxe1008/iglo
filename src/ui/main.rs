@@ -658,7 +658,7 @@ fn main() {
         Ok(())
     };
 
-    redraw_board(&board_state, &game_ui_state, &asset_pack);
+    redraw_board(&board_state, &game_ui_state, &asset_pack).expect("Error redrawing board");
     let mut event_pump = sdl_context.event_pump().unwrap();
 
     'running: loop {
@@ -675,7 +675,7 @@ fn main() {
                     ..
                 } => {
                     game_ui_state.flipped = !game_ui_state.flipped;
-                    redraw_board(&board_state, &game_ui_state, &asset_pack);
+                    redraw_board(&board_state, &game_ui_state, &asset_pack).expect("Error redrawing board");
                 }
                 Event::MouseButtonDown { x, y, .. } => {
                     if game_ui_state.promotion_prompt.is_none() {
@@ -724,7 +724,7 @@ fn main() {
                         game_ui_state.promotion_prompt = None;
                     }
 
-                    redraw_board(&board_state, &game_ui_state, &asset_pack);
+                    redraw_board(&board_state, &game_ui_state, &asset_pack).expect("Error redrawing board");
                 }
                 Event::MouseMotion {
                     x, y, mousestate, ..
@@ -734,7 +734,7 @@ fn main() {
                         && game_ui_state.promotion_prompt.is_none()
                     {
                         game_ui_state.dragging_piece_pos = Some((x, y));
-                        redraw_board(&board_state, &game_ui_state, &asset_pack);
+                        redraw_board(&board_state, &game_ui_state, &asset_pack).expect("Error redrawing board");
                     }
                 }
                 Event::MouseButtonUp {
@@ -758,7 +758,7 @@ fn main() {
                         game_ui_state.dragging_piece_pos = None;
                         game_ui_state.last_clicked_square = None;
                         game_ui_state.moves_for_selected_piece.clear();
-                        redraw_board(&board_state, &game_ui_state, &asset_pack);
+                        redraw_board(&board_state, &game_ui_state, &asset_pack).expect("Error redrawing board");
                     }
                 }
 
