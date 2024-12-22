@@ -4,44 +4,39 @@ use std::io::Write;
 use std::io::{self, BufRead};
 use tch::Kind;
 use tch::{nn, nn::Module, nn::OptimizerConfig, Device, Tensor};
+use rand::seq::SliceRandom;
 
+#[inline(always)]
 fn load_data(filepath: &str) -> (Tensor, Tensor, f64, f64) {
     let file = fs::File::open(filepath).expect("Failed to open data file");
     let reader = io::BufReader::new(file);
 
-    let mut inputs = Vec::new();
-    let mut targets = Vec::new();
+    let mut inputs = Vec::with_capacity(100000); // Pre-allocate memory
+    let mut targets = Vec::with_capacity(100000);
 
     for line in reader.lines() {
         let line = line.expect("Failed to read line");
         let parts: Vec<&str> = line.trim().split(';').collect();
         if parts.len() == 770 {
-            let input: Vec<f32> = parts[1..769]
-                .iter()
-                .map(|x| x.parse::<f32>().expect("Failed to parse input"))
-                .collect();
-            inputs.push(input);
-            targets.push(parts[769].parse::<f32>().expect("Failed to parse target"));
+            inputs.extend(parts[1..769].iter().map(|x| x.parse::<f32>().unwrap()));
+            targets.push(parts[769].parse::<f32>().unwrap());
         }
     }
 
-    let inputs_tensor = Tensor::from_slice2(&inputs).to_device(Device::Cpu);
-    let targets_tensor = Tensor::from_slice(&targets).to_device(Device::Cpu);
+    let input_tensor = Tensor::from_slice(&inputs).view([-1, 768]);
+    let target_tensor = Tensor::from_slice(&targets);
 
-    let target_mean = targets_tensor.mean(Kind::Float);
-    let target_std = targets_tensor.std(false);
-
-    let targets_normalized = (targets_tensor - &target_mean) / &target_std;
+    let target_min = target_tensor.min().double_value(&[]);
+    let target_max = target_tensor.max().double_value(&[]);
+    let targets_normalized = (target_tensor - target_min) / (target_max - target_min);
 
     (
-        inputs_tensor,
-        targets_normalized,
-        target_mean.double_value(&[]),
-        target_std.double_value(&[]),
+        input_tensor.to_device(Device::Cpu),
+        targets_normalized.to_device(Device::Cpu),
+        target_min,
+        target_max,
     )
 }
-
-use rand::seq::SliceRandom;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -52,29 +47,22 @@ fn main() {
 
     let data_file = &args[1];
     println!("Loading data...");
-    let (inputs, targets_normalized, target_mean, target_std) = load_data(data_file);
+    let (inputs, targets_normalized, target_min, target_max) = load_data(data_file);
     println!(
         "Data loaded. {} samples with {} features each.",
         inputs.size()[0],
         inputs.size()[1]
     );
-    println!("Target mean: {}, Target std: {}", target_mean, target_std);
+    println!("Target min: {}, Target max: {}", target_min, target_max);
 
-    // Define training/validation split
     let num_samples = inputs.size()[0];
-    let train_size = (0.9 * num_samples as f64).round() as usize;
+    let train_size = (0.9 * num_samples as f64).round() as i64;
 
-    // Shuffle indices
-    let mut indices: Vec<i64> = (0..num_samples).collect();
-    indices.shuffle(&mut rand::thread_rng());
-
-    let train_indices = &indices[..train_size];
-    let val_indices = &indices[train_size..];
-
-    let train_inputs = inputs.index_select(0, &Tensor::from_slice(train_indices));
-    let train_targets = targets_normalized.index_select(0, &Tensor::from_slice(train_indices));
-    let val_inputs = inputs.index_select(0, &Tensor::from_slice(val_indices));
-    let val_targets = targets_normalized.index_select(0, &Tensor::from_slice(val_indices));
+    // Training/validation split without unnecessary copies
+    let train_inputs = inputs.narrow(0, 0, train_size);
+    let train_targets = targets_normalized.narrow(0, 0, train_size);
+    let val_inputs = inputs.narrow(0, train_size, num_samples - train_size);
+    let val_targets = targets_normalized.narrow(0, train_size, num_samples - train_size);
 
     println!(
         "Training set: {} samples, Validation set: {} samples",
@@ -82,40 +70,22 @@ fn main() {
         val_inputs.size()[0]
     );
 
-    // Define the neural network structure
     let vs = nn::VarStore::new(Device::cuda_if_available());
     let net = nn::seq()
-        .add(nn::linear(
-            vs.root() / "layer1",
-            768,
-            512,
-            Default::default(),
-        ))
+        .add(nn::linear(vs.root() / "layer1", 768, 512, Default::default()))
+        .add_fn(|xs| xs.elu()) // In-place ELU
+        .add(nn::linear(vs.root() / "layer2", 512, 256, Default::default()))
         .add_fn(|xs| xs.elu())
-        .add(nn::linear(
-            vs.root() / "layer2",
-            512,
-            256,
-            Default::default(),
-        ))
+        .add(nn::linear(vs.root() / "layer3", 256, 128, Default::default()))
         .add_fn(|xs| xs.elu())
-        .add(nn::linear(
-            vs.root() / "layer3",
-            256,
-            256,
-            Default::default(),
-        ))
-        .add_fn(|xs| xs.elu())
-        .add(nn::linear(vs.root() / "output", 256, 1, Default::default()));
+        .add(nn::linear(vs.root() / "output", 128, 1, Default::default()));
 
-    // Define optimizer
     let initial_lr = 2e-3;
     let decay_rate: f64 = 0.9;
     let decay_epochs = 20;
     let mut opt = nn::Sgd::default().build(&vs, initial_lr).unwrap();
     opt.set_momentum(0.7);
 
-    // Training loop
     println!("Training model...");
     let batch_size = 128;
     let num_train_batches = (train_size as f64 / batch_size as f64).ceil() as i64;
@@ -123,22 +93,17 @@ fn main() {
     let num_epochs = 200;
 
     for epoch in 0..num_epochs {
-        // Adjust learning rate at the start of each epoch
         if epoch > 0 && epoch % decay_epochs == 0 {
             let new_lr = initial_lr * decay_rate.powf((epoch / decay_epochs) as f64);
             opt.set_lr(new_lr);
         }
 
-        // Training phase
         for batch_idx in 0..num_train_batches {
             let start = batch_idx * batch_size;
-            let end = ((batch_idx + 1) * batch_size).min(train_size as i64);
+            let end = ((batch_idx + 1) * batch_size).min(train_size);
 
             let input_batch = train_inputs.narrow(0, start, end - start);
-            let target_batch = train_targets.narrow(0, start, end - start);
-
-            // Ensure target_batch is 2D with shape [batch_size, 1]
-            let target_batch = target_batch.view([-1, 1]);
+            let target_batch = train_targets.narrow(0, start, end - start).view([-1, 1]);
 
             let predictions = net.forward(&input_batch);
             let loss = predictions.mse_loss(&target_batch, tch::Reduction::Mean);
@@ -191,15 +156,12 @@ fn main() {
         );
     }
 
-    // Save model
     println!("Saving model...");
     vs.save("trained_model.ot").expect("Failed to save model");
 
-    // Save normalization parameters
-    Tensor::from_slice(&[target_mean as f32, target_std as f32])
-        .save("target_mean_std.npy")
+    Tensor::from_slice(&[target_min as f32, target_max as f32])
+        .save("target_min_max.npy")
         .expect("Failed to save normalization parameters");
 
-    println!("Model training complete. Model saved as 'trained_model.pt'.");
-    println!("Target normalization parameters saved as 'target_mean_std.npy'.");
+    println!("Model training complete. Model saved as 'trained_model.ot'.");
 }
