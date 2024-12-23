@@ -6,6 +6,12 @@ use tch::Kind;
 use tch::{nn, nn::Module, nn::OptimizerConfig, Device, Tensor};
 use rand::seq::SliceRandom;
 
+const TARGET_MIN : f64 = 0.0;
+const TARGET_MAX : f64 = 10.0;
+
+const CLIPPING_MIN : f64 = -2000.0;
+const CLIPPING_MAX : f64 = 2000.0;
+
 #[inline(always)]
 fn load_data(filepath: &str) -> (Tensor, Tensor, f64, f64) {
     let file = fs::File::open(filepath).expect("Failed to open data file");
@@ -24,11 +30,16 @@ fn load_data(filepath: &str) -> (Tensor, Tensor, f64, f64) {
     }
 
     let input_tensor = Tensor::from_slice(&inputs).view([-1, 768]);
-    let target_tensor = Tensor::from_slice(&targets);
+    let target_tensor = Tensor::from_slice(&targets).clamp(CLIPPING_MIN, CLIPPING_MAX);
 
+
+
+    // Calculate the minimum value to shift the data
     let target_min = target_tensor.min().double_value(&[]);
     let target_max = target_tensor.max().double_value(&[]);
-    let targets_normalized = (target_tensor - target_min) / (target_max - target_min);
+
+    // Normalize the target tensor
+    let targets_normalized = (target_tensor - target_min) / (target_max - target_min) * (TARGET_MAX - TARGET_MIN) + TARGET_MIN;
 
     (
         input_tensor.to_device(Device::Cpu),
@@ -80,9 +91,9 @@ fn main() {
         .add_fn(|xs| xs.elu())
         .add(nn::linear(vs.root() / "output", 128, 1, Default::default()));
 
-    let initial_lr = 2e-3;
+    let initial_lr = 1e-3;
     let decay_rate: f64 = 0.9;
-    let decay_epochs = 20;
+    let decay_epochs = 25;
     let mut opt = nn::Sgd::default().build(&vs, initial_lr).unwrap();
     opt.set_momentum(0.7);
 
@@ -90,7 +101,7 @@ fn main() {
     let batch_size = 128;
     let num_train_batches = (train_size as f64 / batch_size as f64).ceil() as i64;
 
-    let num_epochs = 200;
+    let num_epochs = 250;
 
     for epoch in 0..num_epochs {
         if epoch > 0 && epoch % decay_epochs == 0 {
@@ -108,7 +119,7 @@ fn main() {
             let predictions = net.forward(&input_batch);
             let loss = predictions.mse_loss(&target_batch, tch::Reduction::Mean);
 
-            opt.backward_step(&loss);
+            opt.backward_step_clip(&loss, 1.0);
 
             if batch_idx % 100 == 0 {
                 print!(
