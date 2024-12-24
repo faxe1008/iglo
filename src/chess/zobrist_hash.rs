@@ -207,47 +207,52 @@ pub struct ZHash(pub u64);
 
 impl ZHash {
 
-    fn get_castle_hash(rights: &CastlingRights) -> u64 {
-        let mut hash = 0;
-        if rights.white_king_side() {
-            hash ^= ZHASH_TABLE[768 + 0];
-        }
-        if rights.white_queen_side() {
-            hash ^= ZHASH_TABLE[768 + 1];
-        }
-        if rights.black_king_side() {
-            hash ^= ZHASH_TABLE[768 + 2];
-        }
-        if rights.black_queen_side() {
-            hash ^= ZHASH_TABLE[768 + 3];
-        }
-        hash
-    }
-
+    #[inline(always)]
     fn kind_of_piece(piece: ChessPiece, color: PieceColor) -> usize {
          piece as usize * 2 + (1 - color as usize)
     }
 
+    #[inline(always)]
     fn to_zobrist_pos(pos: usize) -> usize {
         let file = pos % 8;
         let rank = 7 - pos / 8;
         8 * rank + file
     }
 
+    #[inline(always)]
     pub fn toggle_piece_at_pos(&mut self, piece: ChessPiece, color: PieceColor, pos: usize) {
         let hash_pos = Self::kind_of_piece(piece, color) * 64 + Self::to_zobrist_pos(pos);
         self.0 ^= ZHASH_TABLE[hash_pos];
     }
 
+    #[inline(always)]
     pub fn toggle_enpassant(&mut self, pos: usize) {
         self.0 ^= ZHASH_TABLE[772 + pos % 8];
     }
 
+    #[inline(always)]
     pub fn swap_castling_rights(&mut self, old: &CastlingRights, new: &CastlingRights) {
-        self.0 ^= Self::get_castle_hash(old);
-        self.0 ^= Self::get_castle_hash(new);
+        let delta = CastlingRights(old.0 ^ new.0);
+
+        if delta.0 == 0 {
+            return;
+        }
+
+        if delta.white_king_side() {
+            self.0 ^= ZHASH_TABLE[768 + 0];
+        }
+        if delta.white_queen_side() {
+            self.0 ^= ZHASH_TABLE[768 + 1];
+        }
+        if delta.black_king_side() {
+            self.0 ^= ZHASH_TABLE[768 + 2];
+        }
+        if delta.black_queen_side() {
+            self.0 ^= ZHASH_TABLE[768 + 3];
+        }
     }
 
+    #[inline(always)]
     pub fn toggle_side(&mut self) {
         self.0 ^= ZHASH_TABLE[780];
     }
