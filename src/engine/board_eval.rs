@@ -138,40 +138,52 @@ pub struct PieceSquareTableEvaluation;
 impl EvaluationFunction for PieceSquareTableEvaluation {
     fn eval(board_state: &ChessBoardState) -> i32 {
         let endgame_factor = endgame_lerp_value(board_state);
-        let eval_sqt = |bitboards: &[BitBoard], color: PieceColor| {
-            let mut sum = 0;
-            for (piece, board) in bitboards.iter().enumerate() {
-                if board.0 == 0 {
-                    continue;
-                }
 
-                let square_table = &GLOBAL_PIECE_SQUARE_TABLE[piece];
+        #[inline(always)]
+        fn eval_sqt(bitboards: &[BitBoard], color: PieceColor, endgame_factor: f32) -> i32 {
+            bitboards
+                .iter()
+                .enumerate()
+                .fold(0, |mut sum, (piece, board)| {
+                    if board.0 == 0 {
+                        return sum;
+                    }
 
-                for i in board.into_iter() {
-                    let table_pos = if color == PieceColor::White {
-                        i
-                    } else {
-                        63 - i
-                    };
+                    let square_table = &GLOBAL_PIECE_SQUARE_TABLE[piece];
 
-                    let piece_value = match ChessPiece::from(piece) {
-                        ChessPiece::King => (square_table[table_pos] as f32)
-                            .lerp(KING_END_GAME_TABLE[table_pos] as f32, endgame_factor)
-                            as i32,
-                        ChessPiece::Pawn => (square_table[table_pos] as f32)
-                            .lerp(PAWN_END_GAME_TABLE[table_pos] as f32, endgame_factor)
-                            as i32,
-                        _ => square_table[table_pos],
-                    };
+                    for i in board.into_iter() {
+                        let table_pos = if color == PieceColor::White {
+                            i
+                        } else {
+                            63 - i
+                        };
 
-                    sum = sum + piece_value;
-                }
-            }
-            sum
-        };
+                        let piece_value = match ChessPiece::from(piece) {
+                            ChessPiece::King => (square_table[table_pos] as f32)
+                                .lerp(KING_END_GAME_TABLE[table_pos] as f32, endgame_factor)
+                                as i32,
+                            ChessPiece::Pawn => (square_table[table_pos] as f32)
+                                .lerp(PAWN_END_GAME_TABLE[table_pos] as f32, endgame_factor)
+                                as i32,
+                            _ => square_table[table_pos],
+                        };
 
-        eval_sqt(&board_state.board.white_pieces, PieceColor::White)
-            - eval_sqt(&board_state.board.black_pieces, PieceColor::Black)
+                        sum += piece_value;
+                    }
+
+                    sum
+                })
+        }
+
+        eval_sqt(
+            &board_state.board.white_pieces,
+            PieceColor::White,
+            endgame_factor,
+        ) - eval_sqt(
+            &board_state.board.black_pieces,
+            PieceColor::Black,
+            endgame_factor,
+        )
     }
 }
 
