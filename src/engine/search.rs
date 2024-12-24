@@ -271,7 +271,6 @@ impl<const T: usize> Searcher<T> {
             vec![i32::MAX; moves.len()]
         };
 
-        // Evaluate moves
         for (mv_index, mv) in moves.iter().enumerate() {
             let board_new = board_state.exec_move(*mv);
             ratings[mv_index] = -self.minimax(&board_new, depth, 0, -INFINITY, INFINITY, 0);
@@ -281,12 +280,14 @@ impl<const T: usize> Searcher<T> {
             return;
         }
 
-        // Sort moves by their rating
-        let mut zipped: Vec<_> = moves.drain(..).zip(ratings.drain(..)).collect();
-        zipped.sort_by(|(_, a_rt), (_, b_rt)| b_rt.cmp(a_rt));
+        // Combine moves and ratings into a single vector for sorting
+        let mut zipped: Vec<_> = moves.iter().cloned().zip(ratings).collect();
+        zipped.sort_unstable_by(|(_, a_rt), (_, b_rt)| b_rt.cmp(a_rt));
 
-        // Push sorted moves back to caller
-        *moves = zipped.drain(..).map(|(mv, _)| mv).collect();
+        // Update moves in place
+        for (i, (mv, _)) in zipped.into_iter().enumerate() {
+            moves[i] = mv;
+        }
     }
 
     fn quiescience_search(
