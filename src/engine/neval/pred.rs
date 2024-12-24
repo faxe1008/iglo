@@ -19,13 +19,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load the PyTorch model
     let mut vs = nn::VarStore::new(Device::Cpu);
     let net = nn::seq()
-        .add(nn::linear(vs.root() / "layer1", 768, 512, Default::default()))
-        .add_fn(|xs| xs.elu()) // In-place ELU
-        .add(nn::linear(vs.root() / "layer2", 512, 256, Default::default()))
-        .add_fn(|xs| xs.elu())
-        .add(nn::linear(vs.root() / "layer3", 256, 128, Default::default()))
-        .add_fn(|xs| xs.elu())
-        .add(nn::linear(vs.root() / "output", 128, 1, Default::default()));
+    .add(nn::linear(vs.root() / "layer1", 768, 512, Default::default()))
+    .add_fn(|xs| xs.elu()) // In-place ELU
+    .add(nn::linear(vs.root() / "layer2", 512, 256, Default::default()))
+    .add_fn(|xs| xs.elu())
+    .add(nn::linear(vs.root() / "layer3", 256, 128, Default::default()))
+    .add_fn(|xs| xs.elu())
+    .add(nn::linear(vs.root() / "output", 128, 1, Default::default()));
     
     vs.load(model_path)?;
 
