@@ -19,45 +19,41 @@ pub const MVV_LVA: [[u8; ChessPiece::PIECE_TYPE_COUNT + 1]; ChessPiece::PIECE_TY
 const MVV_LVA_OFFSET: u32 = u32::MAX - 256;
 const KILLER_VALUE: u32 = 10;
 
-fn move_order_eval(
-    mv: Move,
-    board_state: &ChessBoardState,
-    search_info: &SearchInfo,
-    ply_from_root: u16,
-) -> u32 {
-    let src_piece = mv.get_moved_piece(board_state) as usize;
-    if let Some(captured_piece) = mv.get_captured_piece(board_state) {
-        MVV_LVA_OFFSET + MVV_LVA[captured_piece as usize][src_piece] as u32
-    } else {
-        let ply = ply_from_root as usize;
-        let mut i = 0;
-        let mut value = 0;
-        while i < MAX_KILLER_MOVES && value == 0 {
-            let killer = search_info.killer_moves[i][ply];
-            if mv == killer {
-                value = MVV_LVA_OFFSET - ((i as u32 + 1) * KILLER_VALUE);
-            }
-            i += 1;
-        }
-        value
-    }
-}
-
 pub fn order_moves(
     moves: &mut Vec<Move>,
     board_state: &ChessBoardState,
     search_info: &SearchInfo,
     ply_from_root: u16,
 ) {
-    let mut move_rating: Vec<u32> = moves
-        .iter()
-        .map(|mv| move_order_eval(*mv, board_state, search_info, ply_from_root))
-        .collect();
+    let ply = ply_from_root as usize;
 
-    let mut zipped: Vec<_> = moves.drain(..).zip(move_rating.drain(..)).collect();
-    zipped.sort_by(|(_, a_rt), (_, b_rt)| b_rt.cmp(a_rt));
+    moves.sort_unstable_by(|a, b| {
+        let eval_a = move_order_eval(*a, board_state, search_info, ply);
+        let eval_b = move_order_eval(*b, board_state, search_info, ply);
+        eval_b.cmp(&eval_a)
+    });
+}
 
-    *moves = zipped.drain(..).map(|(mv, _)| mv).collect();
+#[inline(always)]
+fn move_order_eval(
+    mv: Move,
+    board_state: &ChessBoardState,
+    search_info: &SearchInfo,
+    ply: usize,
+) -> u32 {
+    let src_piece = mv.get_moved_piece(board_state) as usize;
+
+    if let Some(captured_piece) = mv.get_captured_piece(board_state) {
+        MVV_LVA_OFFSET + MVV_LVA[captured_piece as usize][src_piece] as u32
+    } else {
+        search_info.killer_moves.iter().enumerate().find_map(|(i, killers)| {
+            if mv == killers[ply] {
+                Some(MVV_LVA_OFFSET - ((i as u32 + 1) * KILLER_VALUE))
+            } else {
+                None
+            }
+        }).unwrap_or(0)
+    }
 }
 
 #[cfg(test)]
