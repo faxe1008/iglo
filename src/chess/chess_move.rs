@@ -240,7 +240,7 @@ impl TryFrom<(&str, &ChessBoardState)> for Move {
             if src_piece == ChessPiece::King {
                 match (src_color, mv_src, mv_dst) {
                     (PieceColor::White, Square::E1, Square::WHITE_KING_SIDE_CASTLE_SQUARE) => {
-                        if board_state.castling_rights.white_king_side {
+                        if board_state.castling_rights.white_king_side() {
                             resulting_move.set_move_type(MoveType::CastleKingSide);
                         } else {
                             // Attempt to perform non legal castle
@@ -248,7 +248,7 @@ impl TryFrom<(&str, &ChessBoardState)> for Move {
                         }
                     }
                     (PieceColor::White, Square::E1, Square::WHITE_QUEEN_SIDE_CASTLE_SQUARE) => {
-                        if board_state.castling_rights.white_queen_side {
+                        if board_state.castling_rights.white_queen_side() {
                             resulting_move.set_move_type(MoveType::CastleQueenSide);
                         } else {
                             // Attempt to perform non legal castle
@@ -256,7 +256,7 @@ impl TryFrom<(&str, &ChessBoardState)> for Move {
                         }
                     }
                     (PieceColor::Black, Square::E8, Square::BLACK_KING_SIDE_CASTLE_SQAURE) => {
-                        if board_state.castling_rights.black_king_side {
+                        if board_state.castling_rights.black_king_side() {
                             resulting_move.set_move_type(MoveType::CastleKingSide);
                         } else {
                             // Attempt to perform non legal castle
@@ -264,7 +264,7 @@ impl TryFrom<(&str, &ChessBoardState)> for Move {
                         }
                     }
                     (PieceColor::Black, Square::E8, Square::BLACK_QUEEN_SIDE_CASTLE_SQAURE) => {
-                        if board_state.castling_rights.black_queen_side {
+                        if board_state.castling_rights.black_queen_side() {
                             resulting_move.set_move_type(MoveType::CastleQueenSide);
                         } else {
                             // Attempt to perform non legal castle

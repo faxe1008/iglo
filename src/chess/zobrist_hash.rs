@@ -206,18 +206,19 @@ const ZHASH_TABLE: [u64; 781] = [
 pub struct ZHash(pub u64);
 
 impl ZHash {
+
     fn get_castle_hash(rights: &CastlingRights) -> u64 {
         let mut hash = 0;
-        if rights.white_king_side {
+        if rights.white_king_side() {
             hash ^= ZHASH_TABLE[768 + 0];
         }
-        if rights.white_queen_side {
+        if rights.white_queen_side() {
             hash ^= ZHASH_TABLE[768 + 1];
         }
-        if rights.black_king_side {
+        if rights.black_king_side() {
             hash ^= ZHASH_TABLE[768 + 2];
         }
-        if rights.black_queen_side {
+        if rights.black_queen_side() {
             hash ^= ZHASH_TABLE[768 + 3];
         }
         hash

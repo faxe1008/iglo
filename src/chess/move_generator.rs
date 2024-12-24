@@ -463,28 +463,28 @@ fn generate_king_moves<const GEN_CAPTURES_ONLY: bool>(
         // Check for Castling Rights
         let combinations = [
             (
-                board_state.castling_rights.white_king_side,
+                board_state.castling_rights.white_king_side(),
                 WHITE_KING_SIDE_CASTLE_SQUARES,
                 WHITE_KING_SIDE_CASTLE_SQUARES,
                 MoveType::CastleKingSide,
                 Square::G1,
             ),
             (
-                board_state.castling_rights.white_queen_side,
+                board_state.castling_rights.white_queen_side(),
                 WHITE_QUEEN_SIDE_CASTLE_ATTACKED_SQAURES,
                 WHITE_QUEEN_SIDE_CASTLE_OCCUPIED_SQUARES,
                 MoveType::CastleQueenSide,
                 Square::C1,
             ),
             (
-                board_state.castling_rights.black_king_side,
+                board_state.castling_rights.black_king_side(),
                 BLACK_KING_SIDE_CASTLE_SQUARES,
                 BLACK_KING_SIDE_CASTLE_SQUARES,
                 MoveType::CastleKingSide,
                 Square::G8,
             ),
             (
-                board_state.castling_rights.black_queen_side,
+                board_state.castling_rights.black_queen_side(),
                 BLACK_QUEEN_SIDE_CASTLE_ATTACKED_SQUARES,
                 BLACK_QUEEN_SIDE_CASTLE_OCCUPIED_SQUARES,
                 MoveType::CastleQueenSide,

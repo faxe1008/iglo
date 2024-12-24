@@ -21,11 +21,72 @@ pub enum PieceColor {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash)]
-pub struct CastlingRights {
-    pub white_queen_side: bool,
-    pub white_king_side: bool,
-    pub black_queen_side: bool,
-    pub black_king_side: bool,
+pub struct CastlingRights(pub u8);
+
+impl CastlingRights {
+
+    #[inline(always)]
+    pub fn all() -> Self {
+        Self(15)
+    }
+
+    #[inline(always)]
+    pub fn none() -> Self {
+        Self(0)
+    }
+
+    #[inline(always)]
+    pub fn white_queen_side(&self) -> bool {
+        self.0 & 1 != 0
+    }
+    #[inline(always)]
+    pub fn white_king_side(&self) -> bool {
+        self.0 & 2 != 0
+    }
+    #[inline(always)]
+    pub fn black_queen_side(&self) -> bool {
+        self.0 & 4 != 0
+    }
+    #[inline(always)]
+    pub fn black_king_side(&self) -> bool {
+        self.0 & 8 != 0
+    }
+
+    #[inline(always)]
+    pub fn set_white_queen_side(&mut self, val: bool) {
+        if val {
+            self.0 |= 1;
+        } else {
+            self.0 &= !1;
+        }
+    }
+
+    #[inline(always)]
+    pub fn set_white_king_side(&mut self, val: bool) {
+        if val {
+            self.0 |= 2;
+        } else {
+            self.0 &= !2;
+        }
+    }
+
+    #[inline(always)]
+    pub fn set_black_queen_side(&mut self, val: bool) {
+        if val {
+            self.0 |= 4;
+        } else {
+            self.0 &= !4;
+        }
+    }
+
+    #[inline(always)]
+    pub fn set_black_king_side(&mut self, val: bool) {
+        if val {
+            self.0 |= 8;
+        } else {
+            self.0 &= !8;
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Clone, Copy, Debug, Hash)]
@@ -105,12 +166,7 @@ impl TryFrom<&str> for CastlingRights {
     type Error = ();
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let mut rights = Self {
-            white_queen_side: false,
-            white_king_side: false,
-            black_queen_side: false,
-            black_king_side: false,
-        };
+        let mut rights = CastlingRights(0);
 
         if value == "-" {
             return Ok(rights);
@@ -119,16 +175,16 @@ impl TryFrom<&str> for CastlingRights {
         for chr in value.chars() {
             match chr {
                 'Q' => {
-                    rights.white_queen_side = true;
+                    rights.set_white_queen_side(true);
                 }
                 'q' => {
-                    rights.black_queen_side = true;
+                    rights.set_black_queen_side(true);
                 }
                 'K' => {
-                    rights.white_king_side = true;
+                    rights.set_white_king_side(true);
                 }
                 'k' => {
-                    rights.black_king_side = true;
+                    rights.set_black_king_side(true);
                 }
                 _ => return Err(()),
             };
@@ -140,16 +196,16 @@ impl TryFrom<&str> for CastlingRights {
 impl ToString for CastlingRights {
     fn to_string(&self) -> String {
         let mut text = String::with_capacity(4);
-        if self.white_king_side {
+        if self.white_king_side() {
             text.push('K');
         }
-        if self.white_queen_side {
+        if self.white_queen_side() {
             text.push('Q');
         }
-        if self.black_king_side {
+        if self.black_king_side() {
             text.push('k');
         }
-        if self.black_queen_side {
+        if self.black_queen_side() {
             text.push('q');
         }
 
@@ -373,15 +429,9 @@ impl ChessBoardState {
             board.zhash.toggle_side();
         }
 
-        board.zhash.swap_castling_rights(
-            &CastlingRights {
-                white_queen_side: false,
-                white_king_side: false,
-                black_queen_side: false,
-                black_king_side: false,
-            },
-            &board.castling_rights,
-        );
+        board
+            .zhash
+            .swap_castling_rights(&CastlingRights(0), &board.castling_rights);
 
         board.update_enpassant_hash(board.side, board.en_passant_target);
 
@@ -438,40 +488,50 @@ impl ChessBoardState {
         // Revoke Castling Rights, King has moved
         if src_piece == ChessPiece::King {
             if src_color == PieceColor::White {
-                self.castling_rights.white_king_side = false;
-                self.castling_rights.white_queen_side = false;
+                self.castling_rights.set_white_king_side(false);
+                self.castling_rights.set_white_queen_side(false);
             } else {
-                self.castling_rights.black_king_side = false;
-                self.castling_rights.black_queen_side = false;
+                self.castling_rights.set_black_king_side(false);
+                self.castling_rights.set_black_queen_side(false);
             }
         }
-        let mut combinations = [
+        let combinations: &[(
+            PieceColor,
+            fn(&CastlingRights) -> bool,
+            fn(&mut CastlingRights, bool),
+            u16,
+        )] = &[
             (
                 PieceColor::White,
-                &mut self.castling_rights.white_queen_side,
+                CastlingRights::white_queen_side,
+                CastlingRights::set_white_queen_side,
                 Square::A1,
             ),
             (
                 PieceColor::White,
-                &mut self.castling_rights.white_king_side,
+                CastlingRights::white_king_side,
+                CastlingRights::set_white_king_side,
                 Square::H1,
             ),
             (
                 PieceColor::Black,
-                &mut self.castling_rights.black_queen_side,
+                CastlingRights::black_queen_side,
+                CastlingRights::set_black_queen_side,
                 Square::A8,
             ),
             (
                 PieceColor::Black,
-                &mut self.castling_rights.black_king_side,
+                CastlingRights::black_king_side,
+                CastlingRights::set_black_king_side,
                 Square::H8,
             ),
         ];
+
         // Revoke Castling Rights, Rook has moved
         if src_piece == ChessPiece::Rook {
-            for (pc, right, square) in &mut combinations {
-                if src_color == *pc && **right && mv.get_src() == *square {
-                    **right = false;
+            for (pc, getter, setter, square) in combinations {
+                if src_color == *pc && getter(&self.castling_rights) && mv.get_src() == *square {
+                    setter(&mut self.castling_rights, false);
                 }
             }
         }
@@ -482,9 +542,9 @@ impl ChessBoardState {
                 Some(e) => e,
             };
             if dst_piece == ChessPiece::Rook {
-                for (pc, right, square) in &mut combinations {
-                    if *pc == dst_color && **right && mv.get_dst() == *square {
-                        **right = false;
+                for (pc, getter, setter, square) in  combinations {
+                    if *pc == dst_color && getter(&self.castling_rights) && mv.get_dst() == *square {
+                        setter(&mut self.castling_rights, false);
                     }
                 }
             }
@@ -724,25 +784,6 @@ impl ChessBoardState {
     }
 }
 
-impl CastlingRights {
-    pub fn index(&self) -> usize {
-        let mut index = 0;
-        if self.black_king_side {
-            index |= 1;
-        }
-        if self.black_queen_side {
-            index |= 2;
-        }
-        if self.white_king_side {
-            index |= 4;
-        }
-        if self.white_queen_side {
-            index |= 8;
-        }
-        index
-    }
-}
-
 #[cfg(test)]
 mod board_tests {
 
@@ -810,12 +851,7 @@ mod board_tests {
                 piece_board: [None; Square::NUM as usize],
             },
             side: PieceColor::White,
-            castling_rights: CastlingRights {
-                white_queen_side: true,
-                white_king_side: true,
-                black_queen_side: true,
-                black_king_side: true,
-            },
+            castling_rights: CastlingRights::all(),
             en_passant_target: None,
             half_moves: 0,
             full_moves: 0,
@@ -854,12 +890,7 @@ mod board_tests {
                 piece_board: [None; Square::NUM as usize],
             },
             side: PieceColor::Black,
-            castling_rights: CastlingRights {
-                white_queen_side: false,
-                white_king_side: false,
-                black_queen_side: false,
-                black_king_side: false,
-            },
+            castling_rights: CastlingRights::none(),
             en_passant_target: None,
             half_moves: 0,
             full_moves: 21,
@@ -922,11 +953,11 @@ mod board_tests {
         let castled_white_king_side =
             board_state.exec_move(Move::new(Square::E1, Square::G1, MoveType::CastleKingSide));
         assert_eq!(
-            castled_white_king_side.castling_rights.white_king_side, false,
+            castled_white_king_side.castling_rights.white_king_side(), false,
             "Castle Kingside, all castling should be revoked"
         );
         assert_eq!(
-            castled_white_king_side.castling_rights.white_queen_side, false,
+            castled_white_king_side.castling_rights.white_queen_side(), false,
             "Castle Kingside, all castling should be revoked"
         );
 
@@ -934,11 +965,11 @@ mod board_tests {
         let castled_white_queen_side =
             board_state.exec_move(Move::new(Square::E1, Square::C1, MoveType::CastleQueenSide));
         assert_eq!(
-            castled_white_queen_side.castling_rights.white_king_side, false,
+            castled_white_queen_side.castling_rights.white_king_side(), false,
             "Castle Queenside, all castling should be revoked"
         );
         assert_eq!(
-            castled_white_queen_side.castling_rights.white_queen_side, false,
+            castled_white_queen_side.castling_rights.white_queen_side(), false,
             "Castle Queenside, all castling should be revoked"
         );
 
@@ -949,7 +980,7 @@ mod board_tests {
         let capture_white_q_rook =
             board_state.exec_move(Move::new(Square::A4, Square::A1, MoveType::Capture));
         assert_eq!(
-            capture_white_q_rook.castling_rights.white_queen_side, false,
+            capture_white_q_rook.castling_rights.white_queen_side(), false,
             "Captured queen side rook"
         );
 
@@ -957,7 +988,7 @@ mod board_tests {
         let capture_white_k_rook =
             board_state.exec_move(Move::new(Square::H4, Square::H1, MoveType::Capture));
         assert_eq!(
-            capture_white_k_rook.castling_rights.white_king_side, false,
+            capture_white_k_rook.castling_rights.white_king_side(), false,
             "Captured king side rook"
         );
     }
