@@ -782,6 +782,10 @@ impl ChessBoardState {
         let attacked_squares = self.board.squares_attacked_by_side(!self.side, false);
         attacked_squares.get_bit(self.board.get_king_pos(self.side))
     }
+
+    pub fn total_piece_count(&self) -> u32 {
+        self.board.all_black_pieces.0.count_ones() + self.board.all_white_pieces.0.count_ones()
+    }
 }
 
 #[cfg(test)]

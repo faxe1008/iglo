@@ -4,7 +4,7 @@ use super::{
     transposition_table::{NodeType, TranspositionTable},
 };
 use crate::chess::{
-    board::{ChessBoardState, PieceColor},
+    board::{self, ChessBoardState, PieceColor},
     chess_move::Move,
     zobrist_hash::ZHash,
 };
@@ -24,6 +24,12 @@ pub const MAX_QUISCIENCE_DEPTH: u16 = 4;
 pub const MAX_PLY: u16 = 128;
 pub const MAX_KILLER_MOVES: usize = 2;
 type KillerMoves = [[Move; MAX_PLY as usize]; MAX_KILLER_MOVES];
+
+enum GamePhase {
+    Opening,
+    Middle,
+    Endgame,
+}
 
 pub struct SearchInfo {
     nodes_searched: usize,
@@ -80,6 +86,7 @@ pub struct Searcher<const T: usize> {
     eval_fn: fn(&ChessBoardState) -> i32,
     pub stop: Arc<AtomicBool>,
     time_control: TimeControl,
+    game_phase: GamePhase,
 }
 
 impl<const T: usize> Searcher<T> {
@@ -95,6 +102,7 @@ impl<const T: usize> Searcher<T> {
             eval_fn,
             stop: Arc::new(false.into()),
             time_control: TimeControl::FixedDepth(5),
+            game_phase: GamePhase::Opening,
         }
     }
 
@@ -104,6 +112,19 @@ impl<const T: usize> Searcher<T> {
 
     pub fn incr_hash_table_age(&mut self) {
         self.transposition_table.increment_age();
+    }
+
+    fn get_game_phase(board_state: &ChessBoardState) -> GamePhase {
+        let piece_count = board_state.total_piece_count();
+        let full_moves = board_state.full_moves;
+
+        if full_moves <= 15 && piece_count >= 28 {
+            GamePhase::Opening
+        } else if full_moves <= 40 && piece_count > 16 {
+            GamePhase::Middle
+        } else {
+            GamePhase::Endgame
+        }
     }
 
     fn should_stop(&mut self) -> bool {
@@ -137,15 +158,19 @@ impl<const T: usize> Searcher<T> {
                 let inc = if time < OVERHEAD { 0 } else { inc };
 
                 let duration_for_move = if let Some(moves) = cc.movestogo {
-                    let scale = 0.7 / (moves.min(50) as f64);
-                    let eight = 0.8 * time as f64;
-
-                    let opt_time = (scale * time as f64).min(eight);
+                    let phase_factor = match self.game_phase {
+                        GamePhase::Opening => 0.6,
+                        GamePhase::Middle => 0.7,
+                        GamePhase::Endgame => 0.8,
+                    };
+                    let scale = phase_factor / (moves.min(40) as f64);
+                    let max_time = 0.8 * time as f64;
+                    let opt_time = (scale * time as f64).min(max_time);
                     opt_time
                 } else {
-                    let total = ((time / 20) + (inc * 3 / 4)) as f64;
-
-                    0.6 * total
+                    let incremental_allocation = ((time / 20) + (inc * 3 / 4)) as f64;
+                    let emergency_buffer = time as f64 * 0.02; // Reserve 2% as a safety buffer.
+                    incremental_allocation * 0.6 - emergency_buffer
                 };
 
                 duration.as_millis() >= duration_for_move as u128
@@ -186,6 +211,7 @@ impl<const T: usize> Searcher<T> {
         self.info.reset();
         self.time_control = time_control;
         self.info.self_color = board_state.side;
+        self.game_phase = Self::get_game_phase(board_state);
 
         // Iterative deepening
         for d in 1..=search_depth {
