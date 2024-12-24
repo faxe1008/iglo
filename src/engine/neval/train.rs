@@ -69,7 +69,7 @@ fn main() {
     let num_samples = inputs.size()[0];
     let train_size = (0.9 * num_samples as f64).round() as i64;
 
-    // Training/validation split without unnecessary copies
+    // Training/validation split
     let train_inputs = inputs.narrow(0, 0, train_size);
     let train_targets = targets_normalized.narrow(0, 0, train_size);
     let val_inputs = inputs.narrow(0, train_size, num_samples - train_size);
@@ -83,25 +83,21 @@ fn main() {
 
     let vs = nn::VarStore::new(Device::cuda_if_available());
     let net = nn::seq()
-        .add(nn::linear(vs.root() / "layer1", 768, 512, Default::default()))
-        .add_fn(|xs| xs.elu()) // In-place ELU
-        .add(nn::linear(vs.root() / "layer2", 512, 256, Default::default()))
+        .add(nn::linear(vs.root() / "layer1", 768, 256, Default::default()))
         .add_fn(|xs| xs.elu())
-        .add(nn::linear(vs.root() / "layer3", 256, 128, Default::default()))
+        .add(nn::linear(vs.root() / "layer2", 256, 128, Default::default()))
         .add_fn(|xs| xs.elu())
         .add(nn::linear(vs.root() / "output", 128, 1, Default::default()));
 
     let initial_lr = 1e-3;
-    let decay_rate: f64 = 0.9;
-    let decay_epochs = 25;
+    let decay_rate: f64 = 0.90;
+    let decay_epochs = 20;
     let mut opt = nn::Sgd::default().build(&vs, initial_lr).unwrap();
     opt.set_momentum(0.7);
 
     println!("Training model...");
-    let batch_size = 128;
-    let num_train_batches = (train_size as f64 / batch_size as f64).ceil() as i64;
-
-    let num_epochs = 250;
+    let batch_size = 512;
+    let num_epochs = 60;
 
     for epoch in 0..num_epochs {
         if epoch > 0 && epoch % decay_epochs == 0 {
@@ -109,17 +105,24 @@ fn main() {
             opt.set_lr(new_lr);
         }
 
+        // Shuffle training data
+        let permutation = Tensor::randperm(train_size, (tch::Kind::Int64, Device::Cpu));
+        let shuffled_inputs = train_inputs.index_select(0, &permutation);
+        let shuffled_targets = train_targets.index_select(0, &permutation);
+
+        let num_train_batches = (train_size as f64 / batch_size as f64).ceil() as i64;
+
         for batch_idx in 0..num_train_batches {
             let start = batch_idx * batch_size;
             let end = ((batch_idx + 1) * batch_size).min(train_size);
 
-            let input_batch = train_inputs.narrow(0, start, end - start);
-            let target_batch = train_targets.narrow(0, start, end - start).view([-1, 1]);
+            let input_batch = shuffled_inputs.narrow(0, start, end - start);
+            let target_batch = shuffled_targets.narrow(0, start, end - start).view([-1, 1]);
 
             let predictions = net.forward(&input_batch);
             let loss = predictions.mse_loss(&target_batch, tch::Reduction::Mean);
 
-            opt.backward_step_clip(&loss, 1.0);
+            opt.backward_step(&loss);
 
             if batch_idx % 100 == 0 {
                 print!(
@@ -147,9 +150,7 @@ fn main() {
             let input_batch = val_inputs.narrow(0, start, end - start);
             let target_batch = val_targets.narrow(0, start, end - start);
 
-            // Ensure target_batch is 2D with shape [batch_size, 1]
             let target_batch = target_batch.view([-1, 1]);
-
             let predictions = net.forward(&input_batch);
             let batch_loss = predictions.mse_loss(&target_batch, tch::Reduction::Mean);
 
@@ -158,9 +159,8 @@ fn main() {
         }
 
         let val_loss = val_loss_sum / val_total_samples as f64;
-        let val_accuracy = 1.0 - val_loss; // Placeholder accuracy metric
+        let val_accuracy = 1.0 - val_loss;
 
-        // End of epoch, print final validation metrics
         println!(
             " - Validation Loss: {:.6} - Validation Accuracy: {:.6}",
             val_loss, val_accuracy
