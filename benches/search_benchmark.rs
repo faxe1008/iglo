@@ -29,6 +29,11 @@ fn benchmark_order_moves(c: &mut Criterion) {
         Move::new(Square::D3, Square::C4, MoveType::Capture),
         Move::new(Square::E4, Square::E5, MoveType::Silent),
         Move::new(Square::G1, Square::F3, MoveType::Capture),
+        Move::new(Square::D1, Square::F3, MoveType::Capture),
+        Move::new(Square::G2, Square::F3, MoveType::Capture),
+        Move::new(Square::B2, Square::B3, MoveType::Silent),
+        Move::new(Square::A2, Square::A3, MoveType::Silent),
+        Move::new(Square::D2, Square::F3, MoveType::Capture),
     ];
     let search_info = SearchInfo::default();
 

@@ -27,11 +27,18 @@ pub fn order_moves(
 ) {
     let ply = ply_from_root as usize;
 
-    moves.sort_unstable_by(|a, b| {
-        let eval_a = move_order_eval(*a, board_state, search_info, ply);
-        let eval_b = move_order_eval(*b, board_state, search_info, ply);
-        eval_b.cmp(&eval_a)
-    });
+    // Cache the evaluations to avoid repeated calculations
+    let mut move_evals: Vec<(Move, u32)> = moves.iter()
+        .map(|&mv| (mv, move_order_eval(mv, board_state, search_info, ply)))
+        .collect();
+
+    // Sort the moves based on their evaluations
+    move_evals.sort_unstable_by(|a, b| b.1.cmp(&a.1));
+
+    // Update the original moves vector with the sorted moves
+    for (i, (mv, _)) in move_evals.into_iter().enumerate() {
+        moves[i] = mv;
+    }
 }
 
 #[inline(always)]
