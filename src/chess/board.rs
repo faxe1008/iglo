@@ -409,12 +409,6 @@ impl ChessBoardState {
     }
 
     pub fn get_neuralnetwork_representation(&self, nn_input: &mut [f32; 768]) {
-        // Serialize each piece bitboard as a Vec of f64 with the following constraints:
-        // - 0.0 for empty squares
-        // - 1.0 for squares with the player's pieces
-        // - -1.0 for squares with the opponent's pieces
-        // For each type of piece add the bitboard with the values above to the input vector
-    
         // Define the order of pieces for both colors
         let vec_ordering: Vec<(PieceColor, ChessPiece)> = vec![
             (PieceColor::White, ChessPiece::Pawn),
@@ -437,12 +431,7 @@ impl ChessBoardState {
         for (index, (color, piece)) in vec_ordering.iter().enumerate() {
             let bitboard = self.board.get_piece_bitboard(*piece, *color);
             for pos in bitboard.into_iter() {
-                let value = if *color == self.side {
-                    1.0
-                } else {
-                    -1.0
-                };
-                nn_input[index * 64 + pos] = value;
+                nn_input[index * 64 + pos] = 1.0;
             }
         }
 
