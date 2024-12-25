@@ -1,16 +1,8 @@
-use iglo::chess::board::ChessBoardState;
 use std::fs;
 use std::io::Write;
 use std::io::{self, BufRead};
-use tch::Kind;
+use iglo::engine::neval::network::{create_network, normalize_target_value, denormalize_target_value};
 use tch::{nn, nn::Module, nn::OptimizerConfig, Device, Tensor};
-use rand::seq::SliceRandom;
-
-const TARGET_MIN : f64 = 0.0;
-const TARGET_MAX : f64 = 10.0;
-
-const CLIPPING_MIN : f64 = -2000.0;
-const CLIPPING_MAX : f64 = 2000.0;
 
 #[inline(always)]
 fn load_data(filepath: &str) -> (Tensor, Tensor, f64, f64) {
@@ -30,22 +22,15 @@ fn load_data(filepath: &str) -> (Tensor, Tensor, f64, f64) {
     }
 
     let input_tensor = Tensor::from_slice(&inputs).view([-1, 768]);
-    let target_tensor = Tensor::from_slice(&targets).clamp(CLIPPING_MIN, CLIPPING_MAX);
+    let target_tensor = Tensor::from_slice(&targets);
 
-
-
-    // Calculate the minimum value to shift the data
-    let target_min = target_tensor.min().double_value(&[]);
-    let target_max = target_tensor.max().double_value(&[]);
-
-    // Normalize the target tensor
-    let targets_normalized = (target_tensor - target_min) / (target_max - target_min) * (TARGET_MAX - TARGET_MIN) + TARGET_MIN;
+    let targets_normalized = normalize_target_value(&target_tensor);
 
     (
         input_tensor.to_device(Device::Cpu),
         targets_normalized.to_device(Device::Cpu),
-        target_min,
-        target_max,
+        0.0,
+        0.0,
     )
 }
 
@@ -81,22 +66,16 @@ fn main() {
         val_inputs.size()[0]
     );
 
-    let vs = nn::VarStore::new(Device::cuda_if_available());
-    let net = nn::seq()
-        .add(nn::linear(vs.root() / "layer1", 768, 256, Default::default()))
-        .add_fn(|xs| xs.elu())
-        .add(nn::linear(vs.root() / "layer2", 256, 128, Default::default()))
-        .add_fn(|xs| xs.elu())
-        .add(nn::linear(vs.root() / "output", 128, 1, Default::default()));
+    let (vs, net) = create_network(None);
 
-    let initial_lr = 1e-3;
+    let initial_lr = 1e-4;
     let decay_rate: f64 = 0.90;
-    let decay_epochs = 20;
+    let decay_epochs = 10;
     let mut opt = nn::Sgd::default().build(&vs, initial_lr).unwrap();
     opt.set_momentum(0.7);
 
     println!("Training model...");
-    let batch_size = 512;
+    let batch_size = 128;
     let num_epochs = 60;
 
     for epoch in 0..num_epochs {
@@ -123,6 +102,7 @@ fn main() {
             let loss = predictions.mse_loss(&target_batch, tch::Reduction::Mean);
 
             opt.backward_step(&loss);
+            //opt.backward_step_clip(&loss, 1.0);
 
             if batch_idx % 100 == 0 {
                 print!(

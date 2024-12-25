@@ -7,3 +7,4 @@ pub mod search;
 pub mod time_control;
 pub mod transposition_table;
 pub mod uci;
+pub mod neval;
