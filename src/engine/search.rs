@@ -429,16 +429,36 @@ impl<const T: usize> Searcher<T> {
 
         let mut node_type = NodeType::UpperBound;
 
-        for (_, mv) in moves.iter().enumerate() {
+        for (i, mv) in moves.iter().enumerate() {
             let new_board: ChessBoardState = board_state.exec_move(*mv);
-            let score = -self.minimax(
-                &new_board,
-                ply_remaining - 1,
-                ply_from_root + 1,
-                -beta,
-                -alpha,
-                extensions,
-            );
+            let mut needs_full_search = true;
+            let mut score = 0;
+
+            if extensions == 0 && ply_remaining >= 3 && i >= 3 && !mv.is_capture() {
+                // reduce the detph of the search
+                score = -self.minimax(
+                    &new_board,
+                    ply_remaining - 2,
+                    ply_from_root + 1,
+                    -alpha - 1,
+                    -alpha,
+                    extensions,
+                );
+                // If the evaluation is better than expected, we'd better to a full-depth search to get a more accurate evaluation
+                needs_full_search = score > alpha;
+            }
+
+            if needs_full_search {
+                score = -self.minimax(
+                    &new_board,
+                    ply_remaining - 1,
+                    ply_from_root + 1,
+                    -beta,
+                    -alpha,
+                    extensions,
+                );
+            }
+
             if self.should_stop() {
                 return 0;
             }
