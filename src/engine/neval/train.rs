@@ -68,7 +68,7 @@ fn main() {
 
     let (vs, net) = create_network(None);
 
-    let initial_lr = 1e-4;
+    let initial_lr = 1e-3;
     let decay_rate: f64 = 0.90;
     let decay_epochs = 10;
     let mut opt = nn::Sgd::default().build(&vs, initial_lr).unwrap();
