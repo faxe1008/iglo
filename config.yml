@@ -1,0 +1,8 @@
+token: "${LICHESS_BOT_TOKEN}"
+url: "https://lichess.org/"
+engine:
+  dir: "./engines"
+  name: "iglo"
+  protocol: "uci"
+profile:
+  name: "IgloBot"
