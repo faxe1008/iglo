@@ -23,7 +23,7 @@ pub const TABLE_ENTRY_COUNT: usize = TABLE_SIZE / TABLE_ENTRY_SIZE;
 // include bytes from file /home/faxe/priv/iglo/src/engine/opening/Openings.bin as OPENING_BOOK_DATA
 
 const OPENING_BOOK_DATA: &'static [u8] =
-    include_bytes!("/home/faxe/priv/iglo/src/engine/opening/Openings.bin");
+    include_bytes!("../opening/Titans.bin");
 
 pub struct NPlyTranspoBot {
     searcher: Searcher<TABLE_ENTRY_COUNT>,
