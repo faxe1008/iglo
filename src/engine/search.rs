@@ -127,6 +127,58 @@ impl<const T: usize> Searcher<T> {
         }
     }
 
+    fn calculate_time_with_moves_to_go(&self, time: u64, inc: u64, moves: u64) -> f64 {
+        let phase_factor = match self.game_phase {
+            GamePhase::Opening => 1.1,   // Spend slightly more time in opening
+            GamePhase::Middle => 1.3,    // Most time in middle game
+            GamePhase::Endgame => 0.9,   // Less time in endgame (positions often clearer)
+        };
+
+        let moves_factor = 1.0 / (moves.min(25) as f64); // Don't plan for more than 25 moves
+        let base_allocation = time as f64 * moves_factor * phase_factor;
+
+        // Add most of the increment since we get it back
+        let increment_bonus = inc as f64 * 0.85;
+
+        // Use up to 90% of available time for this move
+        (base_allocation + increment_bonus).min(time as f64 * 0.9)
+    }
+
+    fn calculate_time_increment_style(&self, time: u64, inc: u64) -> f64 {
+        let base_time_divisor = if inc > 0 {
+            // With increment, we can be more aggressive
+            match time {
+                t if t > 60000 => 25.0,  // >1 minute: conservative
+                t if t > 30000 => 20.0,  // >30 seconds: moderate
+                t if t > 10000 => 15.0,  // >10 seconds: aggressive
+                _ => 10.0,               // <10 seconds: very aggressive
+            }
+        } else {
+            // Without increment, be more conservative
+            30.0
+        };
+
+        let phase_multiplier = match self.game_phase {
+            GamePhase::Opening => 0.8,   // Faster in opening
+            GamePhase::Middle => 1.2,    // More time for complex positions
+            GamePhase::Endgame => 1.0,   // Standard time in endgame
+        };
+
+        let base_allocation = (time as f64 / base_time_divisor) * phase_multiplier;
+
+        // Use more of the increment - we're getting it back!
+        let increment_bonus = if inc > 0 {
+            inc as f64 * 0.9  // Use 90% of increment
+        } else {
+            0.0
+        };
+
+        // In increment games, don't reserve emergency buffer since we get time back
+        let emergency_factor = if inc > 0 { 1.0 } else { 0.98 };
+
+        (base_allocation + increment_bonus) * emergency_factor
+    }
+
     fn should_stop(&mut self) -> bool {
         if self.stop.load(std::sync::atomic::Ordering::SeqCst) {
             return true;
@@ -138,7 +190,7 @@ impl<const T: usize> Searcher<T> {
 
         let should_stop = match &self.time_control {
             TimeControl::Infinite => false,
-            TimeControl::FixedDepth(_) => false, // Handeled by the iterative deepening
+            TimeControl::FixedDepth(_) => false,
             TimeControl::FixedNodes(n) => self.info.nodes_searched >= *n as usize,
             TimeControl::FixedTime(t) => {
                 let duration = Instant::now().duration_since(self.info.search_start_time);
@@ -153,33 +205,26 @@ impl<const T: usize> Searcher<T> {
                     (cc.black_time.unwrap(), cc.black_inc.unwrap_or(0))
                 };
 
-                const OVERHEAD: u64 = 50;
-                let time = time - OVERHEAD.min(time);
-                let inc = if time < OVERHEAD { 0 } else { inc };
+                // Increased overhead for better network safety
+                const OVERHEAD: u64 = 100;
+                let safe_time = time.saturating_sub(OVERHEAD);
 
                 let duration_for_move = if let Some(moves) = cc.movestogo {
-                    let phase_factor = match self.game_phase {
-                        GamePhase::Opening => 0.6,
-                        GamePhase::Middle => 0.7,
-                        GamePhase::Endgame => 0.8,
-                    };
-                    let scale = phase_factor / (moves.min(40) as f64);
-                    let max_time = 0.8 * time as f64;
-                    let opt_time = (scale * time as f64).min(max_time);
-                    opt_time
+                    self.calculate_time_with_moves_to_go(safe_time, inc, moves)
                 } else {
-                    let incremental_allocation = ((time / 20) + (inc * 3 / 4)) as f64;
-                    let emergency_buffer = time as f64 * 0.02; // Reserve 2% as a safety buffer.
-                    incremental_allocation * 0.6 - emergency_buffer
+                    self.calculate_time_increment_style(safe_time, inc)
                 };
 
-                duration.as_millis() >= duration_for_move as u128
+                // Ensure minimum thinking time of 900ms
+                let min_time = 900.0;
+                let target_time = duration_for_move.max(min_time as f64);
+
+                duration.as_millis() >= target_time as u128
             }
         };
 
         if should_stop {
-            self.stop
-                .store(should_stop, std::sync::atomic::Ordering::SeqCst);
+            self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
         }
 
         should_stop
